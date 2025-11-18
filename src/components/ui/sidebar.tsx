@@ -47,7 +47,7 @@ const SidebarProvider = React.forwardRef<
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
   }
->(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
+>(({ defaultOpen = false, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
@@ -179,7 +179,13 @@ const Sidebar = React.forwardRef<
       data-variant={variant}
       data-side={side}
     >
-      {/* Removed desktop gap - sidebar now overlays */}
+      {/* Desktop overlay - closes sidebar when clicked */}
+      {state === "expanded" && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 transition-opacity duration-200"
+          onClick={() => setOpen(false)}
+        />
+      )}
       <div
         className={cn(
           "fixed inset-y-0 z-50 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",

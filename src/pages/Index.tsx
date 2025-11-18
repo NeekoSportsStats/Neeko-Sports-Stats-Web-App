@@ -54,7 +54,7 @@ const Index = () => {
 
         {/* Content */}
         <div className="w-full px-4 text-center relative z-10 max-w-7xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 text-white">
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 text-white mt-8 md:mt-0">
             <span className="text-primary">Neeko's Sports Stats</span>
           </h1>
           <p className="text-xl md:text-2xl text-white font-semibold mb-8 max-w-3xl mx-auto">

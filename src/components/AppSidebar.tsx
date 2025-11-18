@@ -69,7 +69,7 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { open: sidebarOpen, isMobile, setOpenMobile } = useSidebar();
+  const { open: sidebarOpen, isMobile, setOpenMobile, setOpen } = useSidebar();
   const { user } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -82,6 +82,8 @@ export function AppSidebar() {
   const handleLinkClick = () => {
     if (isMobile) {
       setOpenMobile(false);
+    } else {
+      setOpen(false);
     }
   };
 

@@ -21,13 +21,13 @@ export function Layout({ children }: LayoutProps) {
           {/* Header */}
           <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-14 items-center px-4">
-              <SidebarTrigger className="mr-4" />
-              
+              <SidebarTrigger className="mr-2 lg:mr-4" />
+
               <div className="flex items-center mr-auto">
-                <img src="/logo.png" alt="Neeko Sports Logo" className="h-[5.25rem] w-auto" />
+                <img src="/logo.png" alt="Neeko Sports Logo" className="h-[5.25rem] w-auto -my-3" />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 lg:gap-2">
                 {/* Neeko+ link visible to all users */}
                 <Link to="/neeko-plus">
                   <Button variant="outline" size="sm" className="gap-2">
