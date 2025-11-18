@@ -31,7 +31,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative w-full min-h-[40vh] md:min-h-[55vh] h-auto flex items-center justify-center overflow-hidden">
+      <section className="relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] min-h-[40vh] md:min-h-[55vh] h-auto flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div
           className="absolute inset-0 w-full h-full"

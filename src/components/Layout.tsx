@@ -61,9 +61,7 @@ export function Layout({ children }: LayoutProps) {
 
           {/* Main Content */}
           <main className="flex-1 overflow-auto">
-            <div className="container py-6 px-4">
-              {children}
-            </div>
+            {children}
           </main>
         </div>
       </div>
