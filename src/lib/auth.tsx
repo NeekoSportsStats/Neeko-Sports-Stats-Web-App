@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, _supabase_debug } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
@@ -23,6 +23,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Skip auth initialization if Supabase is not configured
+    if (!_supabase_debug.configured) {
+      console.warn('⚠️ Supabase not configured - running in demo mode');
+      setLoading(false);
+      return;
+    }
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
@@ -49,18 +56,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }, 0);
       }
       setLoading(false);
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const fetchPremiumStatus = async (userId: string) => {
+    if (!_supabase_debug.configured) return;
+    
     try {
       const { data: userRole, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
@@ -79,17 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Client-side check for UI display only - actual security enforced server-side
-  // All admin edge functions verify JWT and check has_role() RPC
   const checkAdminRole = async (): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !_supabase_debug.configured) return false;
     
     try {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error checking admin role');
@@ -105,7 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (_supabase_debug.configured) {
+      await supabase.auth.signOut();
+    }
     setIsPremium(false);
     navigate("/auth");
   };
