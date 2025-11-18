@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trophy, Brain, BarChart3, Target, Crown } from "lucide-react";
-import heroImage from "@/assets/hero-stadium.png";
+import heroImage from "@/assets/hero-stadium.svg";
 
 const Index = () => {
   const sports = [
