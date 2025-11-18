@@ -24,7 +24,7 @@ export function Layout({ children }: LayoutProps) {
               <SidebarTrigger className="mr-4" />
               
               <div className="flex items-center gap-2 mr-auto">
-                <img src="/logo.svg" alt="Neeko Sports" className="h-8 w-auto" />
+                <img src="/logo.png" alt="Neeko Sports Logo" className="h-8 w-auto" />
                 <span className="font-bold text-lg hidden sm:inline-block">Neeko Sports</span>
               </div>
 

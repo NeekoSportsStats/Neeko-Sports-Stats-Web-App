@@ -36,7 +36,7 @@ const Index = () => {
         <div
           className="absolute inset-0 w-full h-full"
           style={{
-            backgroundImage: `url(/hero-bg.svg)`,
+            backgroundImage: `url(/hero.jpg)`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundAttachment: "scroll",
