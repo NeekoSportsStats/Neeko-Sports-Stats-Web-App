@@ -1,4 +1,4 @@
-import { Home, Trophy, Crown, Users, Share2, ChevronDown, User, Shield, Mail, HelpCircle, FileText } from "lucide-react";
+import { Home, Trophy, Crown, Users, Share2, ChevronDown, User, Shield, Mail, HelpCircle, FileText, X } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
@@ -16,6 +16,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,
+  SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -114,6 +115,22 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="z-50">
+      <SidebarHeader className="flex flex-row items-center justify-between">
+        <span className="text-lg font-semibold">Menu</span>
+        <button
+          onClick={() => {
+            if (isMobile) {
+              setOpenMobile(false);
+            } else {
+              setOpen(false);
+            }
+          }}
+          className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
+          aria-label="Close sidebar"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
