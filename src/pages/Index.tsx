@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trophy, Brain, BarChart3, Target, Crown } from "lucide-react";
-import heroImage from "@/assets/hero-stadium.svg";
 
 const Index = () => {
   const sports = [
@@ -34,10 +33,10 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative min-h-[40vh] md:min-h-[55vh] h-auto flex items-center justify-center overflow-hidden">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 w-full h-full"
           style={{
-            backgroundImage: `url(${heroImage})`,
+            backgroundImage: `url(/hero-bg.svg)`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundAttachment: "scroll",

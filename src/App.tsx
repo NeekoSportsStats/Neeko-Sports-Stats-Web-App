@@ -13,6 +13,7 @@ import Contact from "@/pages/Contact";
 import Admin from "@/pages/Admin";
 import AdminQueue from "@/pages/AdminQueue";
 import Success from "@/pages/Success";
+import Cancel from "@/pages/Cancel";
 import CreatePassword from "@/pages/CreatePassword";
 import NotFound from "@/pages/NotFound";
 
@@ -56,6 +57,7 @@ function App() {
         <Route path="/neeko-plus" element={<Layout><NeekoPlusPurchase /></Layout>} />
         <Route path="/account" element={<Layout><Account /></Layout>} />
         <Route path="/success" element={<Layout><Success /></Layout>} />
+        <Route path="/cancel" element={<Layout><Cancel /></Layout>} />
 
         {/* Info Pages */}
         <Route path="/about" element={<Layout><About /></Layout>} />

@@ -1,24 +1,128 @@
-import { useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2, Crown, ArrowRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Success() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
+  const [loading, setLoading] = useState(true);
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    console.log("Stripe session ID:", sessionId);
-    // OPTIONAL: call Supabase to verify subscription
+    const verifySubscription = async () => {
+      if (!sessionId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: subscription } = await supabase
+            .from("subscriptions")
+            .select("*")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (subscription && ['active', 'trialing'].includes(subscription.status)) {
+            setVerified(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error verifying subscription:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifySubscription();
   }, [sessionId]);
 
   return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>🎉 Payment Successful</h1>
-      <p>Thank you for subscribing to <strong>NEEKO+</strong>.</p>
-      <p>
-        A confirmation email has been sent to your inbox. Please also check your
-        spam or junk folder. Once confirmed, you’ll receive full access to all
-        AI-powered analysis tools.
-      </p>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
+      <Card className="max-w-2xl w-full">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
+          </div>
+          <CardTitle className="text-3xl font-bold">Payment Successful!</CardTitle>
+          <CardDescription className="text-lg">
+            Welcome to Neeko+ Premium
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Verifying your subscription...</p>
+            </div>
+          ) : (
+            <>
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Your Premium Access is Active</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  You now have unlimited access to all AI-powered insights, advanced analytics,
+                  and premium features across AFL, EPL, and NBA.
+                </p>
+              </div>
+
+              {verified && (
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <p className="text-sm text-green-900 dark:text-green-100 font-medium">
+                    ✓ Subscription verified successfully
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <h4 className="font-semibold">What's Next?</h4>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <span>Check your email for a confirmation receipt from Stripe</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <span>Explore all premium features and AI insights</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <span>Manage your subscription anytime from your account settings</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button asChild className="flex-1">
+                  <Link to="/sports/afl/players">
+                    <ArrowRight className="mr-2 h-4 w-4" />
+                    Start Exploring
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="flex-1">
+                  <Link to="/account">
+                    Manage Subscription
+                  </Link>
+                </Button>
+              </div>
+
+              {sessionId && (
+                <p className="text-xs text-center text-muted-foreground pt-4">
+                  Session ID: {sessionId.slice(0, 20)}...
+                </p>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

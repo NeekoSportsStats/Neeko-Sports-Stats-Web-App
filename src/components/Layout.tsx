@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Crown, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import neekoLogo from "@/assets/neeko-sports-logo.svg";
 import { ReactNode } from "react";
 
 interface LayoutProps {
@@ -25,7 +24,7 @@ export function Layout({ children }: LayoutProps) {
               <SidebarTrigger className="mr-4" />
               
               <div className="flex items-center gap-2 mr-auto">
-                <img src={neekoLogo} alt="Neeko Sports" className="h-8 w-auto" />
+                <img src="/logo.svg" alt="Neeko Sports" className="h-8 w-auto" />
                 <span className="font-bold text-lg hidden sm:inline-block">Neeko Sports</span>
               </div>
 
