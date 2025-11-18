@@ -31,7 +31,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-[40vh] md:min-h-[55vh] h-auto flex items-center justify-center overflow-hidden w-screen ml-[calc(-50vw+50%)]">
+      <section className="relative w-full min-h-[40vh] md:min-h-[55vh] h-auto flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div
           className="absolute inset-0 w-full h-full"
@@ -43,17 +43,17 @@ const Index = () => {
             backgroundRepeat: "no-repeat",
           }}
         />
-        
+
         {/* Gradient Overlay */}
-        <div 
+        <div
           className="absolute inset-0 w-full h-full"
           style={{
             background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 100%)"
           }}
         />
-        
+
         {/* Content */}
-        <div className="container mx-auto px-4 text-center relative z-10">
+        <div className="w-full px-4 text-center relative z-10 max-w-7xl mx-auto">
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 text-white">
             <span className="text-primary">Neeko's Sports Stats</span>
           </h1>
