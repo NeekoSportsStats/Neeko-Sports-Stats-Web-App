@@ -180,14 +180,6 @@ const Sidebar = React.forwardRef<
       data-side={side}
     >
       {/* Removed desktop gap - sidebar now overlays */}
-      {/* Overlay backdrop when sidebar is open */}
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:block",
-          state === "expanded" ? "opacity-100" : "opacity-0 pointer-events-none",
-        )}
-        onClick={toggleSidebar}
-      />
       <div
         className={cn(
           "fixed inset-y-0 z-50 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",

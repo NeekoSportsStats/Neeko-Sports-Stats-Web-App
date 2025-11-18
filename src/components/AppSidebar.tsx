@@ -69,15 +69,21 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { open: sidebarOpen } = useSidebar();
+  const { open: sidebarOpen, isMobile, setOpenMobile } = useSidebar();
   const { user } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
   const [isAdmin, setIsAdmin] = useState(false);
-  
+
   const [sportsOpen, setSportsOpen] = useState(
     currentPath.startsWith("/sports")
   );
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -119,6 +125,7 @@ export function AppSidebar() {
                       end={item.url === "/"}
                       className="hover:bg-muted/50"
                       activeClassName="bg-muted text-primary font-medium"
+                      onClick={handleLinkClick}
                     >
                       <item.icon className="h-4 w-4" />
                       {sidebarOpen && <span>{item.title}</span>}
@@ -159,6 +166,7 @@ export function AppSidebar() {
                             to="/sports/afl"
                             className="hover:bg-muted/50 pl-6 font-semibold text-xs"
                             activeClassName="bg-muted text-primary font-medium"
+                            onClick={handleLinkClick}
                           >
                             {sidebarOpen && <span>AFL</span>}
                           </NavLink>
@@ -171,6 +179,7 @@ export function AppSidebar() {
                               to={subItem.url}
                               className="hover:bg-muted/50 pl-8 text-xs"
                               activeClassName="bg-muted text-primary font-medium"
+                              onClick={handleLinkClick}
                             >
                               {sidebarOpen && <span>{subItem.title}</span>}
                             </NavLink>
@@ -186,6 +195,7 @@ export function AppSidebar() {
                             to="/sports/epl"
                             className="hover:bg-muted/50 pl-6 font-semibold text-xs"
                             activeClassName="bg-muted text-primary font-medium"
+                            onClick={handleLinkClick}
                           >
                             {sidebarOpen && <span>EPL</span>}
                           </NavLink>
@@ -198,6 +208,7 @@ export function AppSidebar() {
                               to={subItem.url}
                               className="hover:bg-muted/50 pl-8 text-xs"
                               activeClassName="bg-muted text-primary font-medium"
+                              onClick={handleLinkClick}
                             >
                               {sidebarOpen && <span>{subItem.title}</span>}
                             </NavLink>
@@ -212,6 +223,7 @@ export function AppSidebar() {
                             to="/sports/nba"
                             className="hover:bg-muted/50 pl-6 font-semibold text-xs"
                             activeClassName="bg-muted text-primary font-medium"
+                            onClick={handleLinkClick}
                           >
                             {sidebarOpen && <span>NBA</span>}
                           </NavLink>
@@ -224,6 +236,7 @@ export function AppSidebar() {
                               to={subItem.url}
                               className="hover:bg-muted/50 pl-8 text-xs"
                               activeClassName="bg-muted text-primary font-medium"
+                              onClick={handleLinkClick}
                             >
                               {sidebarOpen && <span>{subItem.title}</span>}
                             </NavLink>
@@ -243,6 +256,7 @@ export function AppSidebar() {
                       to={item.url}
                       className="hover:bg-muted/50"
                       activeClassName="bg-muted text-primary font-medium"
+                      onClick={handleLinkClick}
                     >
                       <item.icon className="h-4 w-4" />
                       {sidebarOpen && <span>{item.title}</span>}
@@ -269,6 +283,7 @@ export function AppSidebar() {
                       to={item.url}
                       className="hover:bg-muted/50"
                       activeClassName="bg-muted text-primary font-medium"
+                      onClick={handleLinkClick}
                     >
                       <item.icon className="h-4 w-4" />
                       {sidebarOpen && <span>{item.title}</span>}
@@ -285,6 +300,7 @@ export function AppSidebar() {
                       to={item.url}
                       className="hover:bg-muted/50"
                       activeClassName="bg-muted text-primary font-medium"
+                      onClick={handleLinkClick}
                     >
                       <item.icon className="h-4 w-4" />
                       {sidebarOpen && <span>{item.title}</span>}
