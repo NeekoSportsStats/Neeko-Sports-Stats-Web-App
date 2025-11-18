@@ -156,7 +156,7 @@ const Sidebar = React.forwardRef<
         <SheetContent
           data-sidebar="sidebar"
           data-mobile="true"
-          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -186,7 +186,7 @@ const Sidebar = React.forwardRef<
           "fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:block",
           state === "expanded" ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
-        onClick={() => setOpenMobile(false)}
+        onClick={toggleSidebar}
       />
       <div
         className={cn(
