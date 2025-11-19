@@ -20,7 +20,7 @@ export default function Billing() {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://ghrbxldpuctygxaiqwdv.supabase.co/functions/v1/create-portal-session",
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
