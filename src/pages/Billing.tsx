@@ -20,27 +20,20 @@ export default function Billing() {
     setLoading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+        "https://ghrbxldpuctygxaiqwdv.supabase.co/functions/v1/create-portal-session",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to create portal session");
-      }
-
       const data = await response.json();
 
-      if (!data.url) {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
         throw new Error("Missing portal URL");
       }
-
-      window.location.href = data.url;
     } catch (error: any) {
       toast({
         title: "Error",

@@ -30,33 +30,32 @@ export default function NeekoPlusPurchase() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        toast({
+          title: "Please log in first",
+          description: "You need to be logged in to subscribe",
+          variant: "destructive",
+        });
+        setLoading(false);
         navigate("/auth?redirect=/neeko-plus");
         return;
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        "https://ghrbxldpuctygxaiqwdv.supabase.co/functions/v1/create-checkout-session",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: user.id }),
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to create checkout session");
-      }
+      const data = await response.json();
 
-      const session = await response.json();
-
-      if (!session.url) {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
         throw new Error("Missing checkout URL");
       }
-
-      window.location.href = session.url;
     } catch (err: any) {
       toast({
         title: "Checkout failed",

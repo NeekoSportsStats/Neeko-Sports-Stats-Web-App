@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setIsPremium(false);
-    navigate("/auth");
+    window.location.href = "/auth";
   };
 
   return (
