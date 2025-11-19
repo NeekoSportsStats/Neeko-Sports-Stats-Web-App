@@ -1,7 +1,13 @@
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CheckCircle2, Crown, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -15,14 +21,16 @@ export default function Success() {
   const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    const verifySubscription = async () => {
+    const verifyAndRedirect = async () => {
       if (!sessionId) {
         setLoading(false);
         return;
       }
 
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
         if (!user) {
           setLoading(false);
@@ -40,11 +48,26 @@ export default function Success() {
             .eq("user_id", user.id)
             .maybeSingle();
 
-          if (subscription && ['active', 'trialing'].includes(subscription.status)) {
+          if (
+            subscription &&
+            ["active", "trialing"].includes(subscription.status)
+          ) {
             setVerified(true);
-            setLoading(false);
             await refreshPremiumStatus();
-            return true;
+
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .maybeSingle();
+
+            if (profile) {
+              setLoading(false);
+              setTimeout(() => {
+                navigate("/account");
+              }, 2000);
+              return true;
+            }
           }
           return false;
         };
@@ -55,7 +78,7 @@ export default function Success() {
             if (found) return;
 
             attempts++;
-            await new Promise(resolve => setTimeout(resolve, checkInterval));
+            await new Promise((resolve) => setTimeout(resolve, checkInterval));
           }
 
           setLoading(false);
@@ -68,8 +91,8 @@ export default function Success() {
       }
     };
 
-    verifySubscription();
-  }, [sessionId, refreshPremiumStatus]);
+    verifyAndRedirect();
+  }, [sessionId, refreshPremiumStatus, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
@@ -78,7 +101,9 @@ export default function Success() {
           <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
             <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
           </div>
-          <CardTitle className="text-3xl font-bold">Payment Successful!</CardTitle>
+          <CardTitle className="text-3xl font-bold">
+            Payment Successful!
+          </CardTitle>
           <CardDescription className="text-lg">
             Welcome to Neeko+ Premium
           </CardDescription>
@@ -88,37 +113,47 @@ export default function Success() {
           {loading ? (
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-              <p className="mt-4 text-muted-foreground">Activating your subscription...</p>
-              <p className="mt-2 text-sm text-muted-foreground">This usually takes just a few seconds</p>
+              <p className="mt-4 text-muted-foreground">
+                Activating your subscription...
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This usually takes just a few seconds
+              </p>
             </div>
           ) : (
             <>
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-3">
                 <div className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Your Premium Access is Active</h3>
+                  <h3 className="font-semibold">
+                    Your Premium Access is Active
+                  </h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  You now have unlimited access to all AI-powered insights, advanced analytics,
-                  and premium features across AFL, EPL, and NBA.
+                  You now have unlimited access to all AI-powered insights,
+                  advanced analytics, and premium features across AFL, EPL, and
+                  NBA.
                 </p>
               </div>
 
-              {verified && (
+              {verified ? (
                 <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                   <p className="text-sm text-green-900 dark:text-green-100 font-medium">
                     ✓ Subscription verified successfully
                   </p>
+                  <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                    Redirecting to your account...
+                  </p>
                 </div>
-              )}
-
-              {!verified && (
+              ) : (
                 <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                   <p className="text-sm text-amber-900 dark:text-amber-100 font-medium">
-                    Payment received! Your subscription will be active within a few minutes.
+                    Payment received! Your subscription will be active within a
+                    few minutes.
                   </p>
                   <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                    If you don't see premium features immediately, try refreshing in a moment.
+                    If you don't see premium features immediately, try
+                    refreshing in a moment.
                   </p>
                 </div>
               )}
@@ -128,7 +163,9 @@ export default function Success() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                    <span>Check your email for a confirmation receipt from Stripe</span>
+                    <span>
+                      Check your email for a confirmation receipt from Stripe
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -136,22 +173,23 @@ export default function Success() {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                    <span>Manage your subscription anytime from your account settings</span>
+                    <span>
+                      Manage your subscription anytime from your account
+                      settings
+                    </span>
                   </li>
                 </ul>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button asChild className="flex-1">
-                  <Link to="/sports/afl/players">
+                  <a href="/sports/afl/players">
                     <ArrowRight className="mr-2 h-4 w-4" />
                     Start Exploring
-                  </Link>
+                  </a>
                 </Button>
                 <Button asChild variant="outline" className="flex-1">
-                  <Link to="/account">
-                    View Account
-                  </Link>
+                  <a href="/account">View Account</a>
                 </Button>
               </div>
 

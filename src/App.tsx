@@ -6,6 +6,7 @@ import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import NeekoPlusPurchase from "@/pages/NeekoPlusPurchase";
 import Account from "@/pages/Account";
+import Billing from "@/pages/Billing";
 import About from "@/pages/About";
 import Socials from "@/pages/Socials";
 import FAQ from "@/pages/FAQ";
@@ -56,6 +57,7 @@ function App() {
         {/* Core Pages */}
         <Route path="/neeko-plus" element={<Layout><NeekoPlusPurchase /></Layout>} />
         <Route path="/account" element={<Layout><Account /></Layout>} />
+        <Route path="/billing" element={<Layout><Billing /></Layout>} />
         <Route path="/success" element={<Layout><Success /></Layout>} />
         <Route path="/cancel" element={<Layout><Cancel /></Layout>} />
 
