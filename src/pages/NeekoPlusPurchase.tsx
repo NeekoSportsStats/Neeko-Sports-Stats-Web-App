@@ -21,6 +21,8 @@ export default function NeekoPlusPurchase() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const priceId = import.meta.env.VITE_STRIPE_PRICE_ID;
+
   const handleSubscribe = async () => {
     setLoading(true);
 
@@ -43,7 +45,10 @@ export default function NeekoPlusPurchase() {
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id }),
+        body: JSON.stringify({
+          userId: user.id,
+          priceId: priceId
+        }),
       });
 
       const data = await response.json();

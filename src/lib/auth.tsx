@@ -123,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setIsPremium(false);
+    localStorage.clear();
+    sessionStorage.clear();
     window.location.href = "/";
   };
 
