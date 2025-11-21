@@ -1,10 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-console.log("📦 [supabaseClient] Initialising Supabase client");
-console.log("🌍 VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
-console.log("🔑 VITE_SUPABASE_ANON_KEY Loaded:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-
-const client = createClient(
+export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
   {
@@ -12,17 +8,12 @@ const client = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined
+      storage: typeof window !== "undefined" ? localStorage : undefined,
+    },
+    global: {
+      headers: {
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      }
     }
   }
 );
-
-client.auth.onAuthStateChange((event, session) => {
-  console.log("🌀 [AuthStateChange] Event:", event);
-  console.log("🗂 [Auth Session Snapshot]:", session);
-  console.log("🗂 [Auth User]:", session?.user?.email);
-});
-
-console.log("✅ [supabaseClient] Client initialized");
-
-export const supabase = client;

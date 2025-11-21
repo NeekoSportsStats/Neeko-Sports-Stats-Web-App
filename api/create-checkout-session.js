@@ -2,8 +2,6 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 export default async function handler(req, res) {
-  console.log("⏳ Incoming checkout request");
-
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -41,8 +39,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "User email not found" });
     }
 
-    console.log("✔ Profile found:", profile.email);
-
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
     const session = await stripe.checkout.sessions.create({
@@ -52,8 +48,6 @@ export default async function handler(req, res) {
       success_url: `${process.env.NEXT_PUBLIC_URL}/account`,
       cancel_url: `${process.env.NEXT_PUBLIC_URL}/account`
     });
-
-    console.log("✔ Stripe checkout created:", session.id);
 
     return res.status(200).json({ url: session.url });
 

@@ -101,9 +101,7 @@ const CreatePassword = () => {
     setLoading(true);
     
     try {
-      console.log("📦 [CreatePassword - getSession] Called");
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("📦 [CreatePassword - getSession] Result:", session);
 
       if (!session) {
         toast.error("Authentication required. Please contact support.");

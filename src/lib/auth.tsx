@@ -40,20 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    console.log("📦 [AuthProvider - getSession] Called on mount");
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log("📦 [AuthProvider - getSession] Result:", session);
-      console.log("📦 [AuthProvider - getSession] User:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        console.log("📦 [AuthProvider] Fetching premium status for:", session.user.id);
         await fetchPremiumStatus(session.user.id);
       }
       setLoading(false);
     }).catch((error) => {
-      console.error('❌ [AuthProvider - getSession] Error:', error);
+      console.error('Error getting session:', error);
       setLoading(false);
     });
 
@@ -125,28 +121,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log("🚪 [Logout] User clicked logout");
+    await supabase.auth.signOut();
 
-    await supabase.auth.signOut()
-      .then(() => console.log("🚪 [Logout] supabase.signOut() complete"))
-      .catch(e => console.error("🔥 [Logout] Error:", e));
-
-    setIsPremium(false);
-
-    console.log("🧹 [Logout] Clearing localStorage");
-    localStorage.clear();
-
-    console.log("🧹 [Logout] Clearing sessionStorage");
-    sessionStorage.clear();
-
-    console.log("🧹 [Logout] Clearing cookies");
-    document.cookie.split(";").forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
+    localStorage.removeItem("supabase.auth.token");
+    Object.keys(localStorage).forEach(key => {
+      if (key.includes("sb-") && key.includes("-auth-token")) {
+        localStorage.removeItem(key);
+      }
     });
 
-    console.log("🚪 [Logout] COMPLETE - Redirecting to home");
+    setUser(null);
+    setSession(null);
+    setIsPremium(false);
+
     window.location.href = "/";
   };
 

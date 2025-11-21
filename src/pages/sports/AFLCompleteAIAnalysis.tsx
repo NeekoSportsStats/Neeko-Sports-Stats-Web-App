@@ -162,9 +162,7 @@ export default function AFLCompleteAIAnalysis() {
     setIsRefreshing(true);
 
     try {
-      console.log("📦 [AFLCompleteAIAnalysis - getSession] Called");
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("📦 [AFLCompleteAIAnalysis - getSession] Result:", session);
       
       if (!session) {
         throw new Error("No active session");

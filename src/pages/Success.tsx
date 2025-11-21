@@ -28,11 +28,9 @@ export default function Success() {
       }
 
       try {
-        console.log("🔍 [Success.tsx - getUser] Called");
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        console.log("🔍 [Success.tsx - getUser] Result:", user);
 
         if (!user) {
           setLoading(false);

@@ -31,11 +31,8 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log("📦 [Auth.tsx - getSession] Called on mount");
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("📦 [Auth.tsx - getSession] Result:", session);
       if (session) {
-        console.log("📦 [Auth.tsx] User already logged in, redirecting to:", redirect);
         navigate(redirect);
       }
     });

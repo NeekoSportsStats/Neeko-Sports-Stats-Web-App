@@ -129,9 +129,7 @@ export default function Admin() {
     setIsRefreshing(true);
 
     try {
-      console.log("📦 [Admin.tsx - getSession] Called");
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("📦 [Admin.tsx - getSession] Result:", session);
 
       if (!session) {
         throw new Error("No active session");
