@@ -40,7 +40,7 @@ export default function NeekoPlusPurchase() {
         return;
       }
 
-      const res = await fetch("https://zbomenuickrogthnsozb.functions.supabase.co/checkout", {
+      const res = await fetch("https://zbomenuickrogthnsozb.functions.supabase.co/create-checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
