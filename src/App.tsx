@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthProvider } from "@/lib/auth";
@@ -44,6 +45,21 @@ import NBACompleteAIAnalysis from "@/pages/sports/NBACompleteAIAnalysis";
 import NBAMatchCentre from "@/pages/sports/NBAMatchCentre";
 
 function App() {
+  useEffect(() => {
+    console.log("🗄 [App - Storage Watcher] Mounted");
+    console.log("🗄 [Storage] localStorage keys:", Object.keys(localStorage));
+    console.log("🗄 [Storage] sessionStorage keys:", Object.keys(sessionStorage));
+    console.log("🍪 [Storage] Cookies:", document.cookie);
+
+    const interval = setInterval(() => {
+      console.log("🔄 [Storage Watcher] Periodic check");
+      console.log("🗄 [Storage] localStorage keys:", Object.keys(localStorage));
+      console.log("🗄 [Storage] sessionStorage keys:", Object.keys(sessionStorage));
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <AuthProvider>
       <Routes>

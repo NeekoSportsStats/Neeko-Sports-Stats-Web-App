@@ -161,7 +161,9 @@ export default function NBACompleteAIAnalysis() {
     setIsRefreshing(true);
 
     try {
+      console.log("📦 [NBACompleteAIAnalysis - getSession] Called");
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("📦 [NBACompleteAIAnalysis - getSession] Result:", session);
       
       if (!session) {
         throw new Error("No active session");

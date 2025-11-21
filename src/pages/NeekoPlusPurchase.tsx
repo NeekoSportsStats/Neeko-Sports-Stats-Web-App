@@ -24,14 +24,19 @@ export default function NeekoPlusPurchase() {
   const priceId = import.meta.env.VITE_STRIPE_PRICE_ID;
 
   const handleSubscribe = async () => {
+    console.log("🛒 [Subscribe] Button clicked");
     setLoading(true);
 
     try {
+      console.log("🔍 [NeekoPlusPurchase - getUser] Called");
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      console.log("🔍 [NeekoPlusPurchase - getUser] Result:", user);
+      console.log("🛒 [Subscribe] Current user:", user);
 
       if (!user) {
+        console.log("🛒 [Subscribe] No user found, redirecting to auth");
         toast({
           title: "Please log in first",
           description: "You need to be logged in to subscribe",
@@ -42,6 +47,11 @@ export default function NeekoPlusPurchase() {
         return;
       }
 
+      console.log("🛒 [Subscribe] Sending request to /api/create-checkout-session", {
+        userId: user.id,
+        priceId: priceId
+      });
+
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,12 +61,15 @@ export default function NeekoPlusPurchase() {
         }),
       });
 
+      console.log("🛒 [Subscribe] Response status:", response.status);
       const data = await response.json();
+      console.log("🛒 [Subscribe] Response json:", data);
 
       if (data.url) {
+        console.log("🛒 [Subscribe] Redirecting to Stripe checkout:", data.url);
         window.location.href = data.url;
       } else {
-        console.error('Checkout error:', data);
+        console.error('🛒 [Subscribe] Checkout error - no URL:', data);
         throw new Error("Missing checkout URL");
       }
     } catch (err: any) {

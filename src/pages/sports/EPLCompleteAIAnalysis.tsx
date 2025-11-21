@@ -162,7 +162,9 @@ export default function EPLCompleteAIAnalysis() {
     setIsRefreshing(true);
 
     try {
+      console.log("📦 [EPLCompleteAIAnalysis - getSession] Called");
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("📦 [EPLCompleteAIAnalysis - getSession] Result:", session);
       
       if (!session) {
         throw new Error("No active session");
