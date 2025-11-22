@@ -16,7 +16,7 @@ export default function Success() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
-  // 🔥 FIX: safely read refreshPremiumStatus so it never crashes
+  // Keep reading it safely (unchanged)
   const { refreshPremiumStatus } = useAuth() || {};
 
   const sessionId = params.get("session_id");
@@ -27,7 +27,7 @@ export default function Success() {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
 
-    const verifyAndRedirect = async () => {
+    const verifyOnce = async () => {
       if (!sessionId) {
         console.log("❌ No session_id found in URL");
         setLoading(false);
@@ -44,67 +44,34 @@ export default function Success() {
           return;
         }
 
-        let attempts = 0;
-        const maxAttempts = 10;
-        const checkInterval = 2000;
+        console.log("📡 Checking profile ONE TIME...");
 
-        const checkProfile = async () => {
-          console.log(`📡 Checking profile attempt ${attempts + 1}`);
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("subscription_status")
+          .eq("id", user.id)
+          .maybeSingle();
 
-          const { data: profile, error } = await supabase
-            .from("profiles")
-            .select("subscription_status")
-            .eq("id", user.id)
-            .maybeSingle();
+        console.log("📄 profiles row:", profile);
+        console.log("🐛 profiles fetch error:", error);
 
-          console.log("📄 profiles row:", profile);
-          console.log("🐛 profiles fetch error:", error);
+        if (profile?.subscription_status === "active") {
+          console.log("🎉 Subscription is ACTIVE in DB");
+          setVerified(true);
+        } else {
+          console.log("⚠️ Subscription not active yet");
+        }
 
-          if (profile?.subscription_status === "active") {
-            console.log("🎉 Subscription is ACTIVE in DB");
+        setLoading(false);
 
-            setVerified(true);
-
-            // 🔥 FIX: guard in case context isn't ready yet
-            if (typeof refreshPremiumStatus === "function") {
-              console.log("🔄 Running refreshPremiumStatus()");
-              await refreshPremiumStatus();
-            } else {
-              console.warn("⚠️ refreshPremiumStatus is not a function (context not ready?)");
-            }
-
-            console.log("➡️ Redirecting to /account in 2 seconds...");
-            setLoading(false);
-            setTimeout(() => navigate("/account"), 2000);
-
-            return true;
-          }
-
-          return false;
-        };
-
-        const poll = async () => {
-          while (attempts < maxAttempts) {
-            const ok = await checkProfile();
-            if (ok) return;
-
-            attempts++;
-            await new Promise((resolve) => setTimeout(resolve, checkInterval));
-          }
-
-          console.log("🟡 Max attempts reached — subscription still not active");
-          setLoading(false);
-        };
-
-        await poll();
       } catch (error) {
         console.error("🔥 Fatal error verifying subscription:", error);
         setLoading(false);
       }
     };
 
-    verifyAndRedirect();
-  }, [sessionId, refreshPremiumStatus, navigate]);
+    verifyOnce();
+  }, [sessionId]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
@@ -150,9 +117,6 @@ export default function Success() {
                 <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                   <p className="text-sm text-green-900 dark:text-green-100 font-medium">
                     ✓ Subscription verified successfully
-                  </p>
-                  <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                    Redirecting to your account...
                   </p>
                 </div>
               ) : (
