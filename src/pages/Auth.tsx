@@ -46,6 +46,7 @@ const Auth = () => {
     });
   }, [navigate, redirect]);
 
+  // 🔥 FIXED — COMPLETE & VALID PROFILE CREATION
   const createOrGetUserProfile = async (userId: string, userEmail: string) => {
     console.log("🛠 Creating or fetching user profile:", { userId, userEmail });
 
@@ -69,7 +70,9 @@ const Auth = () => {
             subscription_status: "free",   // required
             subscription_tier: "free",     // required
             plan: "free",                  // required
-            is_active: true                // required
+            is_active: true,               // required
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           });
 
         if (insertError) {
