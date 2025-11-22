@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthProvider } from "@/lib/auth";
 
-import RequireAuth from "@/components/RequireAuth"; // 🔥 ADDED
+import RequireAuth from "@/components/RequireAuth";
 
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
@@ -49,17 +49,15 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Auth page WITHOUT layout */}
+        {/* 🔓 Public Auth Pages */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/create-password" element={<CreatePassword />} />
 
-        {/* Home */}
+        {/* 🔓 Public Pages */}
         <Route path="/" element={<Layout><Index /></Layout>} />
-
-        {/* Core Pages */}
         <Route path="/neeko-plus" element={<Layout><NeekoPlusPurchase /></Layout>} />
 
-        {/* 🔥 Protected Pages */}
+        {/* 🔐 Protected Pages */}
         <Route
           path="/account"
           element={
@@ -78,25 +76,11 @@ function App() {
           }
         />
 
-        <Route
-          path="/success"
-          element={
-            <RequireAuth>
-              <Layout><Success /></Layout>
-            </RequireAuth>
-          }
-        />
+        {/* 🚫 IMPORTANT: Success + Cancel MUST be public */}
+        <Route path="/success" element={<Layout><Success /></Layout>} />
+        <Route path="/cancel" element={<Layout><Cancel /></Layout>} />
 
-        <Route
-          path="/cancel"
-          element={
-            <RequireAuth>
-              <Layout><Cancel /></Layout>
-            </RequireAuth>
-          }
-        />
-
-        {/* Admin Pages (also protected) */}
+        {/* 🔐 Admin */}
         <Route
           path="/admin"
           element={
@@ -105,7 +89,6 @@ function App() {
             </RequireAuth>
           }
         />
-
         <Route
           path="/admin/queue"
           element={
@@ -115,13 +98,13 @@ function App() {
           }
         />
 
-        {/* Info Pages */}
+        {/* 🔓 Info Pages */}
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/socials" element={<Layout><Socials /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
         <Route path="/contact" element={<Layout><Contact /></Layout>} />
 
-        {/* Policy Pages */}
+        {/* 🔓 Policy Pages */}
         <Route path="/policies" element={<Layout><Policies /></Layout>} />
         <Route path="/policies/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
         <Route path="/policies/refund" element={<Layout><RefundPolicy /></Layout>} />
@@ -129,21 +112,19 @@ function App() {
         <Route path="/policies/terms" element={<Layout><TermsConditions /></Layout>} />
         <Route path="/policies/user-conduct" element={<Layout><UserConductPolicy /></Layout>} />
 
-        {/* AFL Routes */}
+        {/* 🔓 Sports Pages */}
         <Route path="/sports/afl" element={<Layout><AFLHub /></Layout>} />
         <Route path="/sports/afl/players" element={<Layout><AFLPlayers /></Layout>} />
         <Route path="/sports/afl/teams" element={<Layout><AFLTeams /></Layout>} />
         <Route path="/sports/afl/ai-analysis" element={<Layout><AFLCompleteAIAnalysis /></Layout>} />
         <Route path="/sports/afl/match-centre" element={<Layout><AFLMatchCentre /></Layout>} />
 
-        {/* EPL Routes */}
         <Route path="/sports/epl" element={<Layout><EPLHub /></Layout>} />
         <Route path="/sports/epl/players" element={<Layout><EPLPlayers /></Layout>} />
         <Route path="/sports/epl/teams" element={<Layout><EPLTeams /></Layout>} />
         <Route path="/sports/epl/ai-analysis" element={<Layout><EPLCompleteAIAnalysis /></Layout>} />
         <Route path="/sports/epl/match-centre" element={<Layout><EPLMatchCentre /></Layout>} />
 
-        {/* NBA Routes */}
         <Route path="/sports/nba" element={<Layout><NBAHub /></Layout>} />
         <Route path="/sports/nba/players" element={<Layout><NBAPlayers /></Layout>} />
         <Route path="/sports/nba/teams" element={<Layout><NBATeams /></Layout>} />
