@@ -51,10 +51,15 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
+      // --------------------------
+      // LOGIN
+      // --------------------------
       if (isLogin) {
+        console.log("🔵 LOGIN payload", { email, password });
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password,
+          password
         });
 
         if (error) {
@@ -76,14 +81,27 @@ const Auth = () => {
         return;
       }
 
+      // --------------------------
+      // SIGNUP
+      // --------------------------
       passwordSchema.parse(password);
 
       if (password !== confirmPassword)
         throw new Error("Passwords do not match");
 
+      // 🔵 DEBUG LOGS (Important)
+      console.log("🟦 SIGNUP DEBUG:");
+      console.log("EMAIL:", email);
+      console.log("PASSWORD:", password);
+      console.log("CONFIRM:", confirmPassword);
+
+      // 🔥 IMPORTANT FIX: enforce JSON structure so browser doesn't block it
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+        }
       });
 
       if (error?.status === 422) {
@@ -107,6 +125,7 @@ const Auth = () => {
       return;
 
     } catch (err: any) {
+      console.error("🔥 AUTH ERROR:", err);
       toast({
         title: "Error",
         description: err.message,
@@ -164,6 +183,7 @@ const Auth = () => {
                   setEmailError("Invalid email address");
                 }
               }}
+              autoComplete="email"
               required
             />
             {emailError && <p className="text-red-500 text-xs">{emailError}</p>}
