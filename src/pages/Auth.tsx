@@ -19,9 +19,7 @@ const passwordSchema = z
   .regex(/[0-9]/, "Must contain at least one number")
   .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol");
 
-const Auth = () => {
-  console.log("🔵 Auth page mounted");
-
+export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,8 +28,10 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Live validation
   const [emailError, setEmailError] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(false);
+
   const [passwordChecks, setPasswordChecks] = useState({
     length: false,
     upper: false,
@@ -40,12 +40,10 @@ const Auth = () => {
     symbol: false,
   });
 
-  const [loading, setLoading] = useState(false);
-
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const redirect = searchParams.get("redirect") || "/";
 
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,10 +52,8 @@ const Auth = () => {
     });
   }, [navigate, redirect]);
 
-  // ------------------------------
-  // 🔎 LIVE VALIDATION
-  // ------------------------------
-  const validateEmailLive = (value: string) => {
+  // 🔵 VALIDATION
+  const validateEmail = (value: string) => {
     try {
       emailSchema.parse(value);
       setEmailError(null);
@@ -66,7 +62,7 @@ const Auth = () => {
     }
   };
 
-  const validatePasswordLive = (value: string) => {
+  const validatePassword = (value: string) => {
     setPasswordChecks({
       length: value.length >= 10,
       upper: /[A-Z]/.test(value),
@@ -88,9 +84,7 @@ const Auth = () => {
     !emailError &&
     (isLogin ? true : passwordValid && password === confirmPassword);
 
-  // ------------------------------
-  // 👤 PROFILE CREATION
-  // ------------------------------
+  // 🔵 PROFILE CREATION
   const createOrGetUserProfile = async (userId: string, userEmail: string) => {
     const { data: existing } = await supabase
       .from("profiles")
@@ -112,9 +106,7 @@ const Auth = () => {
     }
   };
 
-  // ------------------------------
-  // 🔐 AUTH SUBMIT
-  // ------------------------------
+  // 🔵 AUTH HANDLER
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -124,35 +116,39 @@ const Auth = () => {
 
       if (!isLogin) {
         passwordSchema.parse(password);
-        if (password !== confirmPassword)
+        if (password !== confirmPassword) {
           throw new Error("Passwords do not match");
+        }
       }
 
-      // ============================
-      // ✅ FIXED LOGIN LOGIC HERE
-      // ============================
+      // ------------------------------
+      // 🔵 LOGIN
+      // ------------------------------
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        const session = data.session;
-
-        // ❌ NO session = login failed
-        if (!session) {
-          throw new Error("Incorrect email or password");
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            throw new Error("Incorrect email or password");
+          }
+          throw error;
         }
 
-        // ✔ Create profile AFTER verified login
-        await createOrGetUserProfile(session.user.id, session.user.email!);
+        if (data.user) {
+          await createOrGetUserProfile(data.user.id, data.user.email!);
+        }
 
         toast({ title: "Welcome back!" });
         navigate(redirect);
         return;
       }
 
-      // SIGN UP
+      // ------------------------------
+      // 🔵 SIGN UP
+      // ------------------------------
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -161,6 +157,7 @@ const Auth = () => {
         },
       });
 
+      // 🔥 FIX: Detect existing account properly
       if (error) {
         if (
           error.message.includes("User already registered") ||
@@ -171,25 +168,24 @@ const Auth = () => {
             description: "Please sign in instead.",
             variant: "destructive",
           });
-
           setIsLogin(true);
           return;
         }
-
         throw error;
       }
 
-      if (data.user)
+      if (data.user) {
         await createOrGetUserProfile(data.user.id, data.user.email!);
+      }
 
       toast({
         title: "Account Created!",
         description: "Check your email to verify your account.",
       });
-    } catch (error: any) {
+    } catch (err: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
     } finally {
@@ -197,9 +193,9 @@ const Auth = () => {
     }
   };
 
-  // ------------------------------
-  // UI
-  // ------------------------------
+  // -------------------------
+  // 🔵 UI
+  // -------------------------
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8 space-y-6">
@@ -225,6 +221,7 @@ const Auth = () => {
           </h2>
         </div>
 
+        {/* FORM */}
         <form onSubmit={handleAuth} className="space-y-4">
           {/* EMAIL */}
           <div className="space-y-2">
@@ -233,7 +230,7 @@ const Auth = () => {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                validateEmailLive(e.target.value);
+                validateEmail(e.target.value);
               }}
               autoComplete="email"
               required
@@ -246,7 +243,6 @@ const Auth = () => {
           {/* PASSWORD */}
           <div className="space-y-2">
             <Label>Password</Label>
-
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
@@ -254,19 +250,21 @@ const Auth = () => {
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  validatePasswordLive(e.target.value);
+                  validatePassword(e.target.value);
                 }}
                 required
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2"
               >
                 {showPassword ? "🙈" : "👁"}
               </button>
             </div>
 
+            {/* LIVE CHECKLIST */}
             {!isLogin && (
               <div className="text-xs mt-2 space-y-1">
                 <p className={passwordChecks.length ? "text-green-600" : "text-red-500"}>
@@ -304,7 +302,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
                   {showConfirm ? "🙈" : "👁"}
                 </button>
@@ -312,15 +310,17 @@ const Auth = () => {
             </div>
           )}
 
+          {/* SUBMIT */}
           <Button
             type="submit"
             className="w-full"
             disabled={loading || !canSubmit}
           >
-            {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+            {loading ? "Loading…" : isLogin ? "Sign In" : "Sign Up"}
           </Button>
         </form>
 
+        {/* SWITCH MODE */}
         <div className="text-center text-sm">
           <button
             onClick={() => setIsLogin(!isLogin)}
@@ -334,6 +334,4 @@ const Auth = () => {
       </Card>
     </div>
   );
-};
-
-export default Auth;
+}
