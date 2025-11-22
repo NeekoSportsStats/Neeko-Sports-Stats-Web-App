@@ -7,15 +7,20 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   const navigate = useNavigate();
   const location = useLocation();
 
+  const path = location.pathname;
+
   useEffect(() => {
-    // Always wait for auth to finish loading
     if (loading) return;
 
-    // If still no user AFTER loading → then redirect
-    if (!user) {
-      navigate(`/auth?redirect=${location.pathname}`, { replace: true });
+    // 🚫 Never redirect on auth pages — this was breaking signup
+    if (path.startsWith("/auth") || path.startsWith("/create-password")) {
+      return;
     }
-  }, [user, loading, navigate, location.pathname]);
+
+    if (!user) {
+      navigate(`/auth?redirect=${path}`, { replace: true });
+    }
+  }, [user, loading, navigate, path]);
 
   if (loading) {
     return (
@@ -25,10 +30,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     );
   }
 
-  // If user is null but loading finished, the effect will redirect
-  if (!user) {
-    return null; // Prevent flash
-  }
+  if (!user) return null;
 
   return <>{children}</>;
 }
