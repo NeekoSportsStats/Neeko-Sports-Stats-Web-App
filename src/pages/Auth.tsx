@@ -61,18 +61,16 @@ const Auth = () => {
       if (!existingProfile) {
         console.log("➕ No profile found — creating new profile...");
 
-        // 🔥 FIXED: Correct column name
         const { error: insertError } = await supabase
           .from("profiles")
-          ..insert({
-              id: userId,
-              email: userEmail,
-              subscription_status: "free",        // required
-              subscription_tier: "free",          // required
-              plan: "free",                       // required
-              is_active: true                     // required
-            })
-
+          .insert({
+            id: userId,
+            email: userEmail,
+            subscription_status: "free",   // required
+            subscription_tier: "free",     // required
+            plan: "free",                  // required
+            is_active: true                // required
+          });
 
         if (insertError) {
           console.error("❌ Profile insert error:", insertError);
@@ -98,9 +96,7 @@ const Auth = () => {
       emailSchema.parse(email);
       passwordSchema.parse(password);
 
-      //
-      // 🔐 LOGIN
-      //
+      // LOGIN
       if (isLogin) {
         console.log("🔐 Attempting login...");
 
@@ -128,9 +124,7 @@ const Auth = () => {
         return;
       }
 
-      //
-      // 🆕 SIGN-UP
-      //
+      // SIGN-UP
       console.log("🆕 Attempting sign-up...");
 
       const { data, error } = await supabase.auth.signUp({
@@ -143,7 +137,6 @@ const Auth = () => {
 
       console.log("🔵 Sign-up response:", { data, error });
 
-      // 🔥 FIX: Handle "User already registered"
       if (error) {
         if (error.message.includes("User already registered")) {
           console.warn("⚠️ Account already exists — switching to login");
@@ -165,8 +158,6 @@ const Auth = () => {
       if (data.user) {
         console.log("✔ Signup successful — creating profile...");
         await createOrGetUserProfile(data.user.id, data.user.email!);
-      } else {
-        console.log("⚠️ Signup returned no user (email confirmation required?)");
       }
 
       toast({
