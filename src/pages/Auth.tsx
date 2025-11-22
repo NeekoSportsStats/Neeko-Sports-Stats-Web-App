@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -44,66 +44,6 @@ const Auth = () => {
   const redirect = searchParams.get("redirect") || "/";
   const { toast } = useToast();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate(redirect);
-    });
-  }, []);
-
-  // Live validation
-  const validateEmailLive = (value: string) => {
-    try {
-      emailSchema.parse(value);
-      setEmailError(null);
-    } catch {
-      setEmailError("Invalid email address");
-    }
-  };
-
-  const validatePasswordLive = (value: string) => {
-    setPasswordChecks({
-      length: value.length >= 10,
-      upper: /[A-Z]/.test(value),
-      lower: /[a-z]/.test(value),
-      digit: /[0-9]/.test(value),
-      symbol: /[^A-Za-z0-9]/.test(value),
-    });
-  };
-
-  const passwordValid =
-    passwordChecks.length &&
-    passwordChecks.upper &&
-    passwordChecks.lower &&
-    passwordChecks.digit &&
-    passwordChecks.symbol;
-
-  const canSubmit =
-    email &&
-    !emailError &&
-    (isLogin ? true : passwordValid && password === confirmPassword);
-
-  // Profile creation
-  const createOrGetUserProfile = async (userId: string, userEmail: string) => {
-    const { data: existing } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!existing) {
-      await supabase.from("profiles").insert({
-        id: userId,
-        email: userEmail,
-        subscription_status: "free",
-        subscription_tier: "free",
-        plan: "free",
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    }
-  };
-
   // --------------------------------------
   // 🔐 FIXED AUTH SUBMIT
   // --------------------------------------
@@ -114,9 +54,7 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
-      // -----------------------------
       // LOGIN
-      // -----------------------------
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -124,7 +62,6 @@ const Auth = () => {
         });
 
         if (error) {
-          // Supabase ALWAYS returns this for wrong email OR wrong password
           if (error.status === 400 || error.message.includes("Invalid login credentials")) {
             throw new Error("Incorrect email or password");
           }
@@ -132,28 +69,29 @@ const Auth = () => {
           throw error;
         }
 
-        if (data.user)
-          await createOrGetUserProfile(data.user.id, data.user.email!);
+        if (data.user) {
+          await supabase.from("profiles").upsert({
+            id: data.user.id,
+            email: data.user.email!,
+          });
+        }
 
         toast({ title: "Welcome back!" });
         navigate(redirect);
         return;
       }
 
-      // -----------------------------
       // SIGN UP
-      // -----------------------------
       passwordSchema.parse(password);
 
       if (password !== confirmPassword)
         throw new Error("Passwords do not match");
 
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      // Supabase returns 422 for existing account
       if (error?.status === 422) {
         toast({
           title: "Account already exists",
@@ -171,7 +109,6 @@ const Auth = () => {
         description: "You can now sign in.",
       });
 
-      // AFTER successful signup, switch to login WITHOUT triggering login
       setIsLogin(true);
       return;
 
@@ -186,12 +123,13 @@ const Auth = () => {
     }
   };
 
-  // -------------------------------------------------
+  // --------------------------------------
   // UI
-  // -------------------------------------------------
+  // --------------------------------------
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8 space-y-6">
+
         <Button onClick={() => navigate("/")} variant="ghost" size="sm" className="-mt-2 mb-2">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
@@ -201,6 +139,7 @@ const Auth = () => {
             <Trophy className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold gradient-text">Neeko's Sports Stats</h1>
           </div>
+
           <h2 className="text-xl font-semibold">
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
@@ -214,7 +153,12 @@ const Auth = () => {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                validateEmailLive(e.target.value);
+                try {
+                  emailSchema.parse(e.target.value);
+                  setEmailError(null);
+                } catch {
+                  setEmailError("Invalid email address");
+                }
               }}
               required
             />
@@ -231,7 +175,14 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  validatePasswordLive(e.target.value);
+                  const v = e.target.value;
+                  setPasswordChecks({
+                    length: v.length >= 10,
+                    upper: /[A-Z]/.test(v),
+                    lower: /[a-z]/.test(v),
+                    digit: /[0-9]/.test(v),
+                    symbol: /[^A-Za-z0-9]/.test(v),
+                  });
                 }}
                 required
               />
@@ -293,10 +244,7 @@ const Auth = () => {
         </form>
 
         <div className="text-center text-sm">
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-primary hover:underline"
-          >
+          <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline">
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>
         </div>
