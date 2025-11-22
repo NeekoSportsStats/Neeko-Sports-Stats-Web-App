@@ -176,7 +176,7 @@ const Auth = () => {
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
-                autoComplete={isLogin ? "current-password" : "new-password"}   {/* ✅ FIX */}
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -228,7 +228,7 @@ const Auth = () => {
               <div className="relative">
                 <Input
                   type={showConfirm ? "text" : "password"}
-                  autoComplete="new-password"       {/* ✅ FIX */}
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
