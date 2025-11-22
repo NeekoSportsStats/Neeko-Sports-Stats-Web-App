@@ -19,7 +19,9 @@ const passwordSchema = z
   .regex(/[0-9]/, "Must contain at least one number")
   .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol");
 
-export default function Auth() {
+const Auth = () => {
+  console.log("🔵 Auth page mounted");
+
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,9 +31,6 @@ export default function Auth() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [emailError, setEmailError] = useState<string | null>(null);
-
-  const [loading, setLoading] = useState(false);
-
   const [passwordChecks, setPasswordChecks] = useState({
     length: false,
     upper: false,
@@ -40,10 +39,12 @@ export default function Auth() {
     symbol: false,
   });
 
+  const [loading, setLoading] = useState(false);
+
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const redirect = searchParams.get("redirect") || "/";
 
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,8 +53,7 @@ export default function Auth() {
     });
   }, [navigate, redirect]);
 
-  // 🔵 VALIDATION
-  const validateEmail = (value: string) => {
+  const validateEmailLive = (value: string) => {
     try {
       emailSchema.parse(value);
       setEmailError(null);
@@ -62,7 +62,7 @@ export default function Auth() {
     }
   };
 
-  const validatePassword = (value: string) => {
+  const validatePasswordLive = (value: string) => {
     setPasswordChecks({
       length: value.length >= 10,
       upper: /[A-Z]/.test(value),
@@ -84,7 +84,6 @@ export default function Auth() {
     !emailError &&
     (isLogin ? true : passwordValid && password === confirmPassword);
 
-  // 🔵 PROFILE CREATION
   const createOrGetUserProfile = async (userId: string, userEmail: string) => {
     const { data: existing } = await supabase
       .from("profiles")
@@ -106,7 +105,9 @@ export default function Auth() {
     }
   };
 
-  // 🔵 AUTH HANDLER
+  // --------------------------------------
+  // 🔐 AUTH SUBMIT — FIXED VERSION
+  // --------------------------------------
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -114,16 +115,9 @@ export default function Auth() {
     try {
       emailSchema.parse(email);
 
-      if (!isLogin) {
-        passwordSchema.parse(password);
-        if (password !== confirmPassword) {
-          throw new Error("Passwords do not match");
-        }
-      }
-
-      // ------------------------------
-      // 🔵 LOGIN
-      // ------------------------------
+      // -----------------------------
+      // LOGIN
+      // -----------------------------
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -134,6 +128,7 @@ export default function Auth() {
           if (error.message.includes("Invalid login credentials")) {
             throw new Error("Incorrect email or password");
           }
+
           throw error;
         }
 
@@ -146,9 +141,13 @@ export default function Auth() {
         return;
       }
 
-      // ------------------------------
-      // 🔵 SIGN UP
-      // ------------------------------
+      // -----------------------------
+      // SIGN UP
+      // -----------------------------
+      passwordSchema.parse(password);
+      if (password !== confirmPassword)
+        throw new Error("Passwords do not match");
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -157,31 +156,27 @@ export default function Auth() {
         },
       });
 
-      // 🔥 FIX: Detect existing account properly
-      if (error) {
-        if (
-          error.message.includes("User already registered") ||
-          error.status === 422
-        ) {
-          toast({
-            title: "Account Already Exists",
-            description: "Please sign in instead.",
-            variant: "destructive",
-          });
-          setIsLogin(true);
-          return;
-        }
-        throw error;
+      // ❌ Existing account
+      if (error?.message.includes("User already registered")) {
+        toast({
+          title: "Account Already Exists",
+          description: "Please sign in instead.",
+          variant: "destructive",
+        });
+        setIsLogin(true);
+        return;
       }
 
-      if (data.user) {
-        await createOrGetUserProfile(data.user.id, data.user.email!);
-      }
+      // ❌ Any actual sign-up failure
+      if (error) throw error;
 
+      // ✔️ Successful signup EVEN WHEN email confirmation required
       toast({
         title: "Account Created!",
         description: "Check your email to verify your account.",
       });
+
+      return;
     } catch (err: any) {
       toast({
         title: "Error",
@@ -193,9 +188,7 @@ export default function Auth() {
     }
   };
 
-  // -------------------------
-  // 🔵 UI
-  // -------------------------
+  // UI (unchanged)
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8 space-y-6">
@@ -221,7 +214,6 @@ export default function Auth() {
           </h2>
         </div>
 
-        {/* FORM */}
         <form onSubmit={handleAuth} className="space-y-4">
           {/* EMAIL */}
           <div className="space-y-2">
@@ -230,7 +222,7 @@ export default function Auth() {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                validateEmail(e.target.value);
+                validateEmailLive(e.target.value);
               }}
               autoComplete="email"
               required
@@ -243,6 +235,7 @@ export default function Auth() {
           {/* PASSWORD */}
           <div className="space-y-2">
             <Label>Password</Label>
+
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
@@ -250,21 +243,19 @@ export default function Auth() {
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  validatePassword(e.target.value);
+                  validatePasswordLive(e.target.value);
                 }}
                 required
               />
-
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               >
                 {showPassword ? "🙈" : "👁"}
               </button>
             </div>
 
-            {/* LIVE CHECKLIST */}
             {!isLogin && (
               <div className="text-xs mt-2 space-y-1">
                 <p className={passwordChecks.length ? "text-green-600" : "text-red-500"}>
@@ -295,14 +286,13 @@ export default function Auth() {
                 <Input
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
-                  autoComplete="new-password"
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 >
                   {showConfirm ? "🙈" : "👁"}
                 </button>
@@ -310,17 +300,15 @@ export default function Auth() {
             </div>
           )}
 
-          {/* SUBMIT */}
           <Button
             type="submit"
             className="w-full"
             disabled={loading || !canSubmit}
           >
-            {loading ? "Loading…" : isLogin ? "Sign In" : "Sign Up"}
+            {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
           </Button>
         </form>
 
-        {/* SWITCH MODE */}
         <div className="text-center text-sm">
           <button
             onClick={() => setIsLogin(!isLogin)}
@@ -334,4 +322,6 @@ export default function Auth() {
       </Card>
     </div>
   );
-}
+};
+
+export default Auth;
