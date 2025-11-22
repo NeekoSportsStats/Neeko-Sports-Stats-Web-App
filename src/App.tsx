@@ -45,6 +45,11 @@ import NBATeams from "@/pages/sports/NBATeams";
 import NBACompleteAIAnalysis from "@/pages/sports/NBACompleteAIAnalysis";
 import NBAMatchCentre from "@/pages/sports/NBAMatchCentre";
 
+/* 🔥 NEW IMPORTS — ONLY THESE ADDED */
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import StartCheckout from "@/pages/StartCheckout";
+
 function App() {
   return (
     <AuthProvider>
@@ -52,6 +57,13 @@ function App() {
         {/* Public auth-only pages */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/create-password" element={<CreatePassword />} />
+
+        {/* 🔥 NEW PUBLIC PASSWORD ROUTES */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* 🔥 NEW PUBLIC CHECKOUT REDIRECT ROUTE */}
+        <Route path="/start-checkout" element={<StartCheckout />} />
 
         {/* Home */}
         <Route path="/" element={<Layout><Index /></Layout>} />
