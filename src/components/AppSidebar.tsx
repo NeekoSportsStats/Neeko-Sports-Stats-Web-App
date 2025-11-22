@@ -50,7 +50,6 @@ const aflSubItems = [
   { title: "Match Center", url: "/sports/afl/match-centre" },
 ];
 
-
 const nbaSubItems = [
   { title: "Player Stats", url: "/sports/nba/players" },
   { title: "Team Stats", url: "/sports/nba/teams" },
@@ -94,18 +93,9 @@ export function AppSidebar() {
     }
   }, [user]);
 
+  // 🔥 FIX — remove RPC call & stop 404 spam
   const checkAdminStatus = async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase.rpc('has_role', {
-        _user_id: user.id,
-        _role: 'admin'
-      });
-      setIsAdmin(data || false);
-    } catch (error) {
-      setIsAdmin(false);
-    }
+    setIsAdmin(false); // Admin disabled until RPC or role system is added
   };
 
   const isActive = (path: string) => {
@@ -153,7 +143,6 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* Sports Collapsible */}
               <Collapsible open={sportsOpen} onOpenChange={setSportsOpen}>
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
@@ -176,7 +165,7 @@ export function AppSidebar() {
 
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {/* AFL Section */}
+                      {/* AFL */}
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild className="py-0.5">
                           <NavLink
@@ -204,8 +193,7 @@ export function AppSidebar() {
                         </SidebarMenuSubItem>
                       ))}
 
-
-                      {/* EPL Section */}
+                      {/* EPL */}
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild className="py-0.5">
                           <NavLink
@@ -233,7 +221,7 @@ export function AppSidebar() {
                         </SidebarMenuSubItem>
                       ))}
 
-                      {/* NBA Section */}
+                      {/* NBA */}
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild className="py-0.5">
                           <NavLink
@@ -265,7 +253,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </Collapsible>
 
-              {/* Core Items */}
+              {/* Core */}
               {coreItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="py-1.5">
@@ -285,14 +273,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Divider */}
         <Separator className="my-2" />
 
-        {/* Info & Support Section */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* Info Items */}
               {infoItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="py-1.5">
@@ -309,22 +294,23 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* Admin Items - Only show if user is admin */}
-              {isAdmin && adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="py-1.5">
-                    <NavLink
-                      to={item.url}
-                      className="hover:bg-muted/50"
-                      activeClassName="bg-muted text-primary font-medium"
-                      onClick={handleLinkClick}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {/* Admin only if admin flag is true */}
+              {isAdmin &&
+                adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild className="py-1.5">
+                      <NavLink
+                        to={item.url}
+                        className="hover:bg-muted/50"
+                        activeClassName="bg-muted text-primary font-medium"
+                        onClick={handleLinkClick}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
