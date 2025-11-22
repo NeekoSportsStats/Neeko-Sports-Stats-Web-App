@@ -149,6 +149,19 @@ const Auth = () => {
     } catch (error: any) {
       console.error("❌ Auth error:", error);
 
+      // ⭐ ADDED: handle existing registered user
+      if (error?.message?.includes("User already registered")) {
+        toast({
+          title: "Account Already Exists",
+          description:
+            "An account with this email already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        setIsLogin(true); // switch UI to sign-in mode
+        setLoading(false);
+        return;
+      }
+
       toast({
         title: "Error",
         description: error.message,
