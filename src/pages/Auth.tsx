@@ -20,6 +20,7 @@ const passwordSchema = z
   .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol");
 
 const Auth = () => {
+  // "mode" replaces isLogin
   const [mode, setMode] = useState<"login" | "signup">("login");
 
   const [email, setEmail] = useState("");
@@ -74,11 +75,11 @@ const Auth = () => {
       passwordSchema.parse(password);
       if (password !== confirmPassword) throw new Error("Passwords do not match");
 
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // 🔥 Force NO redirect
+          emailRedirectTo: undefined, // ⛔️ STOP redirect_to problems
         },
       });
 
@@ -94,13 +95,13 @@ const Auth = () => {
 
       if (error) throw error;
 
-      // 🔥 Signup success (even if user null)
+      // SUCCESS
       toast({
         title: "Account created!",
         description: "You can now sign in.",
       });
 
-      // Stay right here — DO NOT auto-login
+      // Reset form + switch to login
       setMode("login");
       setPassword("");
       setConfirmPassword("");
@@ -259,6 +260,7 @@ const Auth = () => {
               : "Already have an account? Sign in"}
           </button>
         </div>
+
       </Card>
     </div>
   );
