@@ -15,7 +15,10 @@ import { useAuth } from "@/lib/auth";
 export default function Success() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { refreshPremiumStatus } = useAuth();
+
+  // 🔥 FIX: safely read refreshPremiumStatus so it never crashes
+  const { refreshPremiumStatus } = useAuth() || {};
+
   const sessionId = params.get("session_id");
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
@@ -45,7 +48,6 @@ export default function Success() {
         const maxAttempts = 10;
         const checkInterval = 2000;
 
-        // 🔥 Profile check with logs
         const checkProfile = async () => {
           console.log(`📡 Checking profile attempt ${attempts + 1}`);
 
@@ -62,8 +64,14 @@ export default function Success() {
             console.log("🎉 Subscription is ACTIVE in DB");
 
             setVerified(true);
-            console.log("🔄 Running refreshPremiumStatus()");
-            await refreshPremiumStatus();
+
+            // 🔥 FIX: guard in case context isn't ready yet
+            if (typeof refreshPremiumStatus === "function") {
+              console.log("🔄 Running refreshPremiumStatus()");
+              await refreshPremiumStatus();
+            } else {
+              console.warn("⚠️ refreshPremiumStatus is not a function (context not ready?)");
+            }
 
             console.log("➡️ Redirecting to /account in 2 seconds...");
             setLoading(false);
