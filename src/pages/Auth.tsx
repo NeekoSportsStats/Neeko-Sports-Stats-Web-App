@@ -20,7 +20,8 @@ const passwordSchema = z
   .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol");
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<"login" | "signup">("login");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -51,8 +52,10 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
+      // -------------------------------
       // LOGIN
-      if (isLogin) {
+      // -------------------------------
+      if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -65,15 +68,17 @@ const Auth = () => {
         return;
       }
 
-      // SIGN UP
+      // -------------------------------
+      // SIGNUP
+      // -------------------------------
       passwordSchema.parse(password);
       if (password !== confirmPassword) throw new Error("Passwords do not match");
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: null, // 🔥 prevents unwanted redirect_to=
+          emailRedirectTo: undefined, // 🔥 Force NO redirect
         },
       });
 
@@ -83,19 +88,22 @@ const Auth = () => {
           description: "Please sign in instead.",
           variant: "destructive",
         });
-        setIsLogin(true);
+        setMode("login");
         return;
       }
 
       if (error) throw error;
 
+      // 🔥 Signup success (even if user null)
       toast({
         title: "Account created!",
         description: "You can now sign in.",
       });
 
-      // Switch to login mode — no redirect
-      setIsLogin(true);
+      // Stay right here — DO NOT auto-login
+      setMode("login");
+      setPassword("");
+      setConfirmPassword("");
 
     } catch (err: any) {
       toast({
@@ -108,18 +116,19 @@ const Auth = () => {
     }
   };
 
-  const canSubmit = isLogin
-    ? email !== "" && password !== "" && !emailError
-    : email !== "" &&
-      password !== "" &&
-      confirmPassword !== "" &&
-      !emailError &&
-      passwordChecks.length &&
-      passwordChecks.upper &&
-      passwordChecks.lower &&
-      passwordChecks.digit &&
-      passwordChecks.symbol &&
-      password === confirmPassword;
+  const canSubmit =
+    mode === "login"
+      ? email !== "" && password !== "" && !emailError
+      : email !== "" &&
+        password !== "" &&
+        confirmPassword !== "" &&
+        !emailError &&
+        passwordChecks.length &&
+        passwordChecks.upper &&
+        passwordChecks.lower &&
+        passwordChecks.digit &&
+        passwordChecks.symbol &&
+        password === confirmPassword;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -136,12 +145,12 @@ const Auth = () => {
           </div>
 
           <h2 className="text-xl font-semibold">
-            {isLogin ? "Welcome Back" : "Create Account"}
+            {mode === "login" ? "Welcome Back" : "Create Account"}
           </h2>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
-          {/* Email */}
+          {/* EMAIL */}
           <div className="space-y-2">
             <Label>Email</Label>
             <Input
@@ -155,19 +164,20 @@ const Auth = () => {
                   setEmailError("Invalid email address");
                 }
               }}
+              autoComplete="email"
               required
             />
             {emailError && <p className="text-red-500 text-xs">{emailError}</p>}
           </div>
 
-          {/* Password */}
+          {/* PASSWORD */}
           <div className="space-y-2">
             <Label>Password</Label>
 
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
-                autoComplete={isLogin ? "current-password" : "new-password"}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -191,7 +201,7 @@ const Auth = () => {
               </button>
             </div>
 
-            {!isLogin && (
+            {mode === "signup" && (
               <div className="text-xs space-y-1 mt-2">
                 <p className={passwordChecks.length ? "text-green-500" : "text-red-500"}>
                   {passwordChecks.length ? "✔" : "✘"} 10+ characters
@@ -212,8 +222,8 @@ const Auth = () => {
             )}
           </div>
 
-          {/* Confirm password */}
-          {!isLogin && (
+          {/* CONFIRM PASSWORD */}
+          {mode === "signup" && (
             <div className="space-y-2">
               <Label>Confirm Password</Label>
               <div className="relative">
@@ -235,16 +245,20 @@ const Auth = () => {
           )}
 
           <Button type="submit" className="w-full" disabled={loading || !canSubmit}>
-            {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+            {loading ? "Loading..." : mode === "login" ? "Sign In" : "Sign Up"}
           </Button>
         </form>
 
         <div className="text-center text-sm">
-          <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline">
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+          <button
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            className="text-primary hover:underline"
+          >
+            {mode === "login"
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
           </button>
         </div>
-
       </Card>
     </div>
   );
