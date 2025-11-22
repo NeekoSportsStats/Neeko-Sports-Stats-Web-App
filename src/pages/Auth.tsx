@@ -64,11 +64,15 @@ const Auth = () => {
         // 🔥 FIXED: Correct column name
         const { error: insertError } = await supabase
           .from("profiles")
-          .insert({
+          ..insert({
             id: userId,
             email: userEmail,
-            subscription_status: "free", // ✅ CORRECTED
-          });
+            subscription_status: "free",        // required
+            subscription_tier: "free",          // required
+            plan: "free",                       // required
+            is_active: true                     // required
+          })
+
 
         if (insertError) {
           console.error("❌ Profile insert error:", insertError);
