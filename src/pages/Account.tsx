@@ -25,7 +25,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 
 export default function Account() {
-  const { user, loading: authLoading, signOut, refreshUser } = useAuth();
+  const { user, loading: authLoading, signOut, refreshUser, isPremium } =
+    useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -35,7 +36,9 @@ export default function Account() {
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
   }, [authLoading, user, navigate]);
 
   // Load profile
@@ -48,15 +51,29 @@ export default function Account() {
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) console.error("Profile error:", error);
-      setProfile(data);
+      if (error && error.code !== "PGRST116") {
+        console.error("Profile fetch error:", error);
+      }
+
+      // Fallback profile if row doesn't exist yet
+      if (!data) {
+        setProfile({
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at ?? new Date().toISOString(),
+          subscription_status: isPremium ? "active" : "free",
+        });
+      } else {
+        setProfile(data);
+      }
+
       setLoadingProfile(false);
     };
 
     loadProfile();
-  }, [user]);
+  }, [user, isPremium]);
 
   // Stripe success return
   useEffect(() => {
@@ -66,11 +83,12 @@ export default function Account() {
         description: "Your subscription is now active.",
       });
 
-      refreshUser(); // reload session + premium
+      // Refresh auth + premium flag
+      refreshUser();
     }
   }, [searchParams, toast, refreshUser]);
 
-  if (authLoading || loadingProfile || !profile) {
+  if (authLoading || loadingProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -78,7 +96,21 @@ export default function Account() {
     );
   }
 
-  const isActive = profile.subscription_status === "active";
+  if (!user || !profile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <p className="text-muted-foreground">
+          We couldn&apos;t load your account details.
+        </p>
+        <Button onClick={() => navigate("/auth")}>Go to login</Button>
+      </div>
+    );
+  }
+
+  const isActive =
+    profile.subscription_status === "active" ||
+    profile.subscription_status === "trialing" ||
+    isPremium;
 
   const getStatusBadge = (s: string) => {
     const variants: any = {
@@ -88,22 +120,45 @@ export default function Account() {
       canceled: "destructive",
       free: "outline",
     };
-    return <Badge variant={variants[s] || "outline"}>{s.toUpperCase()}</Badge>;
+    const label = s === "trialing" ? "TRIAL" : s.toUpperCase();
+    return <Badge variant={variants[s] || "outline"}>{label}</Badge>;
   };
 
   const handleManageBilling = async () => {
     const { data: { session } } = await supabase.auth.getSession();
 
-    const res = await fetch("/api/portal", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-    });
+    if (!session) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to manage billing.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
+    try {
+      const res = await fetch("/api/portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No portal URL returned");
+      }
+    } catch (err) {
+      console.error("Portal error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to open billing portal. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -126,11 +181,24 @@ export default function Account() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p><strong>Email:</strong> {profile.email}</p>
-            <p><strong>ID:</strong> {profile.id}</p>
             <p>
-              <strong>Member Since:</strong>{" "}
-              {new Date(profile.created_at).toLocaleDateString()}
+              <span className="text-sm text-muted-foreground">Email</span>
+              <br />
+              <span className="text-base font-medium">{profile.email}</span>
+            </p>
+            <p>
+              <span className="text-sm text-muted-foreground">Account ID</span>
+              <br />
+              <span className="text-xs font-mono">{profile.id}</span>
+            </p>
+            <p>
+              <span className="text-sm text-muted-foreground">
+                Member Since
+              </span>
+              <br />
+              <span className="text-base">
+                {new Date(profile.created_at).toLocaleDateString()}
+              </span>
             </p>
           </CardContent>
         </Card>
@@ -152,27 +220,41 @@ export default function Account() {
           <CardContent className="space-y-4">
             {isActive ? (
               <>
-                <p>Plan: <strong>Neeko+ Premium</strong></p>
+                <p>
+                  Plan: <strong>Neeko+ Premium</strong>
+                </p>
 
                 {profile.current_period_end && (
                   <p>
                     Next Billing:{" "}
-                    {new Date(profile.current_period_end).toLocaleDateString()}
+                    {new Date(
+                      profile.current_period_end
+                    ).toLocaleDateString()}
                   </p>
                 )}
 
                 <Separator />
 
-                <Button onClick={handleManageBilling} variant="outline" className="w-full">
+                <Button
+                  onClick={handleManageBilling}
+                  variant="outline"
+                  className="w-full"
+                >
                   <CreditCard className="h-4 w-4 mr-2" />
                   Manage Billing
                 </Button>
               </>
             ) : (
               <>
-                <p>You're on the free plan. Upgrade to unlock everything!</p>
+                <p>
+                  You&apos;re on the free plan. Upgrade to Neeko+ to unlock all
+                  features.
+                </p>
 
-                <Button onClick={() => navigate("/neeko-plus")} className="w-full">
+                <Button
+                  onClick={() => navigate("/neeko-plus")}
+                  className="w-full"
+                >
                   <Crown className="h-4 w-4 mr-2" />
                   Upgrade to Neeko+
                 </Button>
@@ -183,9 +265,15 @@ export default function Account() {
 
         {/* Actions */}
         <Card>
-          <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Actions</CardTitle>
+          </CardHeader>
           <CardContent>
-            <Button variant="destructive" onClick={signOut} className="w-full">
+            <Button
+              variant="destructive"
+              onClick={signOut}
+              className="w-full"
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
