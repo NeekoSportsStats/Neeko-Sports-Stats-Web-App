@@ -121,37 +121,31 @@ const Auth = () => {
 
     try {
       emailSchema.parse(email);
+
       if (!isLogin) {
         passwordSchema.parse(password);
         if (password !== confirmPassword)
           throw new Error("Passwords do not match");
       }
 
-      // LOGIN
+      // ============================
+      // ✅ FIXED LOGIN LOGIC HERE
+      // ============================
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (error) {
-          // Handle wrong email or password (Supabase returns 422 or Invalid login credentials)
-          if (
-            error.status === 422 ||
-            error.message.includes("Invalid login credentials")
-          ) {
-            throw new Error("Incorrect email or password");
-          }
+        const session = data.session;
 
-          if (error.message.includes("Email not confirmed")) {
-            throw new Error("Please verify your email before logging in");
-          }
-
-          throw error; // preserve unknown errors
+        // ❌ NO session = login failed
+        if (!session) {
+          throw new Error("Incorrect email or password");
         }
 
-        if (data.user)
-          await createOrGetUserProfile(data.user.id, data.user.email!);
+        // ✔ Create profile AFTER verified login
+        await createOrGetUserProfile(session.user.id, session.user.email!);
 
         toast({ title: "Welcome back!" });
         navigate(redirect);
@@ -168,7 +162,6 @@ const Auth = () => {
       });
 
       if (error) {
-        // Detect existing email by BOTH message + status (422)
         if (
           error.message.includes("User already registered") ||
           error.status === 422
