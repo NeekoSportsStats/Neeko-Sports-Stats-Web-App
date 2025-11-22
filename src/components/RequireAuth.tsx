@@ -1,36 +1,36 @@
-import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/lib/auth";
+// --------------------------
+// SIGNUP
+// --------------------------
+passwordSchema.parse(password);
 
-export default function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+if (password !== confirmPassword)
+  throw new Error("Passwords do not match");
 
-  const path = location.pathname;
+console.log("🟦 SIGNUP DEBUG:", { email, password, confirmPassword });
 
-  useEffect(() => {
-    if (loading) return;
+// ❗ IMPORTANT: Do NOT include redirect_to
+const { data, error } = await supabase.auth.signUp({
+  email,
+  password
+});
 
-    // 🚫 Never redirect on auth pages — this was breaking signup
-    if (path.startsWith("/auth") || path.startsWith("/create-password")) {
-      return;
-    }
-
-    if (!user) {
-      navigate(`/auth?redirect=${path}`, { replace: true });
-    }
-  }, [user, loading, navigate, path]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  return <>{children}</>;
+if (error?.status === 422) {
+  toast({
+    title: "Account already exists",
+    description: "Please sign in instead.",
+    variant: "destructive",
+  });
+  return;
 }
+
+if (error) throw error;
+
+toast({
+  title: "Account created!",
+  description: "You can now sign in.",
+});
+
+// ❗ DON'T SWITCH TO LOGIN AUTOMATICALLY
+// setIsLogin(true);
+
+return;
