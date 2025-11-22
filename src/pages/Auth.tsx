@@ -44,9 +44,6 @@ const Auth = () => {
   const redirect = searchParams.get("redirect") || "/";
   const { toast } = useToast();
 
-  // --------------------------------------
-  // 🔐 FIXED AUTH SUBMIT
-  // --------------------------------------
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -54,7 +51,6 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
-      // LOGIN
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -80,7 +76,6 @@ const Auth = () => {
         return;
       }
 
-      // SIGN UP
       passwordSchema.parse(password);
 
       if (password !== confirmPassword)
@@ -122,10 +117,6 @@ const Auth = () => {
     }
   };
 
-  // --------------------------------------
-  // ✅ FIX ADDED — compute canSubmit
-  // (ONLY NEW CODE ADDED)
-  // --------------------------------------
   const canSubmit = isLogin
     ? email !== "" && password !== "" && !emailError
     : email !== "" &&
@@ -139,9 +130,6 @@ const Auth = () => {
       passwordChecks.symbol &&
       password === confirmPassword;
 
-  // --------------------------------------
-  // UI
-  // --------------------------------------
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8 space-y-6">
@@ -188,6 +176,7 @@ const Auth = () => {
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
+                autoComplete={isLogin ? "current-password" : "new-password"}   {/* ✅ FIX */}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -239,6 +228,7 @@ const Auth = () => {
               <div className="relative">
                 <Input
                   type={showConfirm ? "text" : "password"}
+                  autoComplete="new-password"       {/* ✅ FIX */}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
