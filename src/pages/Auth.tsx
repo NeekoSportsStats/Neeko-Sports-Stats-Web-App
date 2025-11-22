@@ -59,7 +59,7 @@ const Auth = () => {
 
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password
+          password,
         });
 
         if (error) {
@@ -89,19 +89,18 @@ const Auth = () => {
       if (password !== confirmPassword)
         throw new Error("Passwords do not match");
 
-      // 🔵 DEBUG LOGS (Important)
       console.log("🟦 SIGNUP DEBUG:");
       console.log("EMAIL:", email);
       console.log("PASSWORD:", password);
       console.log("CONFIRM:", confirmPassword);
 
-      // 🔥 IMPORTANT FIX: enforce JSON structure so browser doesn't block it
+      // ❌ OLD (broken) — removed:
+      // options: { emailRedirectTo: `${window.location.origin}/auth` }
+
+      // ✅ FIXED — no redirect_to causes 422 anymore
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-        }
       });
 
       if (error?.status === 422) {
