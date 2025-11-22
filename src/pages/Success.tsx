@@ -21,18 +21,22 @@ export default function Success() {
   const [verified, setVerified] = useState(false);
 
   useEffect(() => {
+    console.log("🔵 SUCCESS PAGE MOUNTED");
+    console.log("🔵 Session ID:", sessionId);
+
     const verifyAndRedirect = async () => {
       if (!sessionId) {
+        console.log("❌ No session_id found in URL");
         setLoading(false);
         return;
       }
 
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log("🟣 Supabase user from auth:", user);
 
         if (!user) {
+          console.log("❌ No Supabase user logged in");
           setLoading(false);
           return;
         }
@@ -41,43 +45,52 @@ export default function Success() {
         const maxAttempts = 10;
         const checkInterval = 2000;
 
-        // 🔥 UPDATED — check profiles table instead of subscriptions
+        // 🔥 Profile check with logs
         const checkProfile = async () => {
-          const { data: profile } = await supabase
+          console.log(`📡 Checking profile attempt ${attempts + 1}`);
+
+          const { data: profile, error } = await supabase
             .from("profiles")
             .select("subscription_status")
             .eq("id", user.id)
             .maybeSingle();
 
+          console.log("📄 profiles row:", profile);
+          console.log("🐛 profiles fetch error:", error);
+
           if (profile?.subscription_status === "active") {
+            console.log("🎉 Subscription is ACTIVE in DB");
+
             setVerified(true);
+            console.log("🔄 Running refreshPremiumStatus()");
             await refreshPremiumStatus();
 
+            console.log("➡️ Redirecting to /account in 2 seconds...");
             setLoading(false);
             setTimeout(() => navigate("/account"), 2000);
+
             return true;
           }
 
           return false;
         };
 
-        // Poll until webhook updates the profile
         const poll = async () => {
           while (attempts < maxAttempts) {
             const ok = await checkProfile();
             if (ok) return;
 
             attempts++;
-            await new Promise((resolve) =>
-              setTimeout(resolve, checkInterval)
-            );
+            await new Promise((resolve) => setTimeout(resolve, checkInterval));
           }
+
+          console.log("🟡 Max attempts reached — subscription still not active");
           setLoading(false);
         };
 
         await poll();
       } catch (error) {
-        console.error("Error verifying subscription:", error);
+        console.error("🔥 Fatal error verifying subscription:", error);
         setLoading(false);
       }
     };
