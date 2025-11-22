@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthProvider } from "@/lib/auth";
 
+import RequireAuth from "@/components/RequireAuth"; // 🔥 ADDED
+
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
 import NeekoPlusPurchase from "@/pages/NeekoPlusPurchase";
@@ -56,10 +58,62 @@ function App() {
 
         {/* Core Pages */}
         <Route path="/neeko-plus" element={<Layout><NeekoPlusPurchase /></Layout>} />
-        <Route path="/account" element={<Layout><Account /></Layout>} />
-        <Route path="/billing" element={<Layout><Billing /></Layout>} />
-        <Route path="/success" element={<Layout><Success /></Layout>} />
-        <Route path="/cancel" element={<Layout><Cancel /></Layout>} />
+
+        {/* 🔥 Protected Pages */}
+        <Route
+          path="/account"
+          element={
+            <RequireAuth>
+              <Layout><Account /></Layout>
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/billing"
+          element={
+            <RequireAuth>
+              <Layout><Billing /></Layout>
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/success"
+          element={
+            <RequireAuth>
+              <Layout><Success /></Layout>
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/cancel"
+          element={
+            <RequireAuth>
+              <Layout><Cancel /></Layout>
+            </RequireAuth>
+          }
+        />
+
+        {/* Admin Pages (also protected) */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth>
+              <Layout><Admin /></Layout>
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/admin/queue"
+          element={
+            <RequireAuth>
+              <Layout><AdminQueue /></Layout>
+            </RequireAuth>
+          }
+        />
 
         {/* Info Pages */}
         <Route path="/about" element={<Layout><About /></Layout>} />
@@ -74,10 +128,6 @@ function App() {
         <Route path="/policies/security" element={<Layout><SecurityPolicy /></Layout>} />
         <Route path="/policies/terms" element={<Layout><TermsConditions /></Layout>} />
         <Route path="/policies/user-conduct" element={<Layout><UserConductPolicy /></Layout>} />
-
-        {/* Admin Pages */}
-        <Route path="/admin" element={<Layout><Admin /></Layout>} />
-        <Route path="/admin/queue" element={<Layout><AdminQueue /></Layout>} />
 
         {/* AFL Routes */}
         <Route path="/sports/afl" element={<Layout><AFLHub /></Layout>} />
