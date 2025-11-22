@@ -25,9 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 export default function Account() {
-  // 🔥 FIX: safely destructure
-  const { user, loading: authLoading, signOut, refreshPremiumStatus } = useAuth() || {};
-
+  const { user, loading: authLoading, signOut, isPremium } = useAuth();
   const { status, subscriptionData, refresh: refreshSubscription } =
     useSubscriptionStatus();
   const { toast } = useToast();
@@ -41,15 +39,9 @@ export default function Account() {
         title: "Success!",
         description: "Your subscription is now active. Welcome to Neeko+!",
       });
-
-      // 🔥 FIX — guard: prevent crash if context not ready
-      if (typeof refreshPremiumStatus === "function") {
-        refreshPremiumStatus();
-      }
-
       refreshSubscription();
     }
-  }, [searchParams, refreshPremiumStatus, refreshSubscription, toast]);
+  }, [searchParams, refreshSubscription, toast]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -88,6 +80,172 @@ export default function Account() {
 
   const isActive = status === "active" || status === "trialing";
 
+  const handleManageSubscription = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to manage your subscription",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const res = await fetch("/api/portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Failed to create portal session");
+      }
+    } catch (error) {
+      console.error("Error creating portal session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to open billing portal. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      {/* unchanged below */}
+      <Button
+        variant="ghost"
+        onClick={() => navigate("/")}
+        className="mb-6"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Home
+      </Button>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <User className="h-8 w-8 text-primary" />
+                <div>
+                  <CardTitle>Account Information</CardTitle>
+                  <CardDescription>Manage your account details</CardDescription>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Email</p>
+              <p className="text-base font-medium">{user.email}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Account ID</p>
+              <p className="text-base font-mono text-xs">{user.id}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Member Since</p>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <p className="text-base">
+                  {new Date(user.created_at || "").toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Crown className="h-8 w-8 text-primary" />
+                <div>
+                  <CardTitle>Subscription Status</CardTitle>
+                  <CardDescription>Your Neeko+ membership</CardDescription>
+                </div>
+              </div>
+              {getStatusBadge(status)}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isActive ? (
+              <>
+                <div>
+                  <p className="text-sm text-muted-foreground">Plan</p>
+                  <p className="text-base font-medium">Neeko+ Premium</p>
+                </div>
+                {subscriptionData?.current_period_end && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {subscriptionData.cancel_at_period_end
+                        ? "Expires on"
+                        : "Next billing date"}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <p className="text-base">
+                        {new Date(
+                          subscriptionData.current_period_end
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <Separator />
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleManageSubscription}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Manage Subscription
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  You don't have an active subscription. Upgrade to Neeko+ to
+                  unlock premium features.
+                </p>
+                <Button
+                  onClick={() => navigate("/neeko-plus")}
+                  className="w-full"
+                >
+                  <Crown className="h-4 w-4 mr-2" />
+                  Upgrade to Neeko+
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              onClick={signOut}
+              className="w-full"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
