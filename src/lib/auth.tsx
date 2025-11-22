@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
+  // Load subscription state from profile
   const fetchPremiumStatus = async (userId: string) => {
     try {
       const { data: profile } = await supabase
@@ -31,13 +32,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq("id", userId)
         .maybeSingle();
 
-      setIsPremium(profile?.subscription_status === "active");
-    } catch (error) {
-      console.error("Premium fetch error:", error);
+      const active = profile?.subscription_status === "active";
+      setIsPremium(active);
+    } catch (err) {
+      console.error("Premium fetch error:", err);
       setIsPremium(false);
     }
   };
 
+  // INITIAL SESSION LOAD
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const session = data.session;
@@ -49,6 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
+    // AUTH STATE LISTENER — CORRECT SHAPE
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const currentUser = session?.user ?? null;
@@ -64,13 +68,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // UI automatically re-renders via auth listener
   };
 
   return (
