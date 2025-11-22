@@ -1,87 +1,36 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
-import { supabase } from "./supabaseClient";
+// --------------------------
+// SIGNUP
+// --------------------------
+passwordSchema.parse(password);
 
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  isPremium: boolean;
-  signOut: () => Promise<void>;
-}
+if (password !== confirmPassword)
+  throw new Error("Passwords do not match");
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-  isPremium: false,
-  signOut: async () => {},
+console.log("🟦 SIGNUP DEBUG:", { email, password, confirmPassword });
+
+// ❗ IMPORTANT: Do NOT include redirect_to
+const { data, error } = await supabase.auth.signUp({
+  email,
+  password
 });
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+if (error?.status === 422) {
+  toast({
+    title: "Account already exists",
+    description: "Please sign in instead.",
+    variant: "destructive",
+  });
+  return;
+}
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isPremium, setIsPremium] = useState(false);
+if (error) throw error;
 
-  const fetchPremiumStatus = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("subscription_status")
-        .eq("id", userId)
-        .maybeSingle();
+toast({
+  title: "Account created!",
+  description: "You can now sign in.",
+});
 
-      if (error && error.code !== "PGRST116") {
-        throw error;
-      }
+// ❗ DON'T SWITCH TO LOGIN AUTOMATICALLY
+// setIsLogin(true);
 
-      const isActive = profile?.subscription_status === "active";
-      setIsPremium(isActive);
-    } catch (error) {
-      console.error("Error fetching premium status:", error);
-      setIsPremium(false);
-    }
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchPremiumStatus(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchPremiumStatus(session.user.id);
-      } else {
-        setIsPremium(false);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsPremium(false);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, loading, isPremium, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+return;
