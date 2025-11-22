@@ -1,3 +1,4 @@
+// src/lib/auth.ts
 import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
@@ -7,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   isPremium: boolean;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -14,6 +16,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isPremium: false,
   signOut: async () => {},
+  refreshUser: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -23,41 +26,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
-  // Load subscription state from profile
+  // Fetch profile subscription flag
   const fetchPremiumStatus = async (userId: string) => {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("subscription_status")
         .eq("id", userId)
         .maybeSingle();
 
-      const active = profile?.subscription_status === "active";
-      setIsPremium(active);
-    } catch (err) {
-      console.error("Premium fetch error:", err);
+      if (error) console.error("Premium fetch error:", error);
+
+      setIsPremium(profile?.subscription_status === "active");
+    } catch (e) {
+      console.error("Premium error:", e);
       setIsPremium(false);
     }
   };
 
-  // INITIAL SESSION LOAD
+  // Refresh user manually (after checkout success)
+  const refreshUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
+
+    if (currentUser) {
+      await fetchPremiumStatus(currentUser.id);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       const session = data.session;
       const currentUser = session?.user ?? null;
 
       setUser(currentUser);
-      if (currentUser) fetchPremiumStatus(currentUser.id);
+      if (currentUser) {
+        await fetchPremiumStatus(currentUser.id);
+      }
 
       setLoading(false);
     });
 
-    // AUTH STATE LISTENER — CORRECT SHAPE
+    // Auth listener
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const currentUser = session?.user ?? null;
-
         setUser(currentUser);
+
         if (currentUser) {
           await fetchPremiumStatus(currentUser.id);
         } else {
@@ -68,16 +85,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    // UI automatically re-renders via auth listener
+    setUser(null);
+    setIsPremium(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isPremium, signOut }}>
+    <AuthContext.Provider
+      value={{ user, loading, isPremium, signOut, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
