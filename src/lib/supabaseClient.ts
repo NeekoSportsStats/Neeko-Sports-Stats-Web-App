@@ -1,20 +1,86 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
-const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY!;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnon) {
-  throw new Error("Missing Supabase environment variables");
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Missing Supabase environment variables. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
+  );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnon, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: "pkce",
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
-    storageKey: `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`,
-    debug: import.meta.env.DEV,
-  },
-});
+let supabaseInstance: SupabaseClient | null = null;
+
+function getProjectRef(url: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    const parts = hostname.split(".");
+    return parts[0];
+  } catch (error) {
+    console.error("Failed to extract project ref from URL:", url, error);
+    return "default";
+  }
+}
+
+function createSupabaseClient(): SupabaseClient {
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
+  const projectRef = getProjectRef(supabaseUrl);
+  const storageKey = `sb-${projectRef}-auth-token`;
+
+  console.log("🔵 Creating Supabase client with:", {
+    url: supabaseUrl,
+    projectRef,
+    storageKey,
+  });
+
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      flowType: "pkce",
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey,
+      storage: {
+        getItem: (key: string) => {
+          if (typeof window === "undefined") return null;
+          try {
+            return window.localStorage.getItem(key);
+          } catch (error) {
+            console.error("localStorage.getItem error:", error);
+            return null;
+          }
+        },
+        setItem: (key: string, value: string) => {
+          if (typeof window === "undefined") return;
+          try {
+            window.localStorage.setItem(key, value);
+          } catch (error) {
+            console.error("localStorage.setItem error:", error);
+          }
+        },
+        removeItem: (key: string) => {
+          if (typeof window === "undefined") return;
+          try {
+            window.localStorage.removeItem(key);
+          } catch (error) {
+            console.error("localStorage.removeItem error:", error);
+          }
+        },
+      },
+      debug: false,
+    },
+  });
+
+  return supabaseInstance;
+}
+
+export const supabase = createSupabaseClient();
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    console.log("⚠️ HMR detected, Supabase client will reuse existing instance");
+  });
+}

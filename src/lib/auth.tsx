@@ -103,9 +103,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       async (event, session) => {
         if (!mountedRef.current) return;
 
-        console.log("🟣 AUTH EVENT:", event, "| Session exists:", !!session);
+        console.log("🟣 AUTH EVENT:", event, "| Session exists:", !!session, "| User exists:", !!session?.user);
 
         const currentUser = session?.user ?? null;
+
+        if (currentUser === undefined) {
+          console.error("⚠️ CRITICAL: session.user is undefined! Normalizing to null.");
+          setUser(null);
+          setIsPremium(false);
+          resolveInitialState();
+          return;
+        }
+
         setUser(currentUser);
 
         if (currentUser) {
@@ -123,11 +132,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error("❌ Initial getSession error:", error);
+        resolveInitialState();
+        return;
       }
 
-      console.log("🟡 Initial getSession result:", !!session);
+      console.log("🟡 Initial getSession result:", !!session, "| User exists:", !!session?.user);
 
       const currentUser = session?.user ?? null;
+
+      if (currentUser === undefined) {
+        console.error("⚠️ CRITICAL: session.user is undefined in getSession! Normalizing to null.");
+        setUser(null);
+        setIsPremium(false);
+        resolveInitialState();
+        return;
+      }
+
       setUser(currentUser);
 
       if (currentUser) {
