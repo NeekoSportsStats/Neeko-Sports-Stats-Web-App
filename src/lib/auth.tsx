@@ -21,6 +21,9 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// 🔒 ensure we only ever register ONE auth listener globally
+let authListenerInitialized = false;
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   console.log("🔵 AuthProvider mounted");
 
@@ -35,69 +38,94 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log("🔍 Fetching premium status for:", userId);
 
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("subscription_status")
         .eq("id", userId)
         .maybeSingle();
 
+      if (error) {
+        console.error("❌ Premium status error:", error);
+      }
+
       console.log("⭐ Premium DB row:", data);
       setIsPremium(data?.subscription_status === "active");
     } catch (e) {
-      console.error("❌ Premium status error:", e);
+      console.error("❌ Premium status exception:", e);
       setIsPremium(false);
     }
   };
 
   // -------------------------------
-  // Manual refresh (Success page)
+  // Manual refresh (Success page etc.)
   // -------------------------------
   const refreshUser = async () => {
     console.log("🔄 refreshUser() called");
 
-    const { data } = await supabase.auth.getSession();
-    const currentUser = data.session?.user ?? null;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("❌ getSession error in refreshUser:", error);
+      }
 
-    setUser(currentUser);
+      const currentUser = data.session?.user ?? null;
+      console.log("🔄 refreshUser → currentUser:", currentUser);
 
-    if (currentUser) {
-      await fetchPremiumStatus(currentUser.id);
+      setUser(currentUser);
+
+      if (currentUser) {
+        await fetchPremiumStatus(currentUser.id);
+      } else {
+        setIsPremium(false);
+      }
+    } catch (e) {
+      console.error("❌ refreshUser exception:", e);
+      setUser(null);
+      setIsPremium(false);
     }
   };
 
   // -------------------------------
-  // MAIN AUTH FLOW (PATCHED + STABLE)
+  // MAIN AUTH FLOW (single listener)
   // -------------------------------
   useEffect(() => {
     console.log("⚡ Auth effect INIT");
 
     let resolvedInitial = false;
 
-    // 1️⃣ AUTH STATE LISTENER
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("🟣 AUTH EVENT:", event);
-        console.log("🟣 Session:", session);
+    // 1️⃣ Register the auth state listener ONCE globally
+    if (!authListenerInitialized) {
+      authListenerInitialized = true;
 
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
+      const { data } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log("🟣 AUTH EVENT:", event);
+          console.log("🟣 Session:", session);
 
-        if (currentUser) {
-          await fetchPremiumStatus(currentUser.id);
-        } else {
-          setIsPremium(false);
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+
+          if (currentUser) {
+            await fetchPremiumStatus(currentUser.id);
+          } else {
+            setIsPremium(false);
+          }
+
+          if (!resolvedInitial) {
+            resolvedInitial = true;
+            setLoading(false);
+          }
         }
+      );
 
-        if (!resolvedInitial) {
-          resolvedInitial = true;
-          setLoading(false);
-        }
-      }
-    );
+      console.log("✅ Auth listener registered:", data?.subscription?.id);
+    } else {
+      console.log("♻️ Auth listener already initialized – skipping re-register");
+    }
 
-    // 2️⃣ INITIAL SESSION LOAD
-    supabase.auth.getSession().then(async ({ data }) => {
-      console.log("🟡 Initial getSession():", data);
+    // 2️⃣ Initial session load (in case listener fires slightly later)
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      console.log("🟡 Initial getSession():", data, error);
 
       const currentUser = data.session?.user ?? null;
       setUser(currentUser);
@@ -112,7 +140,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    return () => listener.subscription.unsubscribe();
+    // ⛔ DO NOT unsubscribe global listener here – we want it to survive remounts
+    return () => {
+      console.log("🧹 AuthProvider unmounted (listener kept alive)");
+    };
   }, []);
 
   // -------------------------------
@@ -120,9 +151,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // -------------------------------
   const signOut = async () => {
     console.log("🚪 Logging out");
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsPremium(false);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("❌ signOut error:", error);
+      }
+    } finally {
+      setUser(null);
+      setIsPremium(false);
+      setLoading(false);
+    }
   };
 
   console.log("🔧 AuthProvider render →", { user, loading, isPremium });
