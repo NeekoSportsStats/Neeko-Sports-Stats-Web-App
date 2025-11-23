@@ -1,3 +1,4 @@
+// src/pages/Success.tsx
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,74 +24,40 @@ export default function Success() {
   const [verified, setVerified] = useState(false);
 
   // ---------------------------------------------------------
-  // 🔥 PATCHED LOGIC — FULL RETRY SYSTEM + SESSION HYDRATION
+  // 🔥 MINIMAL FIX — VERIFY USER SESSION ONLY (no profile wait)
   // ---------------------------------------------------------
   useEffect(() => {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
 
-    let attempts = 0;
-
     const verify = async () => {
-      attempts++;
-      console.log(`🔄 Verification attempt ${attempts}`);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      // 1️⃣ Wait for Supabase session hydration
-      const { data: sessionRes } = await supabase.auth.getSession();
-      const user = sessionRes?.session?.user;
+        const user = session?.user ?? null;
+        console.log("👤 User from session:", user);
 
-      console.log("👤 User:", user);
+        if (user) {
+          // ⭐ As soon as session is valid → treat as verified
+          setVerified(true);
 
-      if (!user) {
-        if (attempts < 10) {
-          console.log("⏳ Waiting for session to hydrate...");
-          return setTimeout(verify, 300);
+          // 🔁 Update global premium state
+          try {
+            await refreshPremiumStatus?.();
+          } catch (e) {
+            console.error("refreshPremiumStatus error:", e);
+          }
+        } else {
+          console.log("❌ No user found in session");
         }
-        console.log("❌ No session found after retries");
+      } catch (error) {
+        console.error("🔥 Fatal error in success flow:", error);
+      } finally {
+        console.log("✅ Ending loader state");
         setLoading(false);
-        return;
       }
-
-      // 2️⃣ Load profile row
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      console.log("📄 Profile:", profile);
-
-      if (error) {
-        console.error("❌ Profile fetch error:", error);
-      }
-
-      if (!profile) {
-        if (attempts < 10) {
-          console.log("⏳ Profile not ready yet, retrying...");
-          return setTimeout(verify, 300);
-        }
-        console.log("❌ No profile found after retries");
-        setLoading(false);
-        return;
-      }
-
-      // 3️⃣ Check subscription activation
-      if (profile.subscription_status === "active") {
-        console.log("🎉 Subscription is ACTIVE!");
-        setVerified(true);
-        setLoading(false);
-        refreshPremiumStatus?.();
-        return;
-      }
-
-      // Retry until subscription becomes active
-      if (attempts < 20) {
-        console.log("⏳ Subscription not active yet, retrying...");
-        return setTimeout(verify, 500);
-      }
-
-      console.log("❌ Subscription still not active after retries");
-      setLoading(false);
     };
 
     verify();
