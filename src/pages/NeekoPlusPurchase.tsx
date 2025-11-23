@@ -89,7 +89,7 @@ const NeekoPlusPurchase = () => {
       {/* BACK BUTTON */}
       <Button
         variant="ghost"
-        className="mb-6 flex items-center gap-2 text-muted-foreground hover:text-primary"
+        className="mb-6 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
         onClick={() => navigate(-1)}
       >
         <ArrowLeft className="h-5 w-5" />
@@ -107,18 +107,15 @@ const NeekoPlusPurchase = () => {
         </p>
       </div>
 
-      {/* MAIN CARD WITH WARM SUNLIGHT GLOW */}
+      {/* MAIN CARD WITH STRONG, WARM, CENTERED SUNLIGHT GLOW */}
       <div className="relative mb-10 md:mb-16">
 
-        {/* 🌅 Warmer, brighter sunrise glow */}
+        {/* ☀️ Warm, bright, centered glow rising behind card */}
         <div className="
-          absolute inset-0 -z-10 
-          blur-[110px] 
-          opacity-60 
-          bg-gradient-to-b 
-          from-amber-400/50 
-          via-yellow-500/30 
-          to-transparent
+          absolute inset-0 -z-10
+          blur-[140px]
+          opacity-70
+          bg-[radial-gradient(circle_at_center,rgba(255,200,60,0.55),rgba(255,170,30,0.35),rgba(255,140,0,0.15),transparent)]
         " />
 
         <Card className="border-primary/40 hover:border-primary transition-all shadow-xl rounded-2xl bg-black/40 backdrop-blur-sm p-1">
@@ -140,8 +137,8 @@ const NeekoPlusPurchase = () => {
               </span>
               <span className="text-muted-foreground mb-1">/week – cancel anytime</span>
 
-              {/* Soft glow under price */}
-              <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-amber-300/30 to-transparent rounded-full blur-md" />
+              {/* Glow under price */}
+              <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-amber-300/40 to-transparent rounded-full blur-md" />
             </div>
           </CardHeader>
 
