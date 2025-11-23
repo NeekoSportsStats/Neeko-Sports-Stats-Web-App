@@ -1,5 +1,5 @@
 // src/pages/NeekoPlusPurchase.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
@@ -52,7 +52,24 @@ const NeekoPlusPurchase = () => {
     },
   ];
 
+  // 🔥 Prevent premium users from entering checkout
+  useEffect(() => {
+    if (isPremium) {
+      console.log("🔐 User already premium — disabling checkout button");
+    }
+  }, [isPremium]);
+
   const handleSubscribe = async () => {
+    // 🔹 Block premium users from starting checkout
+    if (isPremium) {
+      toast({
+        title: "Already subscribed",
+        description: "You already have an active Neeko+ membership.",
+      });
+      navigate("/account");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -60,19 +77,19 @@ const NeekoPlusPurchase = () => {
         data: { session },
       } = await supabase.auth.getSession();
 
-      // 🔹 NOT LOGGED IN → go to Auth with checkout redirect
+      // 🔹 NOT LOGGED IN → go to Auth with redirect
       if (!session) {
         toast({
           title: "Please log in first",
-          description: "You need to be logged in to subscribe",
+          description: "You need to be logged in to subscribe.",
           variant: "destructive",
         });
         setLoading(false);
-        navigate("/auth?redirect=checkout"); // ⬅️ CHANGED from /neeko-plus to checkout
+        navigate("/auth?redirect=checkout");
         return;
       }
 
-      // 🔹 LOGGED IN → go straight to Stripe checkout via edge function
+      // 🔹 LOGGED IN → go to checkout
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
@@ -88,14 +105,19 @@ const NeekoPlusPurchase = () => {
       );
 
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else throw new Error("Failed to create checkout session");
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      throw new Error("Failed to create checkout session");
     } catch (err: any) {
       toast({
         title: "Checkout failed",
         description: err.message,
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
     }
   };
@@ -123,9 +145,8 @@ const NeekoPlusPurchase = () => {
         </p>
       </div>
 
-      {/* MAIN CARD WITH STRONG, WARM, CENTERED SUNLIGHT GLOW */}
+      {/* MAIN CARD */}
       <div className="relative mb-10 md:mb-16">
-        {/* ☀️ Warm, bright, centered glow rising behind card */}
         <div
           className="
           absolute inset-0 -z-10
@@ -154,10 +175,9 @@ const NeekoPlusPurchase = () => {
                 ${price}
               </span>
               <span className="text-muted-foreground mb-1">
-                /week – cancel anytime
+                /week — cancel anytime
               </span>
 
-              {/* Glow under price */}
               <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-amber-300/40 to-transparent rounded-full blur-md" />
             </div>
           </CardHeader>
@@ -171,80 +191,38 @@ const NeekoPlusPurchase = () => {
                 </div>
               ))}
             </div>
-
-            {/* WHAT YOU GET */}
-            <div className="mt-8 border-t border-white/10 pt-4">
-              <p className="font-semibold mb-3">What You Get</p>
-
-              <table className="w-full text-sm">
-                <tbody>
-                  <tr>
-                    <td>Full AI Insights</td>
-                    <td className="text-right">Included</td>
-                  </tr>
-                  <tr>
-                    <td>Unlimited stats</td>
-                    <td className="text-right">Included</td>
-                  </tr>
-                  <tr>
-                    <td>All free limitations removed</td>
-                    <td className="text-right">Included</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </CardContent>
 
           {/* BUTTONS */}
           <CardFooter className="flex flex-col gap-3 pt-4">
-            <Button
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="w-full text-lg font-bold transition-all hover:-translate-y-0.5"
-              size="lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Processing…
-                </>
-              ) : (
-                "Get Neeko+ Now"
-              )}
-            </Button>
+            {!isPremium && (
+              <Button
+                onClick={handleSubscribe}
+                disabled={loading}
+                className="w-full text-lg font-bold transition-all hover:-translate-y-0.5"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    Processing…
+                  </>
+                ) : (
+                  "Get Neeko+ Now"
+                )}
+              </Button>
+            )}
 
             {isPremium && (
               <Button
                 onClick={() => navigate("/account")}
                 variant="outline"
-                className="w-full"
+                className="w-full text-lg"
               >
-                Go to Account
+                Manage Subscription
               </Button>
             )}
           </CardFooter>
-        </Card>
-      </div>
-
-      {/* BENEFITS */}
-      <div className="mt-20 grid md:grid-cols-3 gap-6">
-        <Card className="p-6 bg-black/40 border-primary/20">
-          <h3 className="font-bold text-lg mb-2">AI-Powered Edge</h3>
-          <p className="text-muted-foreground">
-            Spot hot & cold players before everyone else.
-          </p>
-        </Card>
-        <Card className="p-6 bg-black/40 border-primary/20">
-          <h3 className="font-bold text-lg mb-2">Deeper Stats</h3>
-          <p className="text-muted-foreground">
-            Unlimited access to all player & team data.
-          </p>
-        </Card>
-        <Card className="p-6 bg-black/40 border-primary/20">
-          <h3 className="font-bold text-lg mb-2">Game Day Ready</h3>
-          <p className="text-muted-foreground">
-            Build better multis and bets with confidence.
-          </p>
         </Card>
       </div>
 
@@ -263,19 +241,6 @@ const NeekoPlusPurchase = () => {
           ))}
         </div>
       </div>
-
-      <p className="mt-12 text-center text-sm text-muted-foreground pb-6">
-        Cancel anytime. No lock-in contracts.
-        <br />
-        By subscribing, you agree to our{" "}
-        <a href="/policies/terms" className="text-primary hover:underline">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="/policies/privacy" className="text-primary hover:underline">
-          Privacy Policy
-        </a>.
-      </p>
     </div>
   );
 };
