@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,13 +16,12 @@ export default function Success() {
   const sessionId = params.get("session_id");
 
   const { loading, isPremium, refreshPremiumStatus, user } = useAuth();
-  const [hasRefreshed, setHasRefreshed] = useState(false);
+  const hasRefreshedRef = useRef(false);
 
   useEffect(() => {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
-    console.log("🔵 Auth loading:", loading);
-    console.log("🔵 User:", user);
+    console.log("🔵 Auth state:", { loading, hasUser: !!user, isPremium });
 
     if (loading) {
       console.log("⏳ Waiting for auth to hydrate...");
@@ -34,20 +33,20 @@ export default function Success() {
       return;
     }
 
-    if (hasRefreshed) {
-      console.log("✅ Already refreshed premium status");
+    if (hasRefreshedRef.current) {
+      console.log("✅ Already refreshed premium status, skipping");
       return;
     }
 
-    console.log("🔄 Auth loaded, refreshing premium status...");
-    setHasRefreshed(true);
+    console.log("🔄 Auth fully loaded, refreshing premium status now...");
+    hasRefreshedRef.current = true;
 
     refreshPremiumStatus().catch((e) => {
       console.error("❌ refreshPremiumStatus error on Success page:", e);
     });
-  }, [loading, user, hasRefreshed, sessionId, refreshPremiumStatus]);
+  }, [loading, user]);
 
-  const showSpinner = loading || (user && !hasRefreshed);
+  const showSpinner = loading;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
@@ -69,9 +68,7 @@ export default function Success() {
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
               <p className="mt-4 text-muted-foreground">
-                {loading
-                  ? "Loading your account..."
-                  : "Activating your subscription..."}
+                Loading your account...
               </p>
             </div>
           ) : (

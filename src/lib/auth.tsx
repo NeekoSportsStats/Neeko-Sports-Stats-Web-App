@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-} from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -31,91 +25,137 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
-  /** Fetch premium */
-  const fetchPremiumStatus = useCallback(async (userId: string) => {
+  const initializedRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const fetchPremiumStatus = async (userId: string) => {
+    if (!mountedRef.current) return;
+
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("subscription_status")
         .eq("id", userId)
         .maybeSingle();
 
-      setIsPremium(data?.subscription_status === "active");
-    } catch {
-      setIsPremium(false);
-    }
-  }, []);
-
-  /** Refresh premium */
-  const refreshPremiumStatus = useCallback(async () => {
-    if (!user?.id) return;
-    await fetchPremiumStatus(user.id);
-  }, [user, fetchPremiumStatus]);
-
-  /** Auth lifecycle */
-  useEffect(() => {
-    let mounted = true;
-
-    console.log("⚡ AuthProvider mounted");
-
-    /** 1️⃣ Initial session hydration (FIRST and ONLY place loading is cleared) */
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-
-      const sessionUser = data.session?.user ?? null;
-      console.log("🟡 Initial session:", sessionUser);
-
-      setUser(sessionUser);
-
-      if (sessionUser) {
-        await fetchPremiumStatus(sessionUser.id);
+      if (error) {
+        console.error("❌ Premium status error:", error);
+        if (mountedRef.current) setIsPremium(false);
+        return;
       }
 
-      // ❗ CRITICAL: loading becomes false ONLY HERE
-      setLoading(false);
-    });
+      const isActive = data?.subscription_status === "active";
+      console.log("⭐ Premium status:", isActive, "for user:", userId);
+      if (mountedRef.current) setIsPremium(isActive);
+    } catch (e) {
+      console.error("❌ Premium status exception:", e);
+      if (mountedRef.current) setIsPremium(false);
+    }
+  };
 
-    /** 2️⃣ Listen for any sign-in/sign-out changes */
-    const { data: listener } = supabase.auth.onAuthStateChange(
+  const refreshPremiumStatus = async () => {
+    console.log("🔄 refreshPremiumStatus() called");
+
+    const currentUser = user;
+    if (!currentUser?.id) {
+      console.log("⚠️ No user ID, skipping premium refresh");
+      return;
+    }
+
+    await fetchPremiumStatus(currentUser.id);
+  };
+
+  const signOut = async () => {
+    console.log("🚪 Logging out");
+    try {
+      await supabase.auth.signOut();
+      if (mountedRef.current) {
+        setUser(null);
+        setIsPremium(false);
+      }
+    } catch (error) {
+      console.error("❌ signOut error:", error);
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (initializedRef.current) {
+      console.log("⚠️ AuthProvider already initialized, skipping duplicate setup");
+      return;
+    }
+
+    initializedRef.current = true;
+    console.log("⚡ AuthProvider: Initializing auth state");
+
+    let hasResolvedInitialState = false;
+
+    const resolveInitialState = () => {
+      if (hasResolvedInitialState) return;
+      hasResolvedInitialState = true;
+
+      console.log("✅ Initial auth state resolved, setting loading = false");
+      if (mountedRef.current) setLoading(false);
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
+        if (!mountedRef.current) return;
 
-        console.log("🟣 AUTH EVENT:", event);
+        console.log("🟣 AUTH EVENT:", event, "| Session exists:", !!session);
 
-        const sessionUser = session?.user ?? null;
-        setUser(sessionUser);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
 
-        if (sessionUser) {
-          await fetchPremiumStatus(sessionUser.id);
+        if (currentUser) {
+          await fetchPremiumStatus(currentUser.id);
         } else {
           setIsPremium(false);
         }
+
+        resolveInitialState();
       }
     );
 
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [fetchPremiumStatus]);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mountedRef.current) return;
 
-  /** Logout */
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsPremium(false);
-    setLoading(false);
+      if (error) {
+        console.error("❌ Initial getSession error:", error);
+      }
+
+      console.log("🟡 Initial getSession result:", !!session);
+
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        fetchPremiumStatus(currentUser.id).then(() => {
+          resolveInitialState();
+        });
+      } else {
+        setIsPremium(false);
+        resolveInitialState();
+      }
+    });
+
+    return () => {
+      console.log("🧹 AuthProvider: Cleaning up");
+      mountedRef.current = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
+
+  console.log("🔧 AuthProvider render state:", {
+    user: user?.email,
+    loading,
+    isPremium
+  });
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isPremium,
-        refreshPremiumStatus,
-        signOut,
-      }}
+      value={{ user, loading, isPremium, refreshPremiumStatus, signOut }}
     >
       {children}
     </AuthContext.Provider>
