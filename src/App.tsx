@@ -45,7 +45,7 @@ import NBATeams from "@/pages/sports/NBATeams";
 import NBACompleteAIAnalysis from "@/pages/sports/NBACompleteAIAnalysis";
 import NBAMatchCentre from "@/pages/sports/NBAMatchCentre";
 
-/* 🔥 NEW IMPORTS — ONLY THESE ADDED */
+/* NEW PASSWORD + CHECKOUT PAGES */
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import StartCheckout from "@/pages/StartCheckout";
@@ -54,49 +54,103 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public auth-only pages */}
+
+        {/* Public auth routes */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/create-password" element={<CreatePassword />} />
 
-        {/* 🔥 NEW PUBLIC PASSWORD ROUTES */}
+        {/* Public password routes */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* 🔥 NEW PUBLIC CHECKOUT REDIRECT ROUTE */}
+        {/* Public checkout redirect */}
         <Route path="/start-checkout" element={<StartCheckout />} />
 
         {/* Home */}
-        <Route path="/" element={<Layout><Index /></Layout>} />
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <Index />
+            </Layout>
+          }
+        />
 
-        {/* Neeko+ purchase is NOT protected */}
-        <Route path="/neeko-plus" element={<Layout><NeekoPlusPurchase /></Layout>} />
+        {/* Neeko+ purchase page (public) */}
+        <Route
+          path="/neeko-plus"
+          element={
+            <Layout>
+              <NeekoPlusPurchase />
+            </Layout>
+          }
+        />
 
-        {/* Protected routes */}
-        <Route path="/account" element={
-          <RequireAuth><Layout><Account /></Layout></RequireAuth>
-        }/>
+        {/* Protected pages */}
+        <Route
+          path="/account"
+          element={
+            <RequireAuth>
+              <Layout>
+                <Account />
+              </Layout>
+            </RequireAuth>
+          }
+        />
 
-        <Route path="/billing" element={
-          <RequireAuth><Layout><Billing /></Layout></RequireAuth>
-        }/>
+        <Route
+          path="/billing"
+          element={
+            <RequireAuth>
+              <Layout>
+                <Billing />
+              </Layout>
+            </RequireAuth>
+          }
+        />
 
-        <Route path="/success" element={
-          <RequireAuth><Layout><Success /></Layout></RequireAuth>
-        }/>
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth>
+              <Layout>
+                <Admin />
+              </Layout>
+            </RequireAuth>
+          }
+        />
 
-        <Route path="/cancel" element={
-          <RequireAuth><Layout><Cancel /></Layout></RequireAuth>
-        }/>
+        <Route
+          path="/admin/queue"
+          element={
+            <RequireAuth>
+              <Layout>
+                <AdminQueue />
+              </Layout>
+            </RequireAuth>
+          }
+        />
 
-        <Route path="/admin" element={
-          <RequireAuth><Layout><Admin /></Layout></RequireAuth>
-        }/>
+        {/* 🚨 SUCCESS + CANCEL MUST **NOT** BE PROTECTED */}
+        <Route
+          path="/success"
+          element={
+            <Layout>
+              <Success />
+            </Layout>
+          }
+        />
 
-        <Route path="/admin/queue" element={
-          <RequireAuth><Layout><AdminQueue /></Layout></RequireAuth>
-        }/>
+        <Route
+          path="/cancel"
+          element={
+            <Layout>
+              <Cancel />
+            </Layout>
+          }
+        />
 
-        {/* Info */}
+        {/* Info pages */}
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/socials" element={<Layout><Socials /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
@@ -129,7 +183,7 @@ function App() {
         <Route path="/sports/nba/ai-analysis" element={<Layout><NBACompleteAIAnalysis /></Layout>} />
         <Route path="/sports/nba/match-centre" element={<Layout><NBAMatchCentre /></Layout>} />
 
-        {/* Fallback */}
+        {/* Catch-all */}
         <Route path="*" element={<Layout><NotFound /></Layout>} />
       </Routes>
     </AuthProvider>
