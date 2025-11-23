@@ -1,6 +1,5 @@
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { AuthProvider } from "@/lib/auth";
 
 import { RequireAuth } from "@/components/RequireAuth";
 
@@ -45,133 +44,129 @@ import NBATeams from "@/pages/sports/NBATeams";
 import NBACompleteAIAnalysis from "@/pages/sports/NBACompleteAIAnalysis";
 import NBAMatchCentre from "@/pages/sports/NBAMatchCentre";
 
-/* NEW PASSWORD + CHECKOUT PAGES */
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import StartCheckout from "@/pages/StartCheckout";
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
+    <Routes>
+      {/* Public auth routes */}
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/create-password" element={<CreatePassword />} />
 
-        {/* Public auth routes */}
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/create-password" element={<CreatePassword />} />
+      {/* Public password routes */}
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Public password routes */}
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Public checkout redirect */}
+      <Route path="/start-checkout" element={<StartCheckout />} />
 
-        {/* Public checkout redirect */}
-        <Route path="/start-checkout" element={<StartCheckout />} />
+      {/* Home */}
+      <Route
+        path="/"
+        element={
+          <Layout>
+            <Index />
+          </Layout>
+        }
+      />
 
-        {/* Home */}
-        <Route
-          path="/"
-          element={
+      {/* Neeko+ public */}
+      <Route
+        path="/neeko-plus"
+        element={
+          <Layout>
+            <NeekoPlusPurchase />
+          </Layout>
+        }
+      />
+
+      {/* Protected pages */}
+      <Route
+        path="/account"
+        element={
+          <RequireAuth>
             <Layout>
-              <Index />
+              <Account />
             </Layout>
-          }
-        />
+          </RequireAuth>
+        }
+      />
 
-        {/* Neeko+ purchase page (public) */}
-        <Route
-          path="/neeko-plus"
-          element={
+      <Route
+        path="/billing"
+        element={
+          <RequireAuth>
             <Layout>
-              <NeekoPlusPurchase />
+              <Billing />
             </Layout>
-          }
-        />
+          </RequireAuth>
+        }
+      />
 
-        {/* Protected pages */}
-        <Route
-          path="/account"
-          element={
-            <RequireAuth>
-              <Layout>
-                <Account />
-              </Layout>
-            </RequireAuth>
-          }
-        />
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <Layout>
+              <Admin />
+            </Layout>
+          </RequireAuth>
+        }
+      />
 
-        <Route
-          path="/billing"
-          element={
-            <RequireAuth>
-              <Layout>
-                <Billing />
-              </Layout>
-            </RequireAuth>
-          }
-        />
+      <Route
+        path="/admin/queue"
+        element={
+          <RequireAuth>
+            <Layout>
+              <AdminQueue />
+            </Layout>
+          </RequireAuth>
+        }
+      />
 
-        <Route
-          path="/admin"
-          element={
-            <RequireAuth>
-              <Layout>
-                <Admin />
-              </Layout>
-            </RequireAuth>
-          }
-        />
+      {/* Success + Cancel */}
+      <Route path="/success" element={<Success />} />
+      <Route path="/cancel" element={<Cancel />} />
 
-        <Route
-          path="/admin/queue"
-          element={
-            <RequireAuth>
-              <Layout>
-                <AdminQueue />
-              </Layout>
-            </RequireAuth>
-          }
-        />
+      {/* Info */}
+      <Route path="/about" element={<Layout><About /></Layout>} />
+      <Route path="/socials" element={<Layout><Socials /></Layout>} />
+      <Route path="/faq" element={<Layout><FAQ /></Layout>} />
+      <Route path="/contact" element={<Layout><Contact /></Layout>} />
 
-        {/* 🚨 SUCCESS + CANCEL MUST NOT USE <Layout> */}
-        <Route path="/success" element={<Success />} />
-        <Route path="/cancel" element={<Cancel />} />
+      {/* Policies */}
+      <Route path="/policies" element={<Layout><Policies /></Layout>} />
+      <Route path="/policies/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
+      <Route path="/policies/refund" element={<Layout><RefundPolicy /></Layout>} />
+      <Route path="/policies/security" element={<Layout><SecurityPolicy /></Layout>} />
+      <Route path="/policies/terms" element={<Layout><TermsConditions /></Layout>} />
+      <Route path="/policies/user-conduct" element={<Layout><UserConductPolicy /></Layout>} />
 
-        {/* Info pages */}
-        <Route path="/about" element={<Layout><About /></Layout>} />
-        <Route path="/socials" element={<Layout><Socials /></Layout>} />
-        <Route path="/faq" element={<Layout><FAQ /></Layout>} />
-        <Route path="/contact" element={<Layout><Contact /></Layout>} />
+      {/* Sports */}
+      <Route path="/sports/afl" element={<Layout><AFLHub /></Layout>} />
+      <Route path="/sports/afl/players" element={<Layout><AFLPlayers /></Layout>} />
+      <Route path="/sports/afl/teams" element={<Layout><AFLTeams /></Layout>} />
+      <Route path="/sports/afl/ai-analysis" element={<Layout><AFLCompleteAIAnalysis /></Layout>} />
+      <Route path="/sports/afl/match-centre" element={<Layout><AFLMatchCentre /></Layout>} />
 
-        {/* Policies */}
-        <Route path="/policies" element={<Layout><Policies /></Layout>} />
-        <Route path="/policies/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
-        <Route path="/policies/refund" element={<Layout><RefundPolicy /></Layout>} />
-        <Route path="/policies/security" element={<Layout><SecurityPolicy /></Layout>} />
-        <Route path="/policies/terms" element={<Layout><TermsConditions /></Layout>} />
-        <Route path="/policies/user-conduct" element={<Layout><UserConductPolicy /></Layout>} />
+      <Route path="/sports/epl" element={<Layout><EPLHub /></Layout>} />
+      <Route path="/sports/epl/players" element={<Layout><EPLPlayers /></Layout>} />
+      <Route path="/sports/epl/teams" element={<Layout><EPLTeams /></Layout>} />
+      <Route path="/sports/epl/ai-analysis" element={<Layout><EPLCompleteAIAnalysis /></Layout>} />
+      <Route path="/sports/epl/match-centre" element={<Layout><EPLMatchCentre /></Layout>} />
 
-        {/* Sports */}
-        <Route path="/sports/afl" element={<Layout><AFLHub /></Layout>} />
-        <Route path="/sports/afl/players" element={<Layout><AFLPlayers /></Layout>} />
-        <Route path="/sports/afl/teams" element={<Layout><AFLTeams /></Layout>} />
-        <Route path="/sports/afl/ai-analysis" element={<Layout><AFLCompleteAIAnalysis /></Layout>} />
-        <Route path="/sports/afl/match-centre" element={<Layout><AFLMatchCentre /></Layout>} />
+      <Route path="/sports/nba" element={<Layout><NBAHub /></Layout>} />
+      <Route path="/sports/nba/players" element={<Layout><NBAPlayers /></Layout>} />
+      <Route path="/sports/nba/teams" element={<Layout><NBATeams /></Layout>} />
+      <Route path="/sports/nba/ai-analysis" element={<Layout><NBACompleteAIAnalysis /></Layout>} />
+      <Route path="/sports/nba/match-centre" element={<Layout><NBAMatchCentre /></Layout>} />
 
-        <Route path="/sports/epl" element={<Layout><EPLHub /></Layout>} />
-        <Route path="/sports/epl/players" element={<Layout><EPLPlayers /></Layout>} />
-        <Route path="/sports/epl/teams" element={<Layout><EPLTeams /></Layout>} />
-        <Route path="/sports/epl/ai-analysis" element={<Layout><EPLCompleteAIAnalysis /></Layout>} />
-        <Route path="/sports/epl/match-centre" element={<Layout><EPLMatchCentre /></Layout>} />
-
-        <Route path="/sports/nba" element={<Layout><NBAHub /></Layout>} />
-        <Route path="/sports/nba/players" element={<Layout><NBAPlayers /></Layout>} />
-        <Route path="/sports/nba/teams" element={<Layout><NBATeams /></Layout>} />
-        <Route path="/sports/nba/ai-analysis" element={<Layout><NBACompleteAIAnalysis /></Layout>} />
-        <Route path="/sports/nba/match-centre" element={<Layout><NBAMatchCentre /></Layout>} />
-
-        {/* Catch-all */}
-        <Route path="*" element={<Layout><NotFound /></Layout>} />
-      </Routes>
-    </AuthProvider>
+      {/* Catch-all */}
+      <Route path="*" element={<Layout><NotFound /></Layout>} />
+    </Routes>
   );
 }
 
