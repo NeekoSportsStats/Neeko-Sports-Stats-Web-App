@@ -5,6 +5,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
@@ -32,9 +33,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
-  /* -------------------------------------------------------
-     FETCH PREMIUM STATUS
-  ------------------------------------------------------- */
+  // NEW: Track whether INITIAL_SESSION has occurred
+  const initialSessionSeenRef = useRef(false);
+
+  /**
+   * Fetch premium status from `profiles` for a given user id.
+   */
   const fetchPremiumStatus = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -58,41 +62,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  /**
+   * Public method to re-check premium status for the current user.
+   */
   const refreshPremiumStatus = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log("⚠️ refreshPremiumStatus: no user, skipping");
+      return;
+    }
     console.log("🔄 refreshPremiumStatus() for", user.id);
     await fetchPremiumStatus(user.id);
   }, [user?.id, fetchPremiumStatus]);
 
-  /* -------------------------------------------------------
-     FIXED SIGN OUT — clears PKCE localStorage
-  ------------------------------------------------------- */
+  /**
+   * Logout helper – only runs when you explicitly call signOut()
+   */
   const signOut = useCallback(async () => {
     console.log("🚪 Logging out…");
-
     try {
       await supabase.auth.signOut();
     } catch (err) {
       console.error("❌ signOut error:", err);
     }
 
-    // 🔥 Critical: clear ANY Supabase auth artifacts
-    // (Fixes bug where user is instantly “re-signed in”)
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith("sb-") || key.includes("auth")) {
-        console.log("🧹 Clearing key:", key);
-        localStorage.removeItem(key);
-      }
-    });
-
     setUser(null);
     setIsPremium(false);
     setLoading(false);
   }, []);
 
-  /* -------------------------------------------------------
-     INITIAL SESSION + LISTENER
-  ------------------------------------------------------- */
+  /**
+   * Initialise auth state and listen for changes.
+   */
   useEffect(() => {
     let isMounted = true;
     console.log("⚡ AuthProvider: init");
@@ -101,7 +101,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!isMounted) return;
 
       const currentUser = session?.user ?? null;
-
       console.log(`📥 applySession from ${source}`, {
         hasUser: !!currentUser,
         userId: currentUser?.id,
@@ -116,52 +115,78 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // Initial session hydrate
+    // 1️⃣ Initial session hydrate
     (async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
+        if (!isMounted) return;
+
+        if (error) {
+          console.error("❌ Initial getSession error:", error);
+          setUser(null);
+          setIsPremium(false);
+          setLoading(false);
+          return;
+        }
+
+        await applySession(session, "getSession");
+      } catch (err) {
+        console.error("❌ Initial getSession exception:", err);
+        if (isMounted) {
+          setUser(null);
+          setIsPremium(false);
+        }
+      } finally {
+        if (isMounted) {
+          console.log("✅ Initial auth state resolved");
+          setLoading(false);
+        }
+      }
+    })();
+
+    // 2️⃣ Auth listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
 
-      if (error) {
-        console.error("❌ getSession error:", error);
-        setUser(null);
-        setIsPremium(false);
-        setLoading(false);
+      console.log("🟣 AUTH EVENT:", event, "| hasSession:", !!session);
+
+      // NEW: Ignore premature SIGNED_IN before INITIAL_SESSION
+      if (event === "SIGNED_IN" && !initialSessionSeenRef.current) {
+        console.log("⛔ Ignoring premature SIGNED_IN before INITIAL_SESSION");
         return;
       }
 
-      await applySession(session, "getSession");
-      setLoading(false);
-    })();
+      switch (event) {
+        case "INITIAL_SESSION":
+          initialSessionSeenRef.current = true;
+          await applySession(session, event);
+          setLoading(false);
+          break;
 
-    // Subscribe
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
+        case "SIGNED_IN":
+        case "TOKEN_REFRESHED":
+        case "USER_UPDATED":
+          await applySession(session, event);
+          setLoading(false);
+          break;
 
-        console.log("🟣 AUTH EVENT:", event);
+        case "SIGNED_OUT":
+          console.log("🚪 AUTH EVENT: SIGNED_OUT");
+          setUser(null);
+          setIsPremium(false);
+          setLoading(false);
+          break;
 
-        switch (event) {
-          case "SIGNED_IN":
-          case "USER_UPDATED":
-          case "TOKEN_REFRESHED":
-          case "INITIAL_SESSION":
-            await applySession(session, event);
-            setLoading(false);
-            break;
-
-          case "SIGNED_OUT":
-            console.log("🚪 AUTH EVENT: SIGNED_OUT");
-            setUser(null);
-            setIsPremium(false);
-            setLoading(false);
-            break;
-        }
+        default:
+          break;
       }
-    );
+    });
 
     return () => {
       console.log("🧹 AuthProvider: cleanup");
@@ -169,6 +194,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, [fetchPremiumStatus]);
+
+  console.log("🔧 AuthProvider render:", {
+    user: user?.email,
+    loading,
+    isPremium,
+  });
 
   return (
     <AuthContext.Provider
