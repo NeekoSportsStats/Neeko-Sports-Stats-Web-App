@@ -1,6 +1,6 @@
 // src/pages/Success.tsx
 import { useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,45 +10,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckCircle2, Crown, ArrowRight, Loader2, Home } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
 
 export default function Success() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
 
-  const { refreshUser } = useAuth();
-
-  const [loading, setLoading] = useState(true);
-  const [verified, setVerified] = useState(false);
+  const { loading, isPremium, refreshUser } = useAuth();
 
   useEffect(() => {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
 
-    const verify = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const user = session?.user ?? null;
-      console.log("👤 User from session:", user);
-
-      if (user) {
-        setVerified(true);
-
-        try {
-          await refreshUser(); // FIXED
-        } catch (e) {
-          console.error("refreshUser error:", e);
-        }
-      }
-
-      setLoading(false);
-    };
-
-    verify();
+    // Ask AuthProvider to refresh from Supabase once we land here
+    refreshUser().catch((e) => {
+      console.error("refreshUser error on Success page:", e);
+    });
   }, [sessionId, refreshUser]);
+
+  const showSpinner = loading;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
@@ -66,7 +46,7 @@ export default function Success() {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {loading ? (
+          {showSpinner ? (
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
               <p className="mt-4 text-muted-foreground">
@@ -78,15 +58,20 @@ export default function Success() {
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-3">
                 <div className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Your Premium Access is Active</h3>
+                  <h3 className="font-semibold">
+                    {isPremium
+                      ? "Your Premium Access is Active"
+                      : "Your Premium Access is Almost Ready"}
+                  </h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   You now have unlimited access to all AI-powered insights,
-                  advanced analytics, and premium features across AFL, EPL, and NBA.
+                  advanced analytics, and premium features across AFL, EPL, and
+                  NBA.
                 </p>
               </div>
 
-              {verified ? (
+              {isPremium ? (
                 <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                   <p className="text-sm text-green-900 dark:text-green-100 font-medium">
                     ✓ Subscription verified successfully
