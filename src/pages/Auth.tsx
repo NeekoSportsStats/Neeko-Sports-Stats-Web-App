@@ -83,7 +83,6 @@ const Auth = () => {
         if (error) {
           const msg = error.message.toLowerCase();
 
-          // Proper "incorrect" detection
           if (
             msg.includes("invalid login") ||
             msg.includes("invalid credentials") ||
@@ -112,7 +111,15 @@ const Auth = () => {
       if (error) {
         const msg = error.message.toLowerCase();
 
-        if (msg.includes("already registered") || msg.includes("registered")) {
+        // 🔥 Full coverage of Supabase "user exists" errors
+        if (
+          msg.includes("already registered") ||
+          msg.includes("registered") ||
+          msg.includes("email address") ||
+          msg.includes("duplicate key") ||
+          msg.includes("users_email_key") ||
+          msg.includes("already exists")
+        ) {
           throw new Error("An account with this email already exists.");
         }
 
@@ -235,7 +242,6 @@ const Auth = () => {
               </button>
             </div>
 
-            {/* Password Requirements */}
             {mode === "signup" && (
               <div className="text-xs space-y-1 mt-2">
                 <p className={passwordChecks.length ? "text-green-500" : "text-red-500"}>
