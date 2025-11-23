@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ForgotPassword = () => {
@@ -28,8 +35,8 @@ const ForgotPassword = () => {
 
       setEmailSent(true);
       toast({
-        title: "Password reset email sent",
-        description: "Check your email for the password reset link",
+        title: "Reset Email Sent",
+        description: "Check your inbox for a password reset link.",
       });
     } catch (error: any) {
       console.error("Error sending reset email:", error);
@@ -43,6 +50,9 @@ const ForgotPassword = () => {
     }
   };
 
+  /* ================================
+      SCREEN: Email Sent
+  ================================= */
   if (emailSent) {
     return (
       <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
@@ -53,25 +63,22 @@ const ForgotPassword = () => {
             </div>
             <CardTitle>Check Your Email</CardTitle>
             <CardDescription>
-              We've sent a password reset link to {email}
+              We've sent a password reset link to {email}.
             </CardDescription>
           </CardHeader>
+
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Click the link in the email to reset your password. The link will expire in 1 hour.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Didn't receive the email? Check your spam folder or try again.
+              The link expires in 1 hour.  
+              If you don’t see it, check your spam folder.
             </p>
           </CardContent>
+
           <CardFooter className="flex flex-col gap-2">
-            <Button
-              onClick={() => setEmailSent(false)}
-              variant="outline"
-              className="w-full"
-            >
+            <Button onClick={() => setEmailSent(false)} variant="outline" className="w-full">
               Send Another Email
             </Button>
+
             <Button onClick={() => navigate("/auth")} variant="ghost" className="w-full">
               Back to Sign In
             </Button>
@@ -81,21 +88,27 @@ const ForgotPassword = () => {
     );
   }
 
+  /* ================================
+      SCREEN: Enter Email
+  ================================= */
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Forgot Password</CardTitle>
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Trophy className="h-6 w-6 text-primary" />
+            <CardTitle className="text-xl font-bold">Reset Your Password</CardTitle>
+          </div>
           <CardDescription>
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email to receive a password reset link.
           </CardDescription>
         </CardHeader>
+
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label>Email</Label>
               <Input
-                id="email"
                 type="email"
                 placeholder="you@example.com"
                 value={email}
@@ -105,10 +118,12 @@ const ForgotPassword = () => {
               />
             </div>
           </CardContent>
+
           <CardFooter className="flex flex-col gap-2">
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Sending..." : "Send Reset Link"}
             </Button>
+
             <Button
               type="button"
               onClick={() => navigate("/auth")}
