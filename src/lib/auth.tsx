@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const initializedRef = useRef(false);
   const mountedRef = useRef(true);
+  const loadingResolvedRef = useRef(false);
 
   const fetchPremiumStatus = async (userId: string) => {
     if (!mountedRef.current) return;
@@ -80,6 +81,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const applySession = async (session: any, source: string) => {
+    if (!mountedRef.current) return;
+
+    const currentUser = session?.user ?? null;
+
+    if (currentUser === undefined) {
+      console.error(`⚠️ CRITICAL: session.user is undefined from ${source}! Normalizing to null.`);
+      setUser(null);
+      setIsPremium(false);
+      return;
+    }
+
+    console.log(`📥 applySession from ${source}:`, {
+      hasUser: !!currentUser,
+      userId: currentUser?.id
+    });
+
+    setUser(currentUser);
+
+    if (currentUser) {
+      await fetchPremiumStatus(currentUser.id);
+    } else {
+      setIsPremium(false);
+    }
+  };
+
+  const resolveLoading = () => {
+    if (loadingResolvedRef.current) {
+      console.log("⚠️ Loading already resolved, skipping");
+      return;
+    }
+
+    loadingResolvedRef.current = true;
+    console.log("✅ Auth state resolved → loading = false");
+
+    if (mountedRef.current) {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (initializedRef.current) {
       console.log("⚠️ AuthProvider already initialized, skipping duplicate setup");
@@ -89,15 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializedRef.current = true;
     console.log("⚡ AuthProvider: Initializing auth state");
 
-    let hasResolvedInitialState = false;
-
-    const resolveInitialState = () => {
-      if (hasResolvedInitialState) return;
-      hasResolvedInitialState = true;
-
-      console.log("✅ Initial auth state resolved, setting loading = false");
-      if (mountedRef.current) setLoading(false);
-    };
+    let initialSessionChecked = false;
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -105,63 +138,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log("🟣 AUTH EVENT:", event, "| Session exists:", !!session, "| User exists:", !!session?.user);
 
-        const currentUser = session?.user ?? null;
-
-        if (currentUser === undefined) {
-          console.error("⚠️ CRITICAL: session.user is undefined! Normalizing to null.");
+        if (event === "INITIAL_SESSION") {
+          initialSessionChecked = true;
+          await applySession(session, "INITIAL_SESSION");
+          resolveLoading();
+        } else if (event === "SIGNED_IN") {
+          await applySession(session, "SIGNED_IN");
+          resolveLoading();
+        } else if (event === "SIGNED_OUT") {
+          console.log("🚪 User signed out");
           setUser(null);
           setIsPremium(false);
-          resolveInitialState();
-          return;
+          resolveLoading();
+        } else if (event === "USER_UPDATED") {
+          await applySession(session, "USER_UPDATED");
+        } else if (event === "TOKEN_REFRESHED") {
+          console.log("🔄 Token refreshed");
+          await applySession(session, "TOKEN_REFRESHED");
         }
-
-        setUser(currentUser);
-
-        if (currentUser) {
-          await fetchPremiumStatus(currentUser.id);
-        } else {
-          setIsPremium(false);
-        }
-
-        resolveInitialState();
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!mountedRef.current) return;
-
-      if (error) {
-        console.error("❌ Initial getSession error:", error);
-        resolveInitialState();
-        return;
+    const checkTimeout = setTimeout(() => {
+      if (!initialSessionChecked && !loadingResolvedRef.current) {
+        console.log("⏱️ INITIAL_SESSION event timeout - manually resolving");
+        resolveLoading();
       }
-
-      console.log("🟡 Initial getSession result:", !!session, "| User exists:", !!session?.user);
-
-      const currentUser = session?.user ?? null;
-
-      if (currentUser === undefined) {
-        console.error("⚠️ CRITICAL: session.user is undefined in getSession! Normalizing to null.");
-        setUser(null);
-        setIsPremium(false);
-        resolveInitialState();
-        return;
-      }
-
-      setUser(currentUser);
-
-      if (currentUser) {
-        fetchPremiumStatus(currentUser.id).then(() => {
-          resolveInitialState();
-        });
-      } else {
-        setIsPremium(false);
-        resolveInitialState();
-      }
-    });
+    }, 5000);
 
     return () => {
       console.log("🧹 AuthProvider: Cleaning up");
+      clearTimeout(checkTimeout);
       mountedRef.current = false;
       authListener.subscription.unsubscribe();
     };
@@ -170,7 +177,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   console.log("🔧 AuthProvider render state:", {
     user: user?.email,
     loading,
-    isPremium
+    isPremium,
+    loadingResolved: loadingResolvedRef.current
   });
 
   return (
