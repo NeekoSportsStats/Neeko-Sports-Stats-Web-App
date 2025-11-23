@@ -35,17 +35,32 @@ const NeekoPlusPurchase = () => {
   ];
 
   const testimonials = [
-    { quote: "The AI trends make it so much easier to spot form swings. It feels like cheating.", name: "— Daniel Matthews" },
-    { quote: "Exactly the kind of dashboard I wish existed years ago. Perfect for multi-sport fans.", name: "— Alicia Porter" },
-    { quote: "I use Neeko+ every week to sanity-check my bets. The stats view is insanely helpful.", name: "— Marcus Liu" },
+    {
+      quote:
+        "The AI trends make it so much easier to spot form swings. It feels like cheating.",
+      name: "— Daniel Matthews",
+    },
+    {
+      quote:
+        "Exactly the kind of dashboard I wish existed years ago. Perfect for multi-sport fans.",
+      name: "— Alicia Porter",
+    },
+    {
+      quote:
+        "I use Neeko+ every week to sanity-check my bets. The stats view is insanely helpful.",
+      name: "— Marcus Liu",
+    },
   ];
 
   const handleSubscribe = async () => {
     setLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
+      // 🔹 NOT LOGGED IN → go to Auth with checkout redirect
       if (!session) {
         toast({
           title: "Please log in first",
@@ -53,10 +68,11 @@ const NeekoPlusPurchase = () => {
           variant: "destructive",
         });
         setLoading(false);
-        navigate("/auth?redirect=/neeko-plus");
+        navigate("/auth?redirect=checkout"); // ⬅️ CHANGED from /neeko-plus to checkout
         return;
       }
 
+      // 🔹 LOGGED IN → go straight to Stripe checkout via edge function
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
@@ -65,14 +81,15 @@ const NeekoPlusPurchase = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ priceId: import.meta.env.VITE_STRIPE_PRICE_ID }),
+          body: JSON.stringify({
+            priceId: import.meta.env.VITE_STRIPE_PRICE_ID,
+          }),
         }
       );
 
       const data = await res.json();
       if (data.url) window.location.href = data.url;
       else throw new Error("Failed to create checkout session");
-
     } catch (err: any) {
       toast({
         title: "Checkout failed",
@@ -85,7 +102,6 @@ const NeekoPlusPurchase = () => {
 
   return (
     <div className="container max-w-4xl py-8 md:py-12 px-4">
-
       {/* BACK BUTTON */}
       <Button
         variant="ghost"
@@ -109,14 +125,15 @@ const NeekoPlusPurchase = () => {
 
       {/* MAIN CARD WITH STRONG, WARM, CENTERED SUNLIGHT GLOW */}
       <div className="relative mb-10 md:mb-16">
-
         {/* ☀️ Warm, bright, centered glow rising behind card */}
-        <div className="
+        <div
+          className="
           absolute inset-0 -z-10
           blur-[140px]
           opacity-70
           bg-[radial-gradient(circle_at_center,rgba(255,200,60,0.55),rgba(255,170,30,0.35),rgba(255,140,0,0.15),transparent)]
-        " />
+        "
+        />
 
         <Card className="border-primary/40 hover:border-primary transition-all shadow-xl rounded-2xl bg-black/40 backdrop-blur-sm p-1">
           <CardHeader>
@@ -127,7 +144,8 @@ const NeekoPlusPurchase = () => {
             </CardTitle>
 
             <CardDescription>
-              Advanced analytics and AI insights for serious fans and fantasy players.
+              Advanced analytics and AI insights for serious fans and fantasy
+              players.
             </CardDescription>
 
             {/* PRICE */}
@@ -135,7 +153,9 @@ const NeekoPlusPurchase = () => {
               <span className="text-5xl font-extrabold text-white animate-[pulse_3s_ease-in-out_infinite]">
                 ${price}
               </span>
-              <span className="text-muted-foreground mb-1">/week – cancel anytime</span>
+              <span className="text-muted-foreground mb-1">
+                /week – cancel anytime
+              </span>
 
               {/* Glow under price */}
               <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-amber-300/40 to-transparent rounded-full blur-md" />
@@ -210,15 +230,21 @@ const NeekoPlusPurchase = () => {
       <div className="mt-20 grid md:grid-cols-3 gap-6">
         <Card className="p-6 bg-black/40 border-primary/20">
           <h3 className="font-bold text-lg mb-2">AI-Powered Edge</h3>
-          <p className="text-muted-foreground">Spot hot & cold players before everyone else.</p>
+          <p className="text-muted-foreground">
+            Spot hot & cold players before everyone else.
+          </p>
         </Card>
         <Card className="p-6 bg-black/40 border-primary/20">
           <h3 className="font-bold text-lg mb-2">Deeper Stats</h3>
-          <p className="text-muted-foreground">Unlimited access to all player & team data.</p>
+          <p className="text-muted-foreground">
+            Unlimited access to all player & team data.
+          </p>
         </Card>
         <Card className="p-6 bg-black/40 border-primary/20">
           <h3 className="font-bold text-lg mb-2">Game Day Ready</h3>
-          <p className="text-muted-foreground">Build better multis and bets with confidence.</p>
+          <p className="text-muted-foreground">
+            Build better multis and bets with confidence.
+          </p>
         </Card>
       </div>
 
@@ -229,7 +255,9 @@ const NeekoPlusPurchase = () => {
         <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((t, idx) => (
             <Card key={idx} className="p-6 bg-black/40 border-primary/20">
-              <p className="mb-4 text-white/90 italic leading-relaxed">“{t.quote}”</p>
+              <p className="mb-4 text-white/90 italic leading-relaxed">
+                “{t.quote}”
+              </p>
               <p className="text-muted-foreground">{t.name}</p>
             </Card>
           ))}
