@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Trophy, ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 
 const emailSchema = z.string().email("Invalid email address");
 
@@ -33,6 +32,8 @@ const Auth = () => {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [passwordChecks, setPasswordChecks] = useState({
     length: false,
     upper: false,
@@ -46,7 +47,6 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const redirect = searchParams.get("redirect") || "/";
-  const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -68,6 +68,7 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setFormError(null); // clear previous errors
 
     try {
       emailSchema.parse(email);
@@ -81,17 +82,17 @@ const Auth = () => {
           password,
         });
 
-        // LOGIN ERROR: Supabase sends → {code: "invalid_credentials", message: "..."}
+        // Supabase login error formats from your logs
         if (error?.code === "invalid_credentials") {
-          throw new Error("Incorrect email or password");
+          setFormError("Incorrect email or password");
+          return;
         }
 
-        // LOGIN ERROR: no user returned = invalid login
         if (!data?.user) {
-          throw new Error("Incorrect email or password");
+          setFormError("Incorrect email or password");
+          return;
         }
 
-        toast({ title: "Welcome back!" });
         return;
       }
 
@@ -101,39 +102,25 @@ const Auth = () => {
       passwordSchema.parse(password);
 
       if (password !== confirmPassword) {
-        throw new Error("Passwords do not match");
+        setFormError("Passwords do not match");
+        return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      // SIGNUP ERROR: Supabase sends → {code: "user_already_exists", message: "..."}
+      // Supabase signup error formats from your logs
       if (error?.code === "user_already_exists") {
-        throw new Error("An account with this email already exists.");
+        setFormError("An account with this email already exists.");
+        return;
       }
 
-      // Any other signup failure
       if (error) {
-        throw new Error(error.message || "Sign up failed. Please try again.");
+        setFormError(error.message || "Sign up failed.");
+        return;
       }
-
-      toast({
-        title: "Account created!",
-        description: data.session
-          ? "You are now signed in."
-          : "Check your email to confirm your account.",
-      });
-
-      setPassword("");
-      setConfirmPassword("");
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err.message || "Something went wrong",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -258,7 +245,7 @@ const Auth = () => {
             )}
           </div>
 
-          {/* CONFIRM */}
+          {/* CONFIRM PASSWORD */}
           {mode === "signup" && (
             <div className="space-y-2">
               <Label>Confirm Password</Label>
@@ -279,18 +266,12 @@ const Auth = () => {
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  {showConfirm ? (
-                    <EyeOff className="h-4 w-4 text-white/70" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-white/70" />
-                  )}
+                  {showConfirm ? <EyeOff className="h-4 w-4 text-white/70" /> : <Eye className="h-4 w-4 text-white/70" />}
                 </button>
               </div>
 
               {confirmPassword && confirmPassword !== password && (
-                <p className="text-red-500 text-xs mt-1">
-                  Passwords do not match.
-                </p>
+                <p className="text-red-500 text-xs mt-1">Passwords do not match.</p>
               )}
             </div>
           )}
@@ -298,6 +279,13 @@ const Auth = () => {
           <Button type="submit" className="w-full" disabled={loading || !canSubmit}>
             {loading ? "Loading..." : mode === "login" ? "Sign In" : "Sign Up"}
           </Button>
+
+          {/* INLINE ERROR MESSAGE */}
+          {formError && (
+            <p className="text-red-500 text-sm text-center mt-2">
+              {formError}
+            </p>
+          )}
         </form>
 
         {mode === "login" && (
