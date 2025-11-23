@@ -1,3 +1,4 @@
+// src/pages/Auth.tsx
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -48,12 +49,7 @@ const Auth = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  /** ----------------------------------------------------
-   *  🚀 AUTO-REDIRECT AFTER LOGIN / SIGNUP
-   *  checkout →   /start-checkout
-   *  account  →   /account
-   *  anything else → redirect URL
-   * ---------------------------------------------------- */
+  // 🔥 Redirect after successful login/signup
   useEffect(() => {
     if (!user) return;
 
@@ -77,7 +73,6 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
-      // LOGIN
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -92,7 +87,7 @@ const Auth = () => {
         return;
       }
 
-      // SIGNUP
+      // SIGNUP MODE
       passwordSchema.parse(password);
       if (password !== confirmPassword) {
         throw new Error("Passwords do not match");
@@ -261,7 +256,7 @@ const Auth = () => {
           </Button>
         </form>
 
-        {/* FORGOT PASSWORD */}
+        {/* Forgot password */}
         {mode === "login" && (
           <div className="text-center mt-2">
             <button
