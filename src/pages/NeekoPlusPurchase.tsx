@@ -14,8 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-import { Check, Crown, Sparkles } from "lucide-react";
+import { Check, Crown, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const NeekoPlusPurchase = () => {
@@ -39,9 +38,7 @@ const NeekoPlusPurchase = () => {
     setLoading(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
         toast({
@@ -77,31 +74,29 @@ const NeekoPlusPurchase = () => {
         throw new Error("Failed to create checkout session");
       }
     } catch (err: any) {
-      console.error("Checkout error:", err);
-
       toast({
         title: "Checkout failed",
-        description: err.message || "Unable to start checkout process",
+        description: err.message,
         variant: "destructive",
       });
-
       setLoading(false);
     }
   };
 
   return (
     <div className="container max-w-4xl py-12">
+      {/* HEADER */}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Crown className="h-8 w-8 text-primary" />
           <h1 className="text-4xl font-bold">Neeko Plus</h1>
         </div>
-
         <p className="text-xl text-muted-foreground">
           Unlock premium sports analytics and AI insights
         </p>
       </div>
 
+      {/* PLAN GRID */}
       <div className="grid gap-8 md:grid-cols-2 items-start">
         {/* FREE PLAN */}
         <Card>
@@ -129,15 +124,19 @@ const NeekoPlusPurchase = () => {
           </CardContent>
         </Card>
 
-        {/* PREMIUM PLAN */}
-        <Card className="border-primary shadow-lg">
+        {/* PREMIUM PLAN — Glow Ring Added */}
+        <Card className="border-primary shadow-lg relative">
+          {/* Glow ring (only if premium is active) */}
+          {isPremium && (
+            <div className="absolute -inset-1 rounded-2xl border-2 border-primary/50 animate-pulse pointer-events-none" />
+          )}
+
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Neeko Plus
               <Badge>Premium</Badge>
             </CardTitle>
-
             <CardDescription>Advanced analytics and AI insights</CardDescription>
 
             <div className="pt-4">
@@ -155,18 +154,67 @@ const NeekoPlusPurchase = () => {
                 </div>
               ))}
             </div>
+
+            {/* COMPARISON TABLE */}
+            <div className="mt-6 border-t pt-4">
+              <p className="font-semibold mb-2">Compare Plans</p>
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr>
+                    <td>Full AI Insights</td>
+                    <td className="text-right">{true ? "✔️" : "—"}</td>
+                  </tr>
+                  <tr>
+                    <td>Unlimited stats</td>
+                    <td className="text-right">✔️</td>
+                  </tr>
+                  <tr>
+                    <td>Free Plan Limitations Removed</td>
+                    <td className="text-right">✔️</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </CardContent>
 
-          <CardFooter>
-            <Button onClick={handleSubscribe} disabled={loading} className="w-full" size="lg">
-              {loading ? "Processing…" : user ? "Subscribe Now" : "Sign In to Subscribe"}
+          <CardFooter className="flex flex-col gap-3">
+            {/* Subscribe Button */}
+            <Button
+              onClick={handleSubscribe}
+              disabled={loading}
+              className="w-full"
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Processing…
+                </>
+              ) : user ? (
+                "Subscribe Now"
+              ) : (
+                "Sign In to Subscribe"
+              )}
             </Button>
+
+            {/* Already subscribed → Go to Account */}
+            {isPremium && (
+              <Button
+                onClick={() => navigate("/account")}
+                variant="outline"
+                className="w-full"
+              >
+                Go to Account
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </div>
 
+      {/* FOOTER */}
       <div className="mt-12 text-center text-sm text-muted-foreground">
         <p>Cancel anytime. No commitments.</p>
+
         <p className="mt-2">
           By subscribing, you agree to our{" "}
           <a href="/policies/terms" className="text-primary hover:underline">
