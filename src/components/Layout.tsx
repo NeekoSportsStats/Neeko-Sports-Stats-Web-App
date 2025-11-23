@@ -1,4 +1,3 @@
-// src/components/Layout.tsx
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="container flex h-14 items-center px-4">
               <SidebarTrigger className="mr-2 lg:mr-4" />
 
-              {/* Logo */}
+              {/* LOGO */}
               <div className="flex items-center mr-auto">
                 <img
                   src="/logo.png"
@@ -34,10 +33,10 @@ export function Layout({ children }: LayoutProps) {
                 />
               </div>
 
-              {/* RIGHT SIDE BUTTONS */}
+              {/* RIGHT BUTTONS */}
               <div className="flex items-center gap-1.5 lg:gap-2">
 
-                {/* ⭐ PREMIUM USERS → Crown only */}
+                {/* ⭐ PREMIUM USERS — crown only */}
                 {isPremium && (
                   <Link to="/account">
                     <Button variant="outline" size="sm" className="gap-2">
@@ -46,20 +45,25 @@ export function Layout({ children }: LayoutProps) {
                   </Link>
                 )}
 
-                {/* Logged in → Logout */}
+                {/* NON PREMIUM — Neeko+ button */}
+                {!isPremium && (
+                  <Link to="/neeko-plus">
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Crown className="h-4 w-4" />
+                      <span className="hidden sm:inline">Neeko+</span>
+                    </Button>
+                  </Link>
+                )}
+
+                {/* LOGGED IN → Logout */}
                 {user && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={signOut}
-                    className="gap-2"
-                  >
+                  <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
                     <LogOut className="h-4 w-4" />
                     <span className="hidden sm:inline">Logout</span>
                   </Button>
                 )}
 
-                {/* Not logged in → Sign In */}
+                {/* NOT LOGGED IN → Sign In */}
                 {!user && (
                   <Link to="/auth">
                     <Button variant="default" size="sm">
@@ -71,7 +75,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </header>
 
-          {/* CONTENT */}
+          {/* BODY */}
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>
