@@ -15,16 +15,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-import { Check, Crown, Sparkles } from "lucide-react"; // ⭐ Restore original icons
+import { Check, Crown, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const NeekoPlusPurchase = () => {
   const [loading, setLoading] = useState(false);
-  const { user, isPremium } = useAuth(); // ⭐ Use real subscription state
+  const { user, isPremium } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const price = "5.99"; // ⭐ Restore correct price
+  const price = "5.99";
 
   const features = [
     "Advanced AI-powered analytics",
@@ -51,11 +51,10 @@ const NeekoPlusPurchase = () => {
         });
 
         setLoading(false);
-        navigate("/auth?redirect=/neeko-plus"); // ⭐ Correct redirect
+        navigate("/auth?redirect=/neeko-plus");
         return;
       }
 
-      // ⭐ Correct Supabase Edge Function URL
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
@@ -93,7 +92,6 @@ const NeekoPlusPurchase = () => {
   return (
     <div className="container max-w-4xl py-12">
       <div className="text-center mb-8">
-        {/* ⭐ Restore original icon + colours */}
         <div className="flex items-center justify-center gap-2 mb-4">
           <Crown className="h-8 w-8 text-primary" />
           <h1 className="text-4xl font-bold">Neeko Plus</h1>
@@ -104,14 +102,12 @@ const NeekoPlusPurchase = () => {
         </p>
       </div>
 
-      {/* ⭐ Restore original spacing + layout */}
       <div className="grid gap-8 md:grid-cols-2 items-start">
-        {/* Free Plan */}
+        {/* FREE PLAN */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Free Plan
-              {/* ⭐ Dynamic badge */}
               <Badge variant={isPremium ? "outline" : "secondary"}>
                 {isPremium ? "Not Current" : "Current"}
               </Badge>
@@ -133,7 +129,7 @@ const NeekoPlusPurchase = () => {
           </CardContent>
         </Card>
 
-        {/* Neeko Plus */}
+        {/* PREMIUM PLAN */}
         <Card className="border-primary shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -163,7 +159,6 @@ const NeekoPlusPurchase = () => {
 
           <CardFooter>
             <Button onClick={handleSubscribe} disabled={loading} className="w-full" size="lg">
-              {/* ⭐ Add loading state */}
               {loading ? "Processing…" : user ? "Subscribe Now" : "Sign In to Subscribe"}
             </Button>
           </CardFooter>
