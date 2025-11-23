@@ -1,7 +1,7 @@
 // src/lib/auth.ts
 import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { supabase } from "./supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 
 interface AuthContextType {
   user: User | null;
@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPremium, setIsPremium] = useState(false);
 
   /**
-   * Fetch premium status from profiles
+   * Load premium status from DB
    */
   const fetchPremiumStatus = async (userId: string) => {
     try {
@@ -39,18 +39,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       setIsPremium(data?.subscription_status === "active");
     } catch (error) {
-      console.error("Premium fetch error:", error);
+      console.error("💥 Error fetching premium status:", error);
       setIsPremium(false);
     }
   };
 
   /**
-   * Refresh the user session + premium status
+   * Fully refresh user + premium status
    */
   const refreshUser = async () => {
     const {
       data: { session },
+      error,
     } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error("💥 refreshUser session error:", error);
+    }
 
     const currentUser = session?.user ?? null;
     setUser(currentUser);
@@ -61,13 +66,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   /**
-   * Initial load + auth listener
+   * Initial auth load and listener
    */
   useEffect(() => {
-    const init = async () => {
+    let mounted = true;
+
+    const load = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+
+      if (!mounted) return;
 
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -79,24 +88,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     };
 
-    init();
+    load();
 
-    // Proper listener
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
+    // Auth state listener
+    const {
+      data: authListener,
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-        if (currentUser) {
-          await fetchPremiumStatus(currentUser.id);
-        } else {
-          setIsPremium(false);
-        }
+      if (currentUser) {
+        await fetchPremiumStatus(currentUser.id);
+      } else {
+        setIsPremium(false);
       }
-    );
+    });
 
     return () => {
-      listener.subscription.unsubscribe();
+      mounted = false;
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
