@@ -1,5 +1,5 @@
 // src/pages/Success.tsx
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,53 +15,40 @@ import { useAuth } from "@/lib/auth";
 
 export default function Success() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
-
-  const { refreshPremiumStatus } = useAuth() || {};
-
   const sessionId = params.get("session_id");
+
+  const { refreshUser } = useAuth();
+
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
 
-  // ---------------------------------------------------------
-  // 🔥 MINIMAL FIX — VERIFY USER SESSION ONLY (no profile wait)
-  // ---------------------------------------------------------
   useEffect(() => {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
 
     const verify = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        const user = session?.user ?? null;
-        console.log("👤 User from session:", user);
+      const user = session?.user ?? null;
+      console.log("👤 User from session:", user);
 
-        if (user) {
-          // ⭐ As soon as session is valid → treat as verified
-          setVerified(true);
+      if (user) {
+        setVerified(true);
 
-          // 🔁 Update global premium state
-          try {
-            await refreshPremiumStatus?.();
-          } catch (e) {
-            console.error("refreshPremiumStatus error:", e);
-          }
-        } else {
-          console.log("❌ No user found in session");
+        try {
+          await refreshUser(); // FIXED
+        } catch (e) {
+          console.error("refreshUser error:", e);
         }
-      } catch (error) {
-        console.error("🔥 Fatal error in success flow:", error);
-      } finally {
-        console.log("✅ Ending loader state");
-        setLoading(false);
       }
+
+      setLoading(false);
     };
 
     verify();
-  }, [sessionId]);
+  }, [sessionId, refreshUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
@@ -84,9 +71,6 @@ export default function Success() {
               <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
               <p className="mt-4 text-muted-foreground">
                 Activating your subscription...
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                This usually takes just a few seconds
               </p>
             </div>
           ) : (
@@ -111,7 +95,7 @@ export default function Success() {
               ) : (
                 <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                   <p className="text-sm text-amber-900 dark:text-amber-100 font-medium">
-                    Payment received! Your subscription will be active within a few minutes.
+                    Payment received! Your subscription will be active shortly.
                   </p>
                 </div>
               )}
