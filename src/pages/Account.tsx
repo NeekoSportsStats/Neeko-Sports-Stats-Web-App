@@ -1,3 +1,4 @@
+// src/pages/Account.tsx
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
@@ -26,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 export default function Account() {
   const { user, loading: authLoading, signOut, isPremium, refreshPremiumStatus } =
     useAuth();
+
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -46,17 +48,14 @@ export default function Account() {
 
     const loadProfile = async () => {
       setLoadingProfile(true);
+
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") {
-        console.error("Profile fetch error:", error);
-      }
-
-      // Fallback profile if row doesn't exist yet
+      // Fallback if row missing (new profiles)
       if (!data) {
         setProfile({
           id: user.id,
@@ -74,7 +73,7 @@ export default function Account() {
     loadProfile();
   }, [user, isPremium]);
 
-  // Stripe success return
+  // Stripe success return flow
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       toast({
@@ -97,18 +96,14 @@ export default function Account() {
   if (!user || !profile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <p className="text-muted-foreground">
-          We couldn&apos;t load your account details.
-        </p>
+        <p className="text-muted-foreground">Unable to load account details.</p>
         <Button onClick={() => navigate("/auth")}>Go to login</Button>
       </div>
     );
   }
 
-  const isActive =
-    profile.subscription_status === "active" ||
-    profile.subscription_status === "trialing" ||
-    isPremium;
+  const subscriptionActive =
+    profile.subscription_status === "active" || isPremium;
 
   const getStatusBadge = (s: string) => {
     const variants: any = {
@@ -122,6 +117,7 @@ export default function Account() {
     return <Badge variant={variants[s] || "outline"}>{label}</Badge>;
   };
 
+  // 🔥 NEW: Correct portal handler for Edge Function
   const handleManageSubscription = async () => {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -147,17 +143,17 @@ export default function Account() {
       );
 
       const data = await res.json();
+
       if (data.url) {
         window.location.href = data.url;
-        return;
+      } else {
+        throw new Error("No portal URL returned");
       }
-
-      throw new Error("No portal URL returned");
     } catch (err) {
       console.error("Portal error:", err);
       toast({
         title: "Error",
-        description: "Failed to open subscription management. Try again.",
+        description: "Unable to open subscription management.",
         variant: "destructive",
       });
     }
@@ -185,20 +181,17 @@ export default function Account() {
 
           <CardContent className="space-y-4">
             <p>
-              <span className="text-sm text-muted-foreground">Email</span>
-              <br />
+              <span className="text-sm text-muted-foreground">Email</span><br />
               <span className="text-base font-medium">{profile.email}</span>
             </p>
+
             <p>
-              <span className="text-sm text-muted-foreground">Account ID</span>
-              <br />
+              <span className="text-sm text-muted-foreground">Account ID</span><br />
               <span className="text-xs font-mono">{profile.id}</span>
             </p>
+
             <p>
-              <span className="text-sm text-muted-foreground">
-                Member Since
-              </span>
-              <br />
+              <span className="text-sm text-muted-foreground">Member Since</span><br />
               <span className="text-base">
                 {new Date(profile.created_at).toLocaleDateString()}
               </span>
@@ -217,12 +210,12 @@ export default function Account() {
                   <CardDescription>Your Neeko+ plan</CardDescription>
                 </div>
               </div>
-              {getStatusBadge(isActive ? "active" : "free")}
+              {getStatusBadge(subscriptionActive ? "active" : "free")}
             </div>
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {isActive ? (
+            {subscriptionActive ? (
               <>
                 <p>
                   Plan: <strong>Neeko+ Premium</strong>
@@ -231,9 +224,7 @@ export default function Account() {
                 {profile.current_period_end && (
                   <p>
                     Next Billing:{" "}
-                    {new Date(
-                      profile.current_period_end
-                    ).toLocaleDateString()}
+                    {new Date(profile.current_period_end).toLocaleDateString()}
                   </p>
                 )}
 
@@ -250,15 +241,8 @@ export default function Account() {
               </>
             ) : (
               <>
-                <p>
-                  You&apos;re on the free plan. Upgrade to Neeko+ to unlock all
-                  features.
-                </p>
-
-                <Button
-                  onClick={() => navigate("/neeko-plus")}
-                  className="w-full"
-                >
+                <p>You’re on the free plan. Upgrade to unlock all features.</p>
+                <Button onClick={() => navigate("/neeko-plus")} className="w-full">
                   <Crown className="h-4 w-4 mr-2" />
                   Upgrade to Neeko+
                 </Button>
