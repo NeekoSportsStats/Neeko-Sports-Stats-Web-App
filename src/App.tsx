@@ -131,7 +131,7 @@ function App() {
           }
         />
 
-        {/* 🚨 SUCCESS + CANCEL MUST **NOT** BE PROTECTED */}
+        {/* 🚨 SUCCESS + CANCEL MUST *NOT* BE PROTECTED */}
         <Route
           path="/success"
           element={
