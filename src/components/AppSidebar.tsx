@@ -1,4 +1,5 @@
 // src/components/AppSidebar.tsx
+
 import {
   Sidebar,
   SidebarContent,
@@ -10,14 +11,16 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 
-import { Home, Trophy, BarChart3 } from "lucide-react";
+import { Home, Trophy, Crown, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 
 export function AppSidebar() {
+  const { isPremium } = useAuth();
+
   return (
     <Sidebar>
       <SidebarContent>
-        {/* MAIN NAV */}
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -63,11 +66,24 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              {/* ⭐ CONDITIONAL NEEKO+ BUTTON */}
+              {!isPremium && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/neeko-plus">
+                      <Crown className="h-4 w-4" />
+                      <span>Neeko+</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* ⭐ If premium → do NOT render Neeko+ at all */}
+              {/* No else block on purpose */}
+
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* ❌ NO Neeko+ sections at all */}
       </SidebarContent>
     </Sidebar>
   );
