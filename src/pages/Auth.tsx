@@ -75,18 +75,23 @@ const Auth = () => {
 
       // LOGIN
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
+        // CASE 1 — Supabase sometimes returns NO error but user is null
+        if (!data?.user) {
+          throw new Error("Incorrect email or password");
+        }
+
+        // CASE 2 — Supabase returns structured error
         if (error) {
           const msg = error.message.toLowerCase();
-
           if (
+            msg.includes("invalid") ||
+            msg.includes("incorrect") ||
             msg.includes("invalid login") ||
-            msg.includes("invalid credentials") ||
-            msg.includes("invalid email or password") ||
             error.status === 400
           ) {
             throw new Error("Incorrect email or password");
@@ -111,7 +116,6 @@ const Auth = () => {
       if (error) {
         const msg = error.message.toLowerCase();
 
-        // 🔥 Full coverage of Supabase "user exists" errors
         if (
           msg.includes("already registered") ||
           msg.includes("registered") ||
@@ -204,7 +208,9 @@ const Auth = () => {
               autoComplete="email"
               required
             />
-            {emailError && <p className="text-red-500 text-xs">{emailError}</p>}
+            {emailError && (
+              <p className="text-red-500 text-xs">{emailError}</p>
+            )}
           </div>
 
           {/* PASSWORD */}
@@ -271,8 +277,7 @@ const Auth = () => {
                 <Input
                   type={showConfirm ? "text" : "password"}
                   className={
-                    confirmPassword &&
-                    confirmPassword !== password
+                    confirmPassword && confirmPassword !== password
                       ? "border-red-500"
                       : ""
                   }
@@ -301,7 +306,11 @@ const Auth = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading || !canSubmit}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || !canSubmit}
+          >
             {loading ? "Loading..." : mode === "login" ? "Sign In" : "Sign Up"}
           </Button>
         </form>
