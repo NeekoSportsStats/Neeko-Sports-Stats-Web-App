@@ -95,7 +95,7 @@ const NeekoPlusPurchase = () => {
   };
 
   return (
-    <div className="container max-w-4xl py-12">
+    <div className="container max-w-4xl py-10 px-4 md:px-0">
 
       {/* BACK BUTTON */}
       <Button
@@ -108,21 +108,21 @@ const NeekoPlusPurchase = () => {
       </Button>
 
       {/* HEADER */}
-      <div className="text-center mb-12">
+      <div className="text-center mb-10 md:mb-12">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Crown className="h-10 w-10 text-primary" />
-          <h1 className="text-5xl font-extrabold">Neeko+</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold">Neeko+</h1>
         </div>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-lg md:text-xl text-muted-foreground">
           Unlock premium sports analytics and AI insights
         </p>
       </div>
 
-      {/* MAIN WRAPPER */}
-      <div className="relative rounded-3xl p-8 md:p-12 border border-primary/30 bg-gradient-to-b from-black/40 to-zinc-900/20 shadow-xl">
+      {/* MAIN CARD (outer glow removed) */}
+      <div className="relative">
 
         {/* PLAN CARD */}
-        <Card className="border-primary/40 hover:border-primary transition-all shadow-lg rounded-2xl bg-black/40 backdrop-blur-sm p-1">
+        <Card className="border-primary/40 hover:border-primary transition-all shadow-xl rounded-2xl bg-black/40 backdrop-blur-sm p-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -134,24 +134,22 @@ const NeekoPlusPurchase = () => {
               Advanced analytics and AI insights for serious fans and fantasy players.
             </CardDescription>
 
-            {/* Price (smooth pulse + subtle gradient under it) */}
+            {/* Smooth pulsing price + yellow soft glow line */}
             <div className="pt-4 flex items-end gap-2 relative">
-              <span className="text-5xl font-extrabold text-white animate-[pulse_3s_ease-in-out_infinite]">
+              <span className="text-4xl md:text-5xl font-extrabold text-white animate-[pulse_3s_ease-in-out_infinite]">
                 ${price}
               </span>
               <span className="text-muted-foreground mb-1">/week – cancel anytime</span>
 
-              <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent rounded-full blur-md" />
+              {/* subtle sunlight-like gradient under price */}
+              <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-yellow-500/25 to-transparent rounded-full blur-lg" />
             </div>
           </CardHeader>
 
           <CardContent>
             <div className="space-y-3 mt-6">
               {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 opacity-100"
-                >
+                <div key={index} className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
                   <span>{feature}</span>
                 </div>
@@ -212,7 +210,7 @@ const NeekoPlusPurchase = () => {
       </div>
 
       {/* BENEFITS */}
-      <div className="mt-20 grid md:grid-cols-3 gap-6">
+      <div className="mt-16 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6 bg-black/40 border-primary/20">
           <h3 className="font-bold text-lg mb-2">AI-Powered Edge</h3>
           <p className="text-muted-foreground">Spot hot & cold players before everyone else.</p>
@@ -229,11 +227,11 @@ const NeekoPlusPurchase = () => {
         </Card>
       </div>
 
-      {/* TESTIMONIALS — improved spacing */}
-      <div className="mt-20">
+      {/* TESTIMONIALS */}
+      <div className="mt-16 md:mt-20">
         <h2 className="text-2xl font-bold mb-6">What early users are saying</h2>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {testimonials.map((t, idx) => (
             <Card key={idx} className="p-6 bg-black/40 border-primary/20">
               <p className="mb-4 text-white/90 italic leading-relaxed">“{t.quote}”</p>
@@ -243,7 +241,7 @@ const NeekoPlusPurchase = () => {
         </div>
       </div>
 
-      <p className="mt-12 text-center text-sm text-muted-foreground">
+      <p className="mt-12 text-center text-sm text-muted-foreground pb-10">
         Cancel anytime. No lock-in contracts.
         <br />
         By subscribing, you agree to our{" "}
