@@ -1,4 +1,3 @@
-// src/pages/NeekoPlusPurchase.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,16 +13,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Sparkles, Loader2 } from "lucide-react";
+
+import { Check, Crown, Sparkles } from "lucide-react"; // ⭐ Restore original icons
 import { useToast } from "@/hooks/use-toast";
 
 const NeekoPlusPurchase = () => {
   const [loading, setLoading] = useState(false);
-  const { user, isPremium } = useAuth();
+  const { user, isPremium } = useAuth(); // ⭐ Use real subscription state
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const price = "5.99";
+  const price = "5.99"; // ⭐ Restore correct price
 
   const features = [
     "Advanced AI-powered analytics",
@@ -38,7 +38,9 @@ const NeekoPlusPurchase = () => {
     setLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
         toast({
@@ -46,12 +48,12 @@ const NeekoPlusPurchase = () => {
           description: "You need to be logged in to subscribe",
           variant: "destructive",
         });
-
         setLoading(false);
         navigate("/auth?redirect=/neeko-plus");
         return;
       }
 
+      // ⭐ Correct Supabase Edge Function URL
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
@@ -74,9 +76,10 @@ const NeekoPlusPurchase = () => {
         throw new Error("Failed to create checkout session");
       }
     } catch (err: any) {
+      console.error("Checkout error:", err);
       toast({
         title: "Checkout failed",
-        description: err.message,
+        description: err.message || "Unable to start checkout process",
         variant: "destructive",
       });
       setLoading(false);
@@ -85,24 +88,26 @@ const NeekoPlusPurchase = () => {
 
   return (
     <div className="container max-w-4xl py-12">
-      {/* HEADER */}
       <div className="text-center mb-8">
+        {/* ⭐ Restore original icon + colours */}
         <div className="flex items-center justify-center gap-2 mb-4">
           <Crown className="h-8 w-8 text-primary" />
           <h1 className="text-4xl font-bold">Neeko Plus</h1>
         </div>
+
         <p className="text-xl text-muted-foreground">
           Unlock premium sports analytics and AI insights
         </p>
       </div>
 
-      {/* PLAN GRID */}
+      {/* ⭐ Restore original spacing + layout */}
       <div className="grid gap-8 md:grid-cols-2 items-start">
-        {/* FREE PLAN */}
+        {/* Free Plan */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Free Plan
+              {/* ⭐ Dynamic badge */}
               <Badge variant={isPremium ? "outline" : "secondary"}>
                 {isPremium ? "Not Current" : "Current"}
               </Badge>
@@ -124,19 +129,15 @@ const NeekoPlusPurchase = () => {
           </CardContent>
         </Card>
 
-        {/* PREMIUM PLAN — Glow Ring Added */}
-        <Card className="border-primary shadow-lg relative">
-          {/* Glow ring (only if premium is active) */}
-          {isPremium && (
-            <div className="absolute -inset-1 rounded-2xl border-2 border-primary/50 animate-pulse pointer-events-none" />
-          )}
-
+        {/* Neeko Plus */}
+        <Card className="border-primary shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Neeko Plus
               <Badge>Premium</Badge>
             </CardTitle>
+
             <CardDescription>Advanced analytics and AI insights</CardDescription>
 
             <div className="pt-4">
@@ -154,67 +155,23 @@ const NeekoPlusPurchase = () => {
                 </div>
               ))}
             </div>
-
-            {/* COMPARISON TABLE */}
-            <div className="mt-6 border-t pt-4">
-              <p className="font-semibold mb-2">Compare Plans</p>
-              <table className="w-full text-sm">
-                <tbody>
-                  <tr>
-                    <td>Full AI Insights</td>
-                    <td className="text-right">{true ? "✔️" : "—"}</td>
-                  </tr>
-                  <tr>
-                    <td>Unlimited stats</td>
-                    <td className="text-right">✔️</td>
-                  </tr>
-                  <tr>
-                    <td>Free Plan Limitations Removed</td>
-                    <td className="text-right">✔️</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </CardContent>
 
-          <CardFooter className="flex flex-col gap-3">
-            {/* Subscribe Button */}
+          <CardFooter>
             <Button
               onClick={handleSubscribe}
               disabled={loading}
               className="w-full"
               size="lg"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Processing…
-                </>
-              ) : user ? (
-                "Subscribe Now"
-              ) : (
-                "Sign In to Subscribe"
-              )}
+              {loading ? "Loading..." : user ? "Subscribe Now" : "Sign In to Subscribe"}
             </Button>
-
-            {/* Already subscribed → Go to Account */}
-            {isPremium && (
-              <Button
-                onClick={() => navigate("/account")}
-                variant="outline"
-                className="w-full"
-              >
-                Go to Account
-              </Button>
-            )}
           </CardFooter>
         </Card>
       </div>
 
-      {/* FOOTER */}
       <div className="mt-12 text-center text-sm text-muted-foreground">
         <p>Cancel anytime. No commitments.</p>
-
         <p className="mt-2">
           By subscribing, you agree to our{" "}
           <a href="/policies/terms" className="text-primary hover:underline">
