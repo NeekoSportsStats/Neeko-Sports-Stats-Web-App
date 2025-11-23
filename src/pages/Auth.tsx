@@ -80,24 +80,16 @@ const Auth = () => {
           password,
         });
 
-        // CASE 1 — Supabase sometimes returns NO error but user is null
-        if (!data?.user) {
-          throw new Error("Incorrect email or password");
-        }
+        console.error("Login response:", { data, error });
 
-        // CASE 2 — Supabase returns structured error
-        if (error) {
-          const msg = error.message.toLowerCase();
-          if (
-            msg.includes("invalid") ||
-            msg.includes("incorrect") ||
-            msg.includes("invalid login") ||
-            error.status === 400
-          ) {
-            throw new Error("Incorrect email or password");
-          }
-
-          throw new Error("Login failed. Please try again.");
+        // Any failure (no user OR error) → Incorrect email/password
+        if (!data?.user || error) {
+          toast({
+            title: "Error",
+            description: "Incorrect email or password",
+            variant: "destructive",
+          });
+          return;
         }
 
         toast({ title: "Welcome back!" });
@@ -108,31 +100,51 @@ const Auth = () => {
       passwordSchema.parse(password);
 
       if (password !== confirmPassword) {
-        throw new Error("Passwords do not match");
+        toast({
+          title: "Error",
+          description: "Passwords do not match",
+          variant: "destructive",
+        });
+        return;
       }
 
       const { data, error } = await supabase.auth.signUp({ email, password });
 
-      if (error) {
-        const msg = error.message.toLowerCase();
+      console.error("Signup response:", { data, error });
 
+      if (error) {
+        const raw = error.message ?? "";
+        const msg = raw.toLowerCase();
+
+        // Full coverage of Supabase "user exists" style errors
         if (
           msg.includes("already registered") ||
-          msg.includes("registered") ||
+          msg.includes("already exists") ||
           msg.includes("email address") ||
           msg.includes("duplicate key") ||
           msg.includes("users_email_key") ||
-          msg.includes("already exists")
+          msg.includes("user with this email") ||
+          msg.includes("user already")
         ) {
-          throw new Error("An account with this email already exists.");
+          toast({
+            title: "Error",
+            description: "An account with this email already exists.",
+            variant: "destructive",
+          });
+          return;
         }
 
-        throw new Error("Sign up failed. Please try again.");
+        toast({
+          title: "Error",
+          description: "Sign up failed. Please try again.",
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
         title: "Account created!",
-        description: data.session
+        description: data?.session
           ? "You are now signed in."
           : "Check your email to confirm your account.",
       });
@@ -140,6 +152,7 @@ const Auth = () => {
       setPassword("");
       setConfirmPassword("");
     } catch (err: any) {
+      console.error("Auth exception:", err);
       toast({
         title: "Error",
         description: err?.message || "Something went wrong",
