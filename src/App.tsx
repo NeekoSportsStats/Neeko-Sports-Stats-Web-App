@@ -131,24 +131,9 @@ function App() {
           }
         />
 
-        {/* 🚨 SUCCESS + CANCEL MUST *NOT* BE PROTECTED */}
-        <Route
-          path="/success"
-          element={
-            <Layout>
-              <Success />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/cancel"
-          element={
-            <Layout>
-              <Cancel />
-            </Layout>
-          }
-        />
+        {/* 🚨 SUCCESS + CANCEL MUST NOT USE <Layout> */}
+        <Route path="/success" element={<Success />} />
+        <Route path="/cancel" element={<Cancel />} />
 
         {/* Info pages */}
         <Route path="/about" element={<Layout><About /></Layout>} />
