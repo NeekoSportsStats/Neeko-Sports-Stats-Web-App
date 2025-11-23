@@ -2,8 +2,11 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Trophy, Brain, BarChart3, Target, Crown } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const Index = () => {
+  const { isPremium } = useAuth();
+
   const sports = [
     {
       name: "AFL",
@@ -135,28 +138,30 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Neeko+ Teaser */}
-      <section className="py-16 bg-background">
-        <div className="container mx-auto px-4">
-          <Card className="max-w-4xl mx-auto p-8 md:p-12 bg-gradient-to-br from-primary/10 to-transparent border-2 border-primary">
-            <div className="text-center space-y-6">
-              <Crown className="h-16 w-16 text-primary mx-auto" />
-              <h2 className="text-3xl md:text-4xl font-bold">Unlock Everything with Neeko+</h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Get unlimited access to all player stats, team analytics, AI insights, and premium features across all sports for just $5.99/week
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-                <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-12 py-6 font-bold">
-                  <Link to="/neeko-plus">
-                    <Crown className="h-5 w-5 mr-2" />
-                    Get Neeko+
-                  </Link>
-                </Button>
+      {/* 🔥 Neeko+ Teaser — hidden for Premium users */}
+      {!isPremium && (
+        <section className="py-16 bg-background">
+          <div className="container mx-auto px-4">
+            <Card className="max-w-4xl mx-auto p-8 md:p-12 bg-gradient-to-br from-primary/10 to-transparent border-2 border-primary">
+              <div className="text-center space-y-6">
+                <Crown className="h-16 w-16 text-primary mx-auto" />
+                <h2 className="text-3xl md:text-4xl font-bold">Unlock Everything with Neeko+</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Get unlimited access to all player stats, team analytics, AI insights, and premium features across all sports for just $5.99/week
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+                  <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-12 py-6 font-bold">
+                    <Link to="/neeko-plus">
+                      <Crown className="h-5 w-5 mr-2" />
+                      Get Neeko+
+                    </Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Card>
-        </div>
-      </section>
+            </Card>
+          </div>
+        </section>
+      )}
 
       {/* FAQ Section */}
       <section className="py-16 bg-secondary">
