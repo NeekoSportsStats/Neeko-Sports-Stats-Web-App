@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Trophy, ArrowLeft } from "lucide-react";
+import { Trophy, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const emailSchema = z.string().email("Invalid email address");
@@ -49,7 +49,7 @@ const Auth = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // 🔥 Redirect after successful login/signup
+  // Redirect after auth
   useEffect(() => {
     if (!user) return;
 
@@ -73,6 +73,7 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
+      // LOGIN
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -80,22 +81,35 @@ const Auth = () => {
         });
 
         if (error) {
-          throw new Error("Incorrect email or password");
+          // Proper "incorrect" message
+          if (
+            error.message.includes("Invalid login credentials") ||
+            error.message.includes("invalid")
+          ) {
+            throw new Error("Incorrect email or password");
+          }
+          throw new Error(error.message);
         }
 
         toast({ title: "Welcome back!" });
         return;
       }
 
-      // SIGNUP MODE
+      // SIGNUP
       passwordSchema.parse(password);
+
       if (password !== confirmPassword) {
         throw new Error("Passwords do not match");
       }
 
       const { data, error } = await supabase.auth.signUp({ email, password });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        if (error.message.includes("registered")) {
+          throw new Error("An account with this email already exists.");
+        }
+        throw new Error(error.message);
+      }
 
       toast({
         title: "Account created!",
@@ -156,6 +170,7 @@ const Auth = () => {
           </h2>
         </div>
 
+        {/* FORM */}
         <form onSubmit={handleAuth} className="space-y-4">
           {/* EMAIL */}
           <div className="space-y-2">
@@ -204,10 +219,15 @@ const Auth = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2"
               >
-                {showPassword ? "🙈" : "👁"}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-white/70" />
+                ) : (
+                  <Eye className="h-4 w-4 text-white/70" />
+                )}
               </button>
             </div>
 
+            {/* Password Requirements */}
             {mode === "signup" && (
               <div className="text-xs space-y-1 mt-2">
                 <p className={passwordChecks.length ? "text-green-500" : "text-red-500"}>
@@ -236,6 +256,12 @@ const Auth = () => {
               <div className="relative">
                 <Input
                   type={showConfirm ? "text" : "password"}
+                  className={
+                    confirmPassword &&
+                    confirmPassword !== password
+                      ? "border-red-500"
+                      : ""
+                  }
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -245,9 +271,19 @@ const Auth = () => {
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  {showConfirm ? "🙈" : "👁"}
+                  {showConfirm ? (
+                    <EyeOff className="h-4 w-4 text-white/70" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-white/70" />
+                  )}
                 </button>
               </div>
+
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-red-500 text-xs mt-1">
+                  Passwords do not match.
+                </p>
+              )}
             </div>
           )}
 
@@ -268,6 +304,7 @@ const Auth = () => {
           </div>
         )}
 
+        {/* Toggle */}
         <div className="text-center text-sm">
           <button
             onClick={() => setMode((prev) => (prev === "login" ? "signup" : "login"))}
