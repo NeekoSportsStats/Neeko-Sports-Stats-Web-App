@@ -27,8 +27,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const initializedRef = useRef(false);
   const mountedRef = useRef(true);
+  const initialEventRef = useRef(false);
   const loadingResolvedRef = useRef(false);
 
+  /* -------------------------------------------------------
+     FETCH PREMIUM STATUS
+  ------------------------------------------------------- */
   const fetchPremiumStatus = async (userId: string) => {
     if (!mountedRef.current) return;
 
@@ -46,57 +50,60 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const isActive = data?.subscription_status === "active";
-      console.log("⭐ Premium status:", isActive, "for user:", userId);
+      console.log("⭐ Premium status:", isActive);
       if (mountedRef.current) setIsPremium(isActive);
-    } catch (e) {
-      console.error("❌ Premium status exception:", e);
+    } catch (err) {
+      console.error("❌ Premium status exception:", err);
       if (mountedRef.current) setIsPremium(false);
     }
   };
 
   const refreshPremiumStatus = async () => {
-    console.log("🔄 refreshPremiumStatus() called");
-
-    const currentUser = user;
-    if (!currentUser?.id) {
-      console.log("⚠️ No user ID, skipping premium refresh");
-      return;
-    }
-
-    await fetchPremiumStatus(currentUser.id);
+    if (!user?.id) return;
+    await fetchPremiumStatus(user.id);
   };
 
+  /* -------------------------------------------------------
+     SIGN OUT — FULL FIX (IMPORTANT)
+  ------------------------------------------------------- */
   const signOut = async () => {
-    console.log("🚪 Logging out");
+    console.log("🚪 Logging out…");
+
     try {
       await supabase.auth.signOut();
-      if (mountedRef.current) {
-        setUser(null);
-        setIsPremium(false);
-      }
-    } catch (error) {
-      console.error("❌ signOut error:", error);
-    } finally {
-      if (mountedRef.current) setLoading(false);
+    } catch (err) {
+      console.error("❌ signOut error:", err);
+    }
+
+    // 🔥 Critical for PKCE apps:
+    // Clears stale session artifacts
+    Object.keys(localStorage)
+      .filter((k) => k.includes("sb-") || k.includes("auth"))
+      .forEach((k) => localStorage.removeItem(k));
+
+    if (mountedRef.current) {
+      setUser(null);
+      setIsPremium(false);
+      setLoading(false);
     }
   };
 
+  /* -------------------------------------------------------
+     APPLY SESSION SAFELY
+  ------------------------------------------------------- */
   const applySession = async (session: any, source: string) => {
     if (!mountedRef.current) return;
 
     const currentUser = session?.user ?? null;
 
     if (currentUser === undefined) {
-      console.error(`⚠️ CRITICAL: session.user is undefined from ${source}! Normalizing to null.`);
+      console.error(`⚠️ CRITICAL: session.user undefined from ${source}`);
       setUser(null);
       setIsPremium(false);
       return;
     }
 
-    console.log(`📥 applySession from ${source}:`, {
-      hasUser: !!currentUser,
-      userId: currentUser?.id
-    });
+    console.log(`📥 applySession from ${source}`, { hasUser: !!currentUser });
 
     setUser(currentUser);
 
@@ -107,79 +114,74 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  /* -------------------------------------------------------
+     RESOLVE LOADING EXACTLY ONCE
+  ------------------------------------------------------- */
   const resolveLoading = () => {
-    if (loadingResolvedRef.current) {
-      console.log("⚠️ Loading already resolved, skipping");
-      return;
-    }
-
+    if (loadingResolvedRef.current) return;
     loadingResolvedRef.current = true;
-    console.log("✅ Auth state resolved → loading = false");
 
     if (mountedRef.current) {
+      console.log("✅ Loading resolved");
       setLoading(false);
     }
   };
 
+  /* -------------------------------------------------------
+     INIT AUTH LISTENER
+  ------------------------------------------------------- */
   useEffect(() => {
-    if (initializedRef.current) {
-      console.log("⚠️ AuthProvider already initialized, skipping duplicate setup");
-      return;
-    }
-
+    if (initializedRef.current) return;
     initializedRef.current = true;
+
     console.log("⚡ AuthProvider: Initializing auth state");
 
-    let initialSessionChecked = false;
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mountedRef.current) return;
 
-        console.log("🟣 AUTH EVENT:", event, "| Session exists:", !!session, "| User exists:", !!session?.user);
+        console.log("🟣 AUTH EVENT:", event);
 
         if (event === "INITIAL_SESSION") {
-          initialSessionChecked = true;
+          initialEventRef.current = true;
           await applySession(session, "INITIAL_SESSION");
           resolveLoading();
-        } else if (event === "SIGNED_IN") {
+        }
+
+        if (event === "SIGNED_IN") {
           await applySession(session, "SIGNED_IN");
+
+          // Prevent SIGNED_IN from firing before INITIAL_SESSION
+          if (!initialEventRef.current) {
+            console.log("⚠️ SIGNED_IN before INITIAL_SESSION — forcing resolve");
+            initialEventRef.current = true;
+          }
+
           resolveLoading();
-        } else if (event === "SIGNED_OUT") {
-          console.log("🚪 User signed out");
+        }
+
+        if (event === "SIGNED_OUT") {
           setUser(null);
           setIsPremium(false);
           resolveLoading();
-        } else if (event === "USER_UPDATED") {
-          await applySession(session, "USER_UPDATED");
-        } else if (event === "TOKEN_REFRESHED") {
-          console.log("🔄 Token refreshed");
-          await applySession(session, "TOKEN_REFRESHED");
         }
       }
     );
 
-    const checkTimeout = setTimeout(() => {
-      if (!initialSessionChecked && !loadingResolvedRef.current) {
-        console.log("⏱️ INITIAL_SESSION event timeout - manually resolving");
+    // Fall back in case INITIAL_SESSION never fires (PKCE bug)
+    const timeout = setTimeout(() => {
+      if (!initialEventRef.current) {
+        console.log("⏱️ INITIAL_SESSION timeout — forcing resolve");
         resolveLoading();
       }
     }, 5000);
 
     return () => {
-      console.log("🧹 AuthProvider: Cleaning up");
-      clearTimeout(checkTimeout);
       mountedRef.current = false;
-      authListener.subscription.unsubscribe();
+      clearTimeout(timeout);
+      listener.subscription.unsubscribe();
     };
   }, []);
-
-  console.log("🔧 AuthProvider render state:", {
-    user: user?.email,
-    loading,
-    isPremium,
-    loadingResolved: loadingResolvedRef.current
-  });
 
   return (
     <AuthContext.Provider
