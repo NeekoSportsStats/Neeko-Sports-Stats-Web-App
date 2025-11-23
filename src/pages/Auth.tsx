@@ -81,14 +81,19 @@ const Auth = () => {
         });
 
         if (error) {
-          // Proper "incorrect" message
+          const msg = error.message.toLowerCase();
+
+          // Proper "incorrect" detection
           if (
-            error.message.includes("Invalid login credentials") ||
-            error.message.includes("invalid")
+            msg.includes("invalid login") ||
+            msg.includes("invalid credentials") ||
+            msg.includes("invalid email or password") ||
+            error.status === 400
           ) {
             throw new Error("Incorrect email or password");
           }
-          throw new Error(error.message);
+
+          throw new Error("Login failed. Please try again.");
         }
 
         toast({ title: "Welcome back!" });
@@ -105,10 +110,13 @@ const Auth = () => {
       const { data, error } = await supabase.auth.signUp({ email, password });
 
       if (error) {
-        if (error.message.includes("registered")) {
+        const msg = error.message.toLowerCase();
+
+        if (msg.includes("already registered") || msg.includes("registered")) {
           throw new Error("An account with this email already exists.");
         }
-        throw new Error(error.message);
+
+        throw new Error("Sign up failed. Please try again.");
       }
 
       toast({
