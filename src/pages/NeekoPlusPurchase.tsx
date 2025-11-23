@@ -1,4 +1,3 @@
-// src/pages/NeekoPlusPurchase.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -121,12 +120,12 @@ const NeekoPlusPurchase = () => {
         </p>
       </div>
 
-      {/* WRAPPER CARD WITH FIXED FLOATING CROWN SPACE */}
+      {/* WRAPPER CARD */}
       <div className="relative rounded-3xl p-8 md:p-12 border border-primary/30 bg-gradient-to-br from-black/40 to-yellow-900/10 shadow-xl">
 
-        {/* Floating crown (offset so it no longer cuts off) */}
-        <div className="absolute -top-6 right-10">
-          <Crown className="h-10 w-10 text-yellow-400 drop-shadow-lg animate-pulse" />
+        {/* FIXED FLOATING CROWN (cleaner + centered + softer glow) */}
+        <div className="absolute -top-8 right-1/2 translate-x-1/2">
+          <Crown className="h-12 w-12 text-yellow-300 drop-shadow-xl animate-pulse" />
         </div>
 
         {/* PLAN CARD */}
@@ -141,8 +140,16 @@ const NeekoPlusPurchase = () => {
               Advanced analytics and AI insights for serious fans and fantasy players.
             </CardDescription>
 
-            <div className="pt-4 flex items-end gap-2">
-              <span className="text-5xl font-extrabold text-white animate-pulse">${price}</span>
+            {/* Subtle gradient under price + smoother pulse */}
+            <div className="pt-4 flex items-end gap-2 relative">
+              <span
+                className="text-5xl font-extrabold text-white animate-[pulse_2.6s_ease-in-out_infinite]"
+              >
+                ${price}
+              </span>
+
+              <div className="absolute left-0 right-0 -bottom-1 h-4 bg-gradient-to-b from-yellow-400/40 to-transparent blur-md pointer-events-none" />
+
               <span className="text-muted-foreground mb-1">/week – cancel anytime</span>
             </div>
           </CardHeader>
@@ -215,7 +222,7 @@ const NeekoPlusPurchase = () => {
         </Card>
       </div>
 
-      {/* BENEFITS + TESTIMONIALS REMAIN THE SAME — ONLY NAMES UPDATED */}
+      {/* BENEFITS */}
       <div className="mt-16 grid md:grid-cols-3 gap-6">
         <Card className="p-6 bg-black/40 border-primary/20">
           <h3 className="font-bold text-lg mb-2">AI-Powered Edge</h3>
@@ -231,13 +238,18 @@ const NeekoPlusPurchase = () => {
         </Card>
       </div>
 
+      {/* TESTIMONIALS — improved layout */}
       <div className="mt-16">
         <h2 className="text-2xl font-bold mb-6">What early users are saying</h2>
+
         <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((t, idx) => (
-            <Card key={idx} className="p-6 bg-black/40 border-primary/20">
-              <p className="mb-4 text-white/90 italic">“{t.quote}”</p>
-              <p className="text-muted-foreground">{t.name}</p>
+            <Card
+              key={idx}
+              className="p-6 bg-black/40 border-primary/20 flex flex-col justify-between min-h-[180px]"
+            >
+              <p className="mb-4 text-white/90 italic leading-relaxed">“{t.quote}”</p>
+              <p className="text-muted-foreground mt-auto">{t.name}</p>
             </Card>
           ))}
         </div>
