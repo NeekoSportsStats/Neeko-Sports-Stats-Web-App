@@ -10,20 +10,30 @@ const StartCheckout = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    let attempts = 0;
+
     const go = async () => {
+      attempts++;
+
+      // 🔥 Wait for Supabase session hydration (PKCE fix)
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      // 🔹 Not logged in → send to Auth
+      console.log("StartCheckout session attempt", attempts, session);
+
       if (!session) {
+        if (attempts < 10) {
+          return setTimeout(go, 200);
+        }
+        // ❌ Still no session — treat as logged out
         navigate("/auth?redirect=checkout");
         return;
       }
 
-      // 🔹 Logged in → run Stripe checkout
+      // 👍 Logged in → run checkout
       try {
-        const res = await fetch(
+        const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
           {
             method: "POST",
@@ -37,7 +47,8 @@ const StartCheckout = () => {
           }
         );
 
-        const data = await res.json();
+        const data = await response.json();
+
         if (data.url) {
           window.location.href = data.url;
         } else {
