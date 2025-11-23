@@ -1,6 +1,5 @@
-// src/pages/Success.tsx
 import { useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,19 +15,39 @@ export default function Success() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
 
-  const { loading, isPremium, refreshUser } = useAuth();
+  const { loading, isPremium, refreshPremiumStatus, user } = useAuth();
+  const [hasRefreshed, setHasRefreshed] = useState(false);
 
   useEffect(() => {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
+    console.log("🔵 Auth loading:", loading);
+    console.log("🔵 User:", user);
 
-    // Ask AuthProvider to refresh from Supabase once we land here
-    refreshUser().catch((e) => {
-      console.error("refreshUser error on Success page:", e);
+    if (loading) {
+      console.log("⏳ Waiting for auth to hydrate...");
+      return;
+    }
+
+    if (!user) {
+      console.log("⚠️ No user found after auth loaded");
+      return;
+    }
+
+    if (hasRefreshed) {
+      console.log("✅ Already refreshed premium status");
+      return;
+    }
+
+    console.log("🔄 Auth loaded, refreshing premium status...");
+    setHasRefreshed(true);
+
+    refreshPremiumStatus().catch((e) => {
+      console.error("❌ refreshPremiumStatus error on Success page:", e);
     });
-  }, [sessionId, refreshUser]);
+  }, [loading, user, hasRefreshed, sessionId, refreshPremiumStatus]);
 
-  const showSpinner = loading;
+  const showSpinner = loading || (user && !hasRefreshed);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-background">
@@ -50,7 +69,9 @@ export default function Success() {
             <div className="text-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
               <p className="mt-4 text-muted-foreground">
-                Activating your subscription...
+                {loading
+                  ? "Loading your account..."
+                  : "Activating your subscription..."}
               </p>
             </div>
           ) : (
