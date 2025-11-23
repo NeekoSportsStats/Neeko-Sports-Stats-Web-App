@@ -1,4 +1,3 @@
-// src/pages/Account.tsx
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
@@ -25,7 +24,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 
 export default function Account() {
-  const { user, loading: authLoading, signOut, refreshUser, isPremium } =
+  const { user, loading: authLoading, signOut, isPremium, refreshPremiumStatus } =
     useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -83,10 +82,9 @@ export default function Account() {
         description: "Your subscription is now active.",
       });
 
-      // Refresh auth + premium flag
-      refreshUser();
+      refreshPremiumStatus();
     }
-  }, [searchParams, toast, refreshUser]);
+  }, [searchParams, toast, refreshPremiumStatus]);
 
   if (authLoading || loadingProfile) {
     return (
@@ -124,38 +122,42 @@ export default function Account() {
     return <Badge variant={variants[s] || "outline"}>{label}</Badge>;
   };
 
-  const handleManageBilling = async () => {
+  const handleManageSubscription = async () => {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
       toast({
         title: "Error",
-        description: "You must be logged in to manage billing.",
+        description: "You must be logged in to manage your subscription.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const res = await fetch("/api/portal", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      const res = await fetch(
+        "https://zbomenuickrogthnsozb.supabase.co/functions/v1/portal",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
 
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        throw new Error("No portal URL returned");
+        return;
       }
+
+      throw new Error("No portal URL returned");
     } catch (err) {
       console.error("Portal error:", err);
       toast({
         title: "Error",
-        description: "Failed to open billing portal. Please try again.",
+        description: "Failed to open subscription management. Try again.",
         variant: "destructive",
       });
     }
@@ -180,6 +182,7 @@ export default function Account() {
               </div>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-4">
             <p>
               <span className="text-sm text-muted-foreground">Email</span>
@@ -217,6 +220,7 @@ export default function Account() {
               {getStatusBadge(isActive ? "active" : "free")}
             </div>
           </CardHeader>
+
           <CardContent className="space-y-4">
             {isActive ? (
               <>
@@ -236,12 +240,12 @@ export default function Account() {
                 <Separator />
 
                 <Button
-                  onClick={handleManageBilling}
+                  onClick={handleManageSubscription}
                   variant="outline"
                   className="w-full"
                 >
                   <CreditCard className="h-4 w-4 mr-2" />
-                  Manage Billing
+                  Manage Subscription
                 </Button>
               </>
             ) : (
@@ -269,11 +273,7 @@ export default function Account() {
             <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <Button
-              variant="destructive"
-              onClick={signOut}
-              className="w-full"
-            >
+            <Button variant="destructive" onClick={signOut} className="w-full">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
