@@ -49,7 +49,6 @@ const Auth = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Redirect after auth
   useEffect(() => {
     if (!user) return;
 
@@ -73,78 +72,80 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
-      // LOGIN
+      //
+      // 🔥 LOGIN
+      //
       if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        console.error("Login response:", { data, error });
+        // Some Supabase errors return error.error_description
+        const msg = (
+          error?.message ||
+          error?.error_description ||
+          ""
+        ).toLowerCase();
 
-        // Any failure (no user OR error) → Incorrect email/password
-        if (!data?.user || error) {
-          toast({
-            title: "Error",
-            description: "Incorrect email or password",
-            variant: "destructive",
-          });
-          return;
+        // Case 1 — Supabase returns no user
+        if (!data?.user) {
+          throw new Error("Incorrect email or password");
+        }
+
+        // Case 2 — error object returned
+        if (error) {
+          if (
+            msg.includes("invalid") ||
+            msg.includes("incorrect") ||
+            msg.includes("invalid login credentials")
+          ) {
+            throw new Error("Incorrect email or password");
+          }
+
+          throw new Error("Login failed. Please try again.");
         }
 
         toast({ title: "Welcome back!" });
         return;
       }
 
-      // SIGNUP
+      //
+      // 🔥 SIGNUP
+      //
       passwordSchema.parse(password);
 
       if (password !== confirmPassword) {
-        toast({
-          title: "Error",
-          description: "Passwords do not match",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("Passwords do not match");
       }
 
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-      console.error("Signup response:", { data, error });
+      const msg = (
+        error?.message ||
+        error?.error_description ||
+        ""
+      ).toLowerCase();
 
       if (error) {
-        const raw = error.message ?? "";
-        const msg = raw.toLowerCase();
-
-        // Full coverage of Supabase "user exists" style errors
         if (
-          msg.includes("already registered") ||
-          msg.includes("already exists") ||
-          msg.includes("email address") ||
-          msg.includes("duplicate key") ||
-          msg.includes("users_email_key") ||
-          msg.includes("user with this email") ||
-          msg.includes("user already")
+          msg.includes("already") ||
+          msg.includes("registered") ||
+          msg.includes("duplicate") ||
+          msg.includes("exists")
         ) {
-          toast({
-            title: "Error",
-            description: "An account with this email already exists.",
-            variant: "destructive",
-          });
-          return;
+          throw new Error("An account with this email already exists.");
         }
 
-        toast({
-          title: "Error",
-          description: "Sign up failed. Please try again.",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("Sign up failed. Please try again.");
       }
 
       toast({
         title: "Account created!",
-        description: data?.session
+        description: data.session
           ? "You are now signed in."
           : "Check your email to confirm your account.",
       });
@@ -152,10 +153,9 @@ const Auth = () => {
       setPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      console.error("Auth exception:", err);
       toast({
         title: "Error",
-        description: err?.message || "Something went wrong",
+        description: err.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -282,7 +282,7 @@ const Auth = () => {
             )}
           </div>
 
-          {/* CONFIRM PASSWORD */}
+          {/* CONFIRM */}
           {mode === "signup" && (
             <div className="space-y-2">
               <Label>Confirm Password</Label>
@@ -319,16 +319,11 @@ const Auth = () => {
             </div>
           )}
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading || !canSubmit}
-          >
+          <Button type="submit" className="w-full" disabled={loading || !canSubmit}>
             {loading ? "Loading..." : mode === "login" ? "Sign In" : "Sign Up"}
           </Button>
         </form>
 
-        {/* Forgot password */}
         {mode === "login" && (
           <div className="text-center mt-2">
             <button
@@ -340,10 +335,9 @@ const Auth = () => {
           </div>
         )}
 
-        {/* Toggle */}
         <div className="text-center text-sm">
           <button
-            onClick={() => setMode((prev) => (prev === "login" ? "signup" : "login"))}
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
             className="text-primary hover:underline"
           >
             {mode === "login"
