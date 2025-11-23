@@ -1,6 +1,6 @@
 // src/lib/auth.ts
 import { createContext, useContext, useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
 interface AuthContextType {
@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isPremium, setIsPremium] = useState(false);
 
   /**
-   * Load premium status from DB
+   * Fetch premium status from DB
    */
   const fetchPremiumStatus = async (userId: string) => {
     try {
@@ -39,23 +39,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       setIsPremium(data?.subscription_status === "active");
     } catch (error) {
-      console.error("💥 Error fetching premium status:", error);
+      console.error("💥 Premium status error:", error);
       setIsPremium(false);
     }
   };
 
   /**
-   * Fully refresh user + premium status
+   * Force-refresh session + premium
    */
   const refreshUser = async () => {
     const {
       data: { session },
-      error,
     } = await supabase.auth.getSession();
-
-    if (error) {
-      console.error("💥 refreshUser session error:", error);
-    }
 
     const currentUser = session?.user ?? null;
     setUser(currentUser);
@@ -66,12 +61,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   /**
-   * Initial auth load and listener
+   * Initial load + AUTH LISTENER FIX
+   *
+   * This ensures PKCE restores the session BEFORE your app loads.
    */
   useEffect(() => {
     let mounted = true;
+    let initialAuthHandled = false;
 
-    const load = async () => {
+    // 🔥 1️⃣ FIRST: auth listener (catches PKCE redirect instantly)
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          await fetchPremiumStatus(currentUser.id);
+        } else {
+          setIsPremium(false);
+        }
+
+        // Make sure initial load waits until this fires once
+        if (!initialAuthHandled) {
+          initialAuthHandled = true;
+          setLoading(false);
+        }
+      }
+    );
+
+    // 🔥 2️⃣ SECOND: initial session load (in case listener didn't fire)
+    const loadInitial = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -85,28 +104,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await fetchPremiumStatus(currentUser.id);
       }
 
-      setLoading(false);
+      // Only end loading if listener didn’t already do it
+      if (!initialAuthHandled) {
+        initialAuthHandled = true;
+        setLoading(false);
+      }
     };
 
-    load();
-
-    // Auth state listener
-    const {
-      data: authListener,
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await fetchPremiumStatus(currentUser.id);
-      } else {
-        setIsPremium(false);
-      }
-    });
+    // Small delay to allow PKCE to complete BEFORE reading session
+    setTimeout(loadInitial, 50);
 
     return () => {
       mounted = false;
-      authListener.subscription.unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, []);
 
