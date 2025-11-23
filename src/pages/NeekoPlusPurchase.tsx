@@ -1,18 +1,30 @@
+// src/pages/NeekoPlusPurchase.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles } from "lucide-react";
+
+import { Check, Crown, Sparkles } from "lucide-react"; // ⭐ Restore original icons
 import { useToast } from "@/hooks/use-toast";
 
 const NeekoPlusPurchase = () => {
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, isPremium } = useAuth(); // ⭐ Use real subscription state
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const price = "5.99"; // ⭐ Restore correct price
 
   const features = [
     "Advanced AI-powered analytics",
@@ -27,7 +39,9 @@ const NeekoPlusPurchase = () => {
     setLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
         toast({
@@ -35,11 +49,13 @@ const NeekoPlusPurchase = () => {
           description: "You need to be logged in to subscribe",
           variant: "destructive",
         });
+
         setLoading(false);
-        navigate("/auth?redirect=/neeko-plus");
+        navigate("/auth?redirect=/neeko-plus"); // ⭐ Correct redirect
         return;
       }
 
+      // ⭐ Correct Supabase Edge Function URL
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
@@ -63,11 +79,13 @@ const NeekoPlusPurchase = () => {
       }
     } catch (err: any) {
       console.error("Checkout error:", err);
+
       toast({
         title: "Checkout failed",
         description: err.message || "Unable to start checkout process",
         variant: "destructive",
       });
+
       setLoading(false);
     }
   };
@@ -75,42 +93,47 @@ const NeekoPlusPurchase = () => {
   return (
     <div className="container max-w-4xl py-12">
       <div className="text-center mb-8">
+        {/* ⭐ Restore original icon + colours */}
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Sparkles className="h-8 w-8 text-primary" />
+          <Crown className="h-8 w-8 text-primary" />
           <h1 className="text-4xl font-bold">Neeko Plus</h1>
         </div>
+
         <p className="text-xl text-muted-foreground">
           Unlock premium sports analytics and AI insights
         </p>
       </div>
 
+      {/* ⭐ Restore original spacing + layout */}
       <div className="grid gap-8 md:grid-cols-2 items-start">
+        {/* Free Plan */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Free Plan
-              <Badge variant="secondary">Current</Badge>
+              {/* ⭐ Dynamic badge */}
+              <Badge variant={isPremium ? "outline" : "secondary"}>
+                {isPremium ? "Not Current" : "Current"}
+              </Badge>
             </CardTitle>
             <CardDescription>Basic sports statistics</CardDescription>
           </CardHeader>
+
           <CardContent>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-muted-foreground" />
-                <span>Basic team stats</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-muted-foreground" />
-                <span>Player performance data</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-muted-foreground" />
-                <span>Match center access</span>
-              </div>
+              {["Basic team stats", "Player performance data", "Match center access"].map(
+                (item, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-muted-foreground" />
+                    <span>{item}</span>
+                  </div>
+                )
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Neeko Plus */}
         <Card className="border-primary shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -118,12 +141,15 @@ const NeekoPlusPurchase = () => {
               Neeko Plus
               <Badge>Premium</Badge>
             </CardTitle>
+
             <CardDescription>Advanced analytics and AI insights</CardDescription>
+
             <div className="pt-4">
-              <span className="text-4xl font-bold">$9.99</span>
-              <span className="text-muted-foreground">/month</span>
+              <span className="text-4xl font-bold">${price}</span>
+              <span className="text-muted-foreground">/week</span>
             </div>
           </CardHeader>
+
           <CardContent>
             <div className="space-y-2">
               {features.map((feature, index) => (
@@ -134,14 +160,11 @@ const NeekoPlusPurchase = () => {
               ))}
             </div>
           </CardContent>
+
           <CardFooter>
-            <Button
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="w-full"
-              size="lg"
-            >
-              {loading ? "Loading..." : user ? "Subscribe Now" : "Sign in to Subscribe"}
+            <Button onClick={handleSubscribe} disabled={loading} className="w-full" size="lg">
+              {/* ⭐ Add loading state */}
+              {loading ? "Processing…" : user ? "Subscribe Now" : "Sign In to Subscribe"}
             </Button>
           </CardFooter>
         </Card>
