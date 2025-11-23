@@ -22,42 +22,78 @@ export default function Success() {
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
 
+  // ---------------------------------------------------------
+  // 🔥 PATCHED LOGIC — FULL RETRY SYSTEM + SESSION HYDRATION
+  // ---------------------------------------------------------
   useEffect(() => {
     console.log("🔵 SUCCESS PAGE MOUNTED");
     console.log("🔵 Session ID:", sessionId);
 
-    const verifyOnce = async () => {
-      if (!sessionId) {
+    let attempts = 0;
+
+    const verify = async () => {
+      attempts++;
+      console.log(`🔄 Verification attempt ${attempts}`);
+
+      // 1️⃣ Wait for Supabase session hydration
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const user = sessionRes?.session?.user;
+
+      console.log("👤 User:", user);
+
+      if (!user) {
+        if (attempts < 10) {
+          console.log("⏳ Waiting for session to hydrate...");
+          return setTimeout(verify, 300);
+        }
+        console.log("❌ No session found after retries");
         setLoading(false);
         return;
       }
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
+      // 2️⃣ Load profile row
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
 
-        if (!user) {
-          setLoading(false);
-          return;
-        }
+      console.log("📄 Profile:", profile);
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("subscription_status")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (profile?.subscription_status === "active") {
-          setVerified(true);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("🔥 Fatal error verifying subscription:", error);
-        setLoading(false);
+      if (error) {
+        console.error("❌ Profile fetch error:", error);
       }
+
+      if (!profile) {
+        if (attempts < 10) {
+          console.log("⏳ Profile not ready yet, retrying...");
+          return setTimeout(verify, 300);
+        }
+        console.log("❌ No profile found after retries");
+        setLoading(false);
+        return;
+      }
+
+      // 3️⃣ Check subscription activation
+      if (profile.subscription_status === "active") {
+        console.log("🎉 Subscription is ACTIVE!");
+        setVerified(true);
+        setLoading(false);
+        refreshPremiumStatus?.();
+        return;
+      }
+
+      // Retry until subscription becomes active
+      if (attempts < 20) {
+        console.log("⏳ Subscription not active yet, retrying...");
+        return setTimeout(verify, 500);
+      }
+
+      console.log("❌ Subscription still not active after retries");
+      setLoading(false);
     };
 
-    verifyOnce();
+    verify();
   }, [sessionId]);
 
   return (
@@ -121,7 +157,6 @@ export default function Success() {
                   </a>
                 </Button>
 
-                {/* ✅ Updated Button — Go Home */}
                 <Button asChild variant="outline" className="flex-1">
                   <a href="/">
                     <Home className="mr-2 h-4 w-4" />
