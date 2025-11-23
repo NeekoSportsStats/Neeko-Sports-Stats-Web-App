@@ -1,5 +1,5 @@
 // src/pages/NeekoPlusPurchase.tsx
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
@@ -8,24 +8,28 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Sparkles, Loader2 } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const NeekoPlusPurchase = () => {
   const [loading, setLoading] = useState(false);
-  const [pricePulse, setPricePulse] = useState(false);
-
   const { user, isPremium } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const price = "5.99";
+
+  // Pulse price animation on page load
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    setTimeout(() => setPulse(true), 100);
+  }, []);
 
   const features = [
     "Advanced AI-powered analytics",
@@ -35,12 +39,6 @@ const NeekoPlusPurchase = () => {
     "Priority support",
     "Early access to new features",
   ];
-
-  // Trigger price pulse once on mount
-  useEffect(() => {
-    setPricePulse(true);
-    setTimeout(() => setPricePulse(false), 1200);
-  }, []);
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -53,10 +51,9 @@ const NeekoPlusPurchase = () => {
       if (!session) {
         toast({
           title: "Please log in first",
-          description: "You need to be logged in to subscribe",
+          description: "You need to log in before subscribing.",
           variant: "destructive",
         });
-
         setLoading(false);
         navigate("/auth?redirect=/neeko-plus");
         return;
@@ -77,9 +74,12 @@ const NeekoPlusPurchase = () => {
       );
 
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else throw new Error("Failed to create checkout session");
 
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Failed to create session");
+      }
     } catch (err: any) {
       toast({
         title: "Checkout failed",
@@ -92,98 +92,91 @@ const NeekoPlusPurchase = () => {
 
   return (
     <div className="container max-w-3xl py-12">
+
       {/* HEADER */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Crown className="h-8 w-8 text-primary" />
-          <h1 className="text-4xl font-bold">Neeko Plus</h1>
+          <Crown className="h-10 w-10 text-primary" />
+          <h1 className="text-4xl font-bold tracking-tight">Neeko Plus</h1>
         </div>
-        <p className="text-xl text-muted-foreground">
-          Unlock premium sports analytics and AI insights
+        <p className="text-lg text-muted-foreground">
+          Unlock premium sports analytics and advanced AI insights
         </p>
       </div>
 
-      {/* ONLY PREMIUM PLAN */}
-      <Card
-        className={`
-          border-primary shadow-lg relative transition-all 
-          hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] hover:-translate-y-1
-        `}
-      >
+      {/* PREMIUM ONLY CARD */}
+      <Card className="relative border-primary/80 hover:shadow-[0_0_25px_rgba(255,204,0,0.4)] transition-all duration-300">
+
+        {/* Glow Ring */}
         {isPremium && (
-          <div className="absolute -inset-1 rounded-2xl border-2 border-primary/40 animate-pulse pointer-events-none" />
+          <div className="absolute -inset-1 rounded-2xl border-2 border-primary/50 animate-pulse pointer-events-none" />
         )}
 
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3 text-2xl">
+            <Sparkles className="h-6 w-6 text-primary" />
             Neeko Plus
-            <Badge>Premium</Badge>
+            <Badge className="bg-primary text-black">Premium</Badge>
           </CardTitle>
 
-          <CardDescription>Advanced analytics and AI insights</CardDescription>
+          <p className="text-muted-foreground mt-1">
+            Advanced analytics and AI insights across AFL, EPL & NBA
+          </p>
 
-          <div className="pt-4">
+          {/* PRICE */}
+          <div className="pt-6">
             <span
-              className={`
-                text-4xl font-bold inline-block
-                ${pricePulse ? "animate-pulse" : ""}
-              `}
+              className={`text-5xl font-extrabold transition-all ${
+                pulse ? "animate-pulse" : "opacity-0"
+              }`}
             >
               ${price}
             </span>
-            <span className="text-muted-foreground">/week</span>
+            <span className="text-muted-foreground text-lg ml-1">/week</span>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="space-y-2">
-            {features.map((feature, index) => (
+
+          {/* FEATURES */}
+          <div className="space-y-3 mt-4">
+            {features.map((item, idx) => (
               <div
-                key={index}
-                className="flex items-center gap-2 opacity-0 animate-fadeIn forwards"
-                style={{ animationDelay: `${index * 120}ms` }}
+                key={idx}
+                className="flex items-center gap-2 opacity-0 animate-fade-in forwards"
+                style={{ animationDelay: `${idx * 70}ms` }}
               >
-                <Check className="h-4 w-4 text-primary" />
-                <span>{feature}</span>
+                <Check className="h-5 w-5 text-primary" />
+                <span>{item}</span>
               </div>
             ))}
           </div>
 
-          {/* Comparison table removed as requested?  
-              No — only the free plan was removed.
-              If you want this removed too tell me. 
-          */}
-          <div className="mt-6 border-t pt-4">
-            <p className="font-semibold mb-2">Compare Plans</p>
-            <table className="w-full text-sm">
-              <tbody>
-                <tr>
-                  <td>Full AI Insights</td>
-                  <td className="text-right">✔️</td>
-                </tr>
-                <tr>
-                  <td>Unlimited stats</td>
-                  <td className="text-right">✔️</td>
-                </tr>
-                <tr>
-                  <td>All Free Limitations Removed</td>
-                  <td className="text-right">✔️</td>
-                </tr>
-              </tbody>
-            </table>
+          {/* COMPARISON TABLE */}
+          <div className="mt-10 border-t border-primary/20 pt-6">
+            <p className="font-semibold text-lg mb-3">Compare Plans</p>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Full AI Insights</span> <span>✔️</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Unlimited Stats</span> <span>✔️</span>
+              </div>
+              <div className="flex justify-between">
+                <span>All Free Limitations Removed</span> <span>✔️</span>
+              </div>
+            </div>
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3">
+        <CardFooter className="flex flex-col gap-4 mt-4">
+
+          {/* SUBSCRIBE BUTTON */}
           <Button
-            onClick={handleSubscribe}
+            className="w-full py-6 text-lg font-bold transition-transform hover:-translate-y-1"
             disabled={loading}
-            size="lg"
-            className={`
-              w-full transition-all
-              hover:-translate-y-1 hover:shadow-lg
-            `}
+            onClick={handleSubscribe}
           >
             {loading ? (
               <>
@@ -197,17 +190,23 @@ const NeekoPlusPurchase = () => {
             )}
           </Button>
 
+          {/* Already Premium */}
           {isPremium && (
             <Button
-              onClick={() => navigate("/account")}
               variant="outline"
-              className="w-full"
+              className="w-full py-6 text-lg hover:-translate-y-1 transition-transform"
+              onClick={() => navigate("/account")}
             >
               Go to Account
             </Button>
           )}
         </CardFooter>
       </Card>
+
+      {/* FOOTER */}
+      <p className="text-center text-muted-foreground text-sm mt-10">
+        Cancel anytime. No commitments.
+      </p>
     </div>
   );
 };
