@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Fetch premium status
   // -------------------------------
   const fetchPremiumStatus = async (userId: string) => {
-    console.log("🔍 Fetching premium status for user:", userId);
+    console.log("🔍 Fetching premium status for:", userId);
 
     try {
       const { data } = await supabase
@@ -41,8 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq("id", userId)
         .maybeSingle();
 
-      console.log("⭐ Premium DB result:", data);
-
+      console.log("⭐ Premium DB row:", data);
       setIsPremium(data?.subscription_status === "active");
     } catch (e) {
       console.error("❌ Premium status error:", e);
@@ -51,97 +50,77 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // -------------------------------
-  // Force refresh
+  // Manual refresh (Success page)
   // -------------------------------
   const refreshUser = async () => {
     console.log("🔄 refreshUser() called");
 
     const { data } = await supabase.auth.getSession();
-    console.log("🔄 refreshUser session:", data);
-
     const currentUser = data.session?.user ?? null;
+
     setUser(currentUser);
 
     if (currentUser) {
-      console.log("🔄 refreshUser → fetching premium");
       await fetchPremiumStatus(currentUser.id);
     }
   };
 
   // -------------------------------
-  // MAIN AUTH LOGIC — DEBUG MODE
+  // MAIN AUTH FLOW (PATCHED + STABLE)
   // -------------------------------
   useEffect(() => {
     console.log("⚡ Auth effect INIT");
 
-    let first = true;
+    let resolvedInitial = false;
 
-    // 🔥 LISTENER
+    // 1️⃣ AUTH STATE LISTENER
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("🟣 AUTH EVENT FIRED:", event);
-        console.log("🟣 Auth session from event:", session);
+        console.log("🟣 AUTH EVENT:", event);
+        console.log("🟣 Session:", session);
 
         const currentUser = session?.user ?? null;
-
         setUser(currentUser);
 
         if (currentUser) {
-          console.log("🟣 Auth event → Fetching premium");
           await fetchPremiumStatus(currentUser.id);
         } else {
-          console.log("🟣 No user in auth event");
           setIsPremium(false);
         }
 
-        if (first) {
-          console.log("🟣 Auth event completed initial load.");
-          first = false;
+        if (!resolvedInitial) {
+          resolvedInitial = true;
           setLoading(false);
         }
       }
     );
 
-    // 🔥 INITIAL SESSION LOAD
+    // 2️⃣ INITIAL SESSION LOAD
     supabase.auth.getSession().then(async ({ data }) => {
-      console.log("🟡 getSession() returned:", data);
-
-      if (!first) {
-        console.log("🟡 Ignoring getSession — listener already handled.");
-        return;
-      }
+      console.log("🟡 Initial getSession():", data);
 
       const currentUser = data.session?.user ?? null;
-      console.log("🟡 Initial user:", currentUser);
-
       setUser(currentUser);
 
       if (currentUser) {
-        console.log("🟡 Initial → Fetching premium");
         await fetchPremiumStatus(currentUser.id);
-      } else {
-        console.log("🟡 No initial user");
       }
 
-      console.log("🟡 getSession completed initial load.");
-      first = false;
-      setLoading(false);
+      if (!resolvedInitial) {
+        resolvedInitial = true;
+        setLoading(false);
+      }
     });
 
-    return () => {
-      console.log("🔻 AuthProvider unmounted — unsubscribing listener");
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   // -------------------------------
   // LOGOUT
   // -------------------------------
   const signOut = async () => {
-    console.log("🚪 signOut() called");
+    console.log("🚪 Logging out");
     await supabase.auth.signOut();
-    console.log("🚪 User signed out");
-
     setUser(null);
     setIsPremium(false);
   };
