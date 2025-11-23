@@ -40,8 +40,8 @@ SELECT cron.schedule(
   '*/5 * * * *',
   $$
   SELECT net.http_post(
-    url := 'https://gmrxkdgsmwnzwphymmtf.supabase.co/functions/v1/process-ai-queue',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtcnhrZGdzbXduendwaHltbXRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MTY0NzgsImV4cCI6MjA3ODA5MjQ3OH0.KZE8bkavI5ElxFtWGh7q5N0C5YYE6Y5DU34A9qkYGIA"}'::jsonb,
+    url := 'https://ghrbxldpuctygxaiqwdv.supabase.co/functions/v1/process-ai-queue',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdocmJ4bGRwdWN0eWd4YWlxd2R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1NDc0ODcsImV4cCI6MjA3OTEyMzQ4N30.F0hMkqhE2ZDxB9SETl6jiZAugpN4OE0Nxbq2bWPpNBE"}'::jsonb,
     body := '{"trigger": "cron"}'::jsonb
   ) as request_id;
   $$
