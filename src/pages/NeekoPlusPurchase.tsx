@@ -1,3 +1,4 @@
+// src/pages/NeekoPlusPurchase.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,16 +15,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-import { Check, Crown, Sparkles } from "lucide-react"; // ⭐ Restore original icons
+import { Check, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const NeekoPlusPurchase = () => {
   const [loading, setLoading] = useState(false);
-  const { user, isPremium } = useAuth(); // ⭐ Use real subscription state
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const price = "5.99"; // ⭐ Restore correct price
+  const price = "9.99";
 
   const features = [
     "Advanced AI-powered analytics",
@@ -38,9 +39,7 @@ const NeekoPlusPurchase = () => {
     setLoading(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
         toast({
@@ -53,7 +52,6 @@ const NeekoPlusPurchase = () => {
         return;
       }
 
-      // ⭐ Correct Supabase Edge Function URL
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
@@ -89,9 +87,8 @@ const NeekoPlusPurchase = () => {
   return (
     <div className="container max-w-4xl py-12">
       <div className="text-center mb-8">
-        {/* ⭐ Restore original icon + colours */}
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Crown className="h-8 w-8 text-primary" />
+          <Sparkles className="h-8 w-8 text-primary" />
           <h1 className="text-4xl font-bold">Neeko Plus</h1>
         </div>
 
@@ -100,36 +97,33 @@ const NeekoPlusPurchase = () => {
         </p>
       </div>
 
-      {/* ⭐ Restore original spacing + layout */}
       <div className="grid gap-8 md:grid-cols-2 items-start">
-        {/* Free Plan */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Free Plan
-              {/* ⭐ Dynamic badge */}
-              <Badge variant={isPremium ? "outline" : "secondary"}>
-                {isPremium ? "Not Current" : "Current"}
-              </Badge>
+              <Badge variant="secondary">Current</Badge>
             </CardTitle>
             <CardDescription>Basic sports statistics</CardDescription>
           </CardHeader>
-
           <CardContent>
             <div className="space-y-2">
-              {["Basic team stats", "Player performance data", "Match center access"].map(
-                (item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-muted-foreground" />
-                    <span>{item}</span>
-                  </div>
-                )
-              )}
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-muted-foreground" />
+                <span>Basic team stats</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-muted-foreground" />
+                <span>Player performance data</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-muted-foreground" />
+                <span>Match center access</span>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Neeko Plus */}
         <Card className="border-primary shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -137,12 +131,10 @@ const NeekoPlusPurchase = () => {
               Neeko Plus
               <Badge>Premium</Badge>
             </CardTitle>
-
             <CardDescription>Advanced analytics and AI insights</CardDescription>
-
             <div className="pt-4">
               <span className="text-4xl font-bold">${price}</span>
-              <span className="text-muted-foreground">/week</span>
+              <span className="text-muted-foreground">/month</span>
             </div>
           </CardHeader>
 
@@ -158,13 +150,8 @@ const NeekoPlusPurchase = () => {
           </CardContent>
 
           <CardFooter>
-            <Button
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="w-full"
-              size="lg"
-            >
-              {loading ? "Loading..." : user ? "Subscribe Now" : "Sign In to Subscribe"}
+            <Button onClick={handleSubscribe} disabled={loading} className="w-full" size="lg">
+              {loading ? "Loading..." : user ? "Subscribe Now" : "Sign in to Subscribe"}
             </Button>
           </CardFooter>
         </Card>
