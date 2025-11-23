@@ -84,6 +84,7 @@ const NeekoPlusPurchase = () => {
       const data = await res.json();
       if (data.url) window.location.href = data.url;
       else throw new Error("Failed to create checkout session");
+
     } catch (err: any) {
       toast({
         title: "Checkout failed",
@@ -95,7 +96,7 @@ const NeekoPlusPurchase = () => {
   };
 
   return (
-    <div className="container max-w-4xl py-12 px-4">
+    <div className="container max-w-4xl py-8 md:py-12 px-4">
 
       {/* BACK BUTTON */}
       <Button
@@ -118,98 +119,101 @@ const NeekoPlusPurchase = () => {
         </p>
       </div>
 
-      {/* PLAN CARD - without the large outer wrapper */}
-      <Card className="border-primary/40 hover:border-primary transition-all shadow-xl rounded-2xl bg-black/40 backdrop-blur-sm p-1 relative">
+      {/* MAIN CARD with sunlight glow */}
+      <div className="relative mb-10 md:mb-16">
+        {/* Soft sunlight glow */}
+        <div className="absolute inset-0 -z-10 blur-3xl opacity-40 bg-gradient-to-b from-yellow-500/20 via-yellow-400/10 to-transparent" />
 
-        {/* Sunlight glow behind card */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-yellow-500/10 to-transparent blur-3xl opacity-70 pointer-events-none" />
+        <Card className="border-primary/40 hover:border-primary transition-all shadow-xl rounded-2xl bg-black/40 backdrop-blur-sm p-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Neeko+
+              <Badge>Premium</Badge>
+            </CardTitle>
 
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Neeko+
-            <Badge>Premium</Badge>
-          </CardTitle>
+            <CardDescription>
+              Advanced analytics and AI insights for serious fans and fantasy players.
+            </CardDescription>
 
-          <CardDescription>
-            Advanced analytics and AI insights for serious fans and fantasy players.
-          </CardDescription>
+            {/* Price */}
+            <div className="pt-4 flex items-end gap-2 relative">
+              <span className="text-5xl font-extrabold text-white animate-[pulse_3s_ease-in-out_infinite]">
+                ${price}
+              </span>
+              <span className="text-muted-foreground mb-1">/week – cancel anytime</span>
 
-          {/* Price (smooth pulse + subtle gradient under it) */}
-          <div className="pt-4 flex items-end gap-2 relative">
-            <span className="text-5xl font-extrabold text-white animate-[pulse_3s_ease-in-out_infinite]">
-              ${price}
-            </span>
-            <span className="text-muted-foreground mb-1">/week – cancel anytime</span>
+              {/* Subtle gradient under price */}
+              <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-yellow-400/20 to-transparent rounded-full blur-md" />
+            </div>
+          </CardHeader>
 
-            <div className="absolute left-0 right-0 -bottom-2 h-3 bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent rounded-full blur-md" />
-          </div>
-        </CardHeader>
+          <CardContent>
+            <div className="space-y-3 mt-6">
+              {features.map((feature, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <Check className="h-5 w-5 text-primary" />
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
 
-        <CardContent>
-          <div className="space-y-3 mt-6">
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-primary" />
-                <span>{feature}</span>
-              </div>
-            ))}
-          </div>
+            {/* WHAT YOU GET */}
+            <div className="mt-8 border-t border-white/10 pt-4">
+              <p className="font-semibold mb-3">What You Get</p>
 
-          {/* WHAT YOU GET */}
-          <div className="mt-8 border-t border-white/10 pt-4">
-            <p className="font-semibold mb-3">What You Get</p>
-            <table className="w-full text-sm">
-              <tbody>
-                <tr>
-                  <td>Full AI Insights</td>
-                  <td className="text-right">Included</td>
-                </tr>
-                <tr>
-                  <td>Unlimited stats</td>
-                  <td className="text-right">Included</td>
-                </tr>
-                <tr>
-                  <td>All free limitations removed</td>
-                  <td className="text-right">Included</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr>
+                    <td>Full AI Insights</td>
+                    <td className="text-right">Included</td>
+                  </tr>
+                  <tr>
+                    <td>Unlimited stats</td>
+                    <td className="text-right">Included</td>
+                  </tr>
+                  <tr>
+                    <td>All free limitations removed</td>
+                    <td className="text-right">Included</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
 
-        {/* BUTTONS */}
-        <CardFooter className="flex flex-col gap-3 pt-4">
-          <Button
-            onClick={handleSubscribe}
-            disabled={loading}
-            className="w-full text-lg font-bold transition-all hover:-translate-y-0.5"
-            size="lg"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                Processing…
-              </>
-            ) : (
-              "Get Neeko+ Now"
-            )}
-          </Button>
-
-          {isPremium && (
+          {/* BUTTONS */}
+          <CardFooter className="flex flex-col gap-3 pt-4">
             <Button
-              onClick={() => navigate("/account")}
-              variant="outline"
-              className="w-full"
+              onClick={handleSubscribe}
+              disabled={loading}
+              className="w-full text-lg font-bold transition-all hover:-translate-y-0.5"
+              size="lg"
             >
-              Go to Account
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Processing…
+                </>
+              ) : (
+                "Get Neeko+ Now"
+              )}
             </Button>
-          )}
-        </CardFooter>
-      </Card>
+
+            {isPremium && (
+              <Button
+                onClick={() => navigate("/account")}
+                variant="outline"
+                className="w-full"
+              >
+                Go to Account
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
 
       {/* BENEFITS */}
-      <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-20 grid md:grid-cols-3 gap-6">
         <Card className="p-6 bg-black/40 border-primary/20">
           <h3 className="font-bold text-lg mb-2">AI-Powered Edge</h3>
           <p className="text-muted-foreground">Spot hot & cold players before everyone else.</p>
@@ -230,7 +234,7 @@ const NeekoPlusPurchase = () => {
       <div className="mt-20">
         <h2 className="text-2xl font-bold mb-6">What early users are saying</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((t, idx) => (
             <Card key={idx} className="p-6 bg-black/40 border-primary/20">
               <p className="mb-4 text-white/90 italic leading-relaxed">“{t.quote}”</p>
@@ -240,7 +244,7 @@ const NeekoPlusPurchase = () => {
         </div>
       </div>
 
-      <p className="mt-12 text-center text-sm text-muted-foreground">
+      <p className="mt-12 text-center text-sm text-muted-foreground pb-6">
         Cancel anytime. No lock-in contracts.
         <br />
         By subscribing, you agree to our{" "}
