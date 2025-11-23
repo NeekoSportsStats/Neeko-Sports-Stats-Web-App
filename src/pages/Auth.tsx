@@ -81,29 +81,14 @@ const Auth = () => {
           password,
         });
 
-        // Some Supabase errors return error.error_description
-        const msg = (
-          error?.message ||
-          error?.error_description ||
-          ""
-        ).toLowerCase();
-
-        // Case 1 — Supabase returns no user
-        if (!data?.user) {
+        // LOGIN ERROR: Supabase sends → {code: "invalid_credentials", message: "..."}
+        if (error?.code === "invalid_credentials") {
           throw new Error("Incorrect email or password");
         }
 
-        // Case 2 — error object returned
-        if (error) {
-          if (
-            msg.includes("invalid") ||
-            msg.includes("incorrect") ||
-            msg.includes("invalid login credentials")
-          ) {
-            throw new Error("Incorrect email or password");
-          }
-
-          throw new Error("Login failed. Please try again.");
+        // LOGIN ERROR: no user returned = invalid login
+        if (!data?.user) {
+          throw new Error("Incorrect email or password");
         }
 
         toast({ title: "Welcome back!" });
@@ -124,23 +109,14 @@ const Auth = () => {
         password,
       });
 
-      const msg = (
-        error?.message ||
-        error?.error_description ||
-        ""
-      ).toLowerCase();
+      // SIGNUP ERROR: Supabase sends → {code: "user_already_exists", message: "..."}
+      if (error?.code === "user_already_exists") {
+        throw new Error("An account with this email already exists.");
+      }
 
+      // Any other signup failure
       if (error) {
-        if (
-          msg.includes("already") ||
-          msg.includes("registered") ||
-          msg.includes("duplicate") ||
-          msg.includes("exists")
-        ) {
-          throw new Error("An account with this email already exists.");
-        }
-
-        throw new Error("Sign up failed. Please try again.");
+        throw new Error(error.message || "Sign up failed. Please try again.");
       }
 
       toast({
