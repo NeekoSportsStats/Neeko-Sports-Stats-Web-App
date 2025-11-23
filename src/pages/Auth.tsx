@@ -48,7 +48,12 @@ const Auth = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // 🚀 NEW REDIRECT LOGIC AFTER LOGIN / SIGNUP
+  /** ----------------------------------------------------
+   *  🚀 AUTO-REDIRECT AFTER LOGIN / SIGNUP
+   *  checkout →   /start-checkout
+   *  account  →   /account
+   *  anything else → redirect URL
+   * ---------------------------------------------------- */
   useEffect(() => {
     if (!user) return;
 
@@ -72,6 +77,7 @@ const Auth = () => {
     try {
       emailSchema.parse(email);
 
+      // LOGIN
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -255,7 +261,7 @@ const Auth = () => {
           </Button>
         </form>
 
-        {/* 🔥 NEW — FORGOT PASSWORD */}
+        {/* FORGOT PASSWORD */}
         {mode === "login" && (
           <div className="text-center mt-2">
             <button
