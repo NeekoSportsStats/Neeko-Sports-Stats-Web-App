@@ -22,7 +22,6 @@ import {
   Share2,
   ChevronDown,
   User,
-  Shield,
   Mail,
   HelpCircle,
   FileText,
@@ -61,9 +60,20 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="z-50">
+    <Sidebar
+      collapsible="icon"
+      className={`z-50 transition-all duration-300 ${
+        sidebarOpen ? "w-64" : "w-16"
+      }`}
+    >
       <SidebarHeader className="flex flex-row items-center justify-between">
-        <span className="text-lg font-semibold">Menu</span>
+        <span
+          className={`text-lg font-semibold transition-opacity ${
+            sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          Menu
+        </span>
 
         <button
           onClick={() => (isMobile ? setOpenMobile(false) : setOpen(false))}
@@ -75,7 +85,13 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel
+            className={`transition-opacity ${
+              sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            Navigation
+          </SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu>
@@ -90,7 +106,13 @@ export function AppSidebar() {
                     onClick={handleLinkClick}
                   >
                     <Home className="h-4 w-4" />
-                    <span>Home</span>
+                    <span
+                      className={`transition-opacity ${
+                        sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                      }`}
+                    >
+                      Home
+                    </span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -105,12 +127,18 @@ export function AppSidebar() {
                       }`}
                     >
                       <Trophy className="h-4 w-4" />
-                      <span>Sports</span>
+                      <span
+                        className={`transition-opacity ${
+                          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                        }`}
+                      >
+                        Sports
+                      </span>
 
                       <ChevronDown
                         className={`ml-auto h-4 w-4 transition-transform ${
                           sportsOpen ? "rotate-180" : ""
-                        }`}
+                        } ${sidebarOpen ? "" : "opacity-0 pointer-events-none"}`}
                       />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
@@ -126,7 +154,13 @@ export function AppSidebar() {
                             activeClassName="bg-muted text-primary font-medium"
                             onClick={handleLinkClick}
                           >
-                            AFL
+                            <span
+                              className={`transition-opacity ${
+                                sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                              }`}
+                            >
+                              AFL
+                            </span>
                           </NavLink>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -146,7 +180,13 @@ export function AppSidebar() {
                               activeClassName="bg-muted text-primary font-medium"
                               onClick={handleLinkClick}
                             >
-                              {item.title}
+                              <span
+                                className={`transition-opacity ${
+                                  sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                                }`}
+                              >
+                                {item.title}
+                              </span>
                             </NavLink>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -161,7 +201,13 @@ export function AppSidebar() {
                             activeClassName="bg-muted text-primary font-medium"
                             onClick={handleLinkClick}
                           >
-                            EPL
+                            <span
+                              className={`transition-opacity ${
+                                sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                              }`}
+                            >
+                              EPL
+                            </span>
                           </NavLink>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -181,7 +227,13 @@ export function AppSidebar() {
                               activeClassName="bg-muted text-primary font-medium"
                               onClick={handleLinkClick}
                             >
-                              {item.title}
+                              <span
+                                className={`transition-opacity ${
+                                  sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                                }`}
+                              >
+                                {item.title}
+                              </span>
                             </NavLink>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -196,7 +248,13 @@ export function AppSidebar() {
                             activeClassName="bg-muted text-primary font-medium"
                             onClick={handleLinkClick}
                           >
-                            NBA
+                            <span
+                              className={`transition-opacity ${
+                                sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                              }`}
+                            >
+                              NBA
+                            </span>
                           </NavLink>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -216,7 +274,13 @@ export function AppSidebar() {
                               activeClassName="bg-muted text-primary font-medium"
                               onClick={handleLinkClick}
                             >
-                              {item.title}
+                              <span
+                                className={`transition-opacity ${
+                                  sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                                }`}
+                              >
+                                {item.title}
+                              </span>
                             </NavLink>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -237,7 +301,13 @@ export function AppSidebar() {
                       onClick={handleLinkClick}
                     >
                       <Crown className="h-4 w-4" />
-                      <span>Neeko+</span>
+                      <span
+                        className={`transition-opacity ${
+                          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                        }`}
+                      >
+                        Neeko+
+                      </span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -253,7 +323,13 @@ export function AppSidebar() {
                     onClick={handleLinkClick}
                   >
                     <User className="h-4 w-4" />
-                    <span>Account</span>
+                    <span
+                      className={`transition-opacity ${
+                        sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                      }`}
+                    >
+                      Account
+                    </span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -283,7 +359,13 @@ export function AppSidebar() {
                       onClick={handleLinkClick}
                     >
                       <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span
+                        className={`transition-opacity ${
+                          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                        }`}
+                      >
+                        {item.title}
+                      </span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
