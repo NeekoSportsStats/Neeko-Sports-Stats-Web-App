@@ -1,3 +1,4 @@
+// src/lib/supabaseClient.ts
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -5,7 +6,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    "Missing Supabase environment variables. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
+    "Missing Supabase environment variables. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
   );
 }
 
@@ -23,17 +24,21 @@ function getProjectRef(url: string): string {
 }
 
 function createSupabaseClient(): SupabaseClient {
-  if (supabaseInstance) {
-    return supabaseInstance;
-  }
+  if (supabaseInstance) return supabaseInstance;
 
   const projectRef = getProjectRef(supabaseUrl);
   const storageKey = `sb-${projectRef}-auth-token`;
 
-  console.log("🔵 Creating Supabase client with:", {
+  // 🔥 CRUCIAL PATCH — Prevent Supabase from consuming tokens on reset-password
+  const disableDetectForRecovery =
+    typeof window !== "undefined" &&
+    window.location.pathname === "/reset-password";
+
+  console.log("🔵 Creating Supabase client:", {
     url: supabaseUrl,
     projectRef,
     storageKey,
+    detectSessionInUrl: !disableDetectForRecovery,
   });
 
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
@@ -41,33 +46,28 @@ function createSupabaseClient(): SupabaseClient {
       flowType: "pkce",
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+
+      // 🔥 PATCH — stop wiping the reset-password token
+      detectSessionInUrl: !disableDetectForRecovery,
+
       storageKey,
       storage: {
-        getItem: (key: string) => {
-          if (typeof window === "undefined") return null;
+        getItem: (key) => {
           try {
             return window.localStorage.getItem(key);
-          } catch (error) {
-            console.error("localStorage.getItem error:", error);
+          } catch {
             return null;
           }
         },
-        setItem: (key: string, value: string) => {
-          if (typeof window === "undefined") return;
+        setItem: (key, value) => {
           try {
             window.localStorage.setItem(key, value);
-          } catch (error) {
-            console.error("localStorage.setItem error:", error);
-          }
+          } catch {}
         },
-        removeItem: (key: string) => {
-          if (typeof window === "undefined") return;
+        removeItem: (key) => {
           try {
             window.localStorage.removeItem(key);
-          } catch (error) {
-            console.error("localStorage.removeItem error:", error);
-          }
+          } catch {}
         },
       },
       debug: false,
@@ -81,6 +81,6 @@ export const supabase = createSupabaseClient();
 
 if (import.meta.hot) {
   import.meta.hot.accept(() => {
-    console.log("⚠️ HMR detected, Supabase client will reuse existing instance");
+    console.log("⚠️ HMR: Supabase instance reused");
   });
 }
