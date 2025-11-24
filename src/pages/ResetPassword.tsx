@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Lock,
   Eye,
   EyeOff,
   ArrowLeft,
@@ -36,13 +35,16 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   /**
-   * 🔥 FIXED: Proper Supabase password recovery handling
+   * 🔥 PATCH 1:
+   * Accept BOTH possible Supabase password recovery events.
    */
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setReady(true); // allow resetting password
+        console.log("AUTH EVENT:", event);
+
+        if (event === "PASSWORD_RECOVERY" || event === "USER_UPDATED") {
+          setReady(true); // allow password reset
         }
       }
     );
@@ -51,11 +53,11 @@ const ResetPassword = () => {
   }, []);
 
   /**
-   * If the user landed here manually or with an expired token,
-   * `ready` will stay false.
+   * 🔥 PATCH 2:
+   * Increase timeout to avoid rejecting valid links too early.
    */
   useEffect(() => {
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (!ready) {
         toast({
           title: "Invalid or expired link",
@@ -64,7 +66,9 @@ const ResetPassword = () => {
         });
         navigate("/forgot-password");
       }
-    }, 800);
+    }, 2000);
+
+    return () => clearTimeout(timeout);
   }, [ready, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,9 +121,9 @@ const ResetPassword = () => {
     }
   };
 
-  /* ================================
-      SUCCESS SCREEN
-  ================================= */
+  /* -------------------------------
+     SUCCESS SCREEN
+  --------------------------------- */
   if (success) {
     return (
       <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
@@ -129,7 +133,9 @@ const ResetPassword = () => {
               <CheckCircle className="h-16 w-16 text-green-500" />
             </div>
             <CardTitle>Password Reset Successful</CardTitle>
-            <CardDescription>Redirecting you to sign in...</CardDescription>
+            <CardDescription>
+              Redirecting you to sign in...
+            </CardDescription>
           </CardHeader>
 
           <CardFooter>
@@ -142,9 +148,9 @@ const ResetPassword = () => {
     );
   }
 
-  /* ================================
-      PASSWORD RESET FORM
-  ================================= */
+  /* -------------------------------
+     PASSWORD RESET FORM
+  --------------------------------- */
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
