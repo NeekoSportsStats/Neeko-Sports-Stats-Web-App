@@ -1,4 +1,5 @@
-import { useState } from "react";
+// src/pages/ForgotPassword.tsx
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -16,24 +17,36 @@ export default function ForgotPassword() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
+  /** 🔍 DEBUGGER: When this page loads */
+  useEffect(() => {
+    console.log("DEBUG → ForgetPassword PAGE LOADED");
+    console.log("DEBUG → Current URL:", window.location.href);
+    console.log("DEBUG → HASH:", window.location.hash);
+    console.log("DEBUG → SEARCH:", window.location.search);
+  }, []);
+
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setFormError(null);
     setFormSuccess(null);
 
-    // 🔥 THE FIX — FORCE HASH ROUTE SO SAFARI DOESN’T STRIP TOKEN
+    // 🔥 FIX: Force token to remain in hash instead of query
     const redirectUrl = import.meta.env.PROD
       ? "https://www.neekostats.com.au/reset-password#"
       : "http://localhost:5173/reset-password#";
+
+    console.log("DEBUG → Sending reset request. RedirectTo:", redirectUrl);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
 
     if (error) {
+      console.log("DEBUG → Reset email ERROR:", error);
       setFormError(error.message || "Something went wrong.");
     } else {
+      console.log("DEBUG → Reset email SENT successfully");
       setFormSuccess("Password reset email sent. Check your inbox.");
     }
 
@@ -43,6 +56,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8 space-y-6">
+
         <Button
           onClick={() => navigate("/auth")}
           variant="ghost"
@@ -60,7 +74,6 @@ export default function ForgotPassword() {
           </p>
         </div>
 
-        {/* FORM */}
         <form onSubmit={handleReset} className="space-y-4">
           <div className="space-y-2">
             <Label>Email Address</Label>
