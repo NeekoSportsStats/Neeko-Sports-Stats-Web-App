@@ -171,7 +171,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         case "SIGNED_IN":
         case "TOKEN_REFRESHED":
+          await applySession(session, event);
+          setLoading(false);
+          break;
+
         case "USER_UPDATED":
+          // 🚫 Do NOT reapply session during password recovery
+          if (typeof window !== "undefined" && window.location.pathname === "/reset-password") {
+            console.log("🛑 USER_UPDATED ignored on reset-password");
+            return;
+          }
+
+          console.log("📥 applySession from USER_UPDATED");
           await applySession(session, event);
           setLoading(false);
           break;
