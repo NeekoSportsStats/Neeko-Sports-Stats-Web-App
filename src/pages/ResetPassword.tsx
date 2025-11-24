@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+
 import { Eye, EyeOff, ArrowLeft, CheckCircle, Trophy, Loader2 } from "lucide-react";
 
 const ResetPassword = () => {
@@ -27,40 +28,48 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // NEW STATES (no window.location.hash logic anymore)
   const [checking, setChecking] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // 🔍 Step 1 — detect token BEFORE RequireAuth runs
+  // STEP 1 — Check if user has a recovery session (Supabase V2)
   useEffect(() => {
-    const hash = window.location.hash || "";
+    const checkRecovery = async () => {
+      console.log("RESET → checking Supabase session for recovery");
 
-    console.log("RESET → hash:", hash);
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
 
-    const valid =
-      hash.includes("type=recovery") &&
-      hash.includes("access_token");
+      // If Supabase sees a recovery user, the session contains it
+      if (session?.user && session.user?.email) {
+        console.log("RESET → has recovery session user:", session.user.email);
+        setTokenValid(true);
+      } else {
+        console.log("RESET → NO recovery session user");
+      }
 
-    console.log("RESET → hasToken:", valid);
+      setChecking(false);
+    };
 
-    setTokenValid(valid);
-    setChecking(false);
+    checkRecovery();
   }, []);
 
-  // 🔥 Step 2 — redirect if token invalid
+  // STEP 2 — If no valid token/session → redirect
   useEffect(() => {
     if (!checking && !tokenValid) {
       toast({
         title: "Invalid or expired link",
-        description: "Please request a new reset email.",
+        description: "Please request a new password reset link.",
         variant: "destructive",
       });
       navigate("/forgot-password");
     }
   }, [checking, tokenValid, navigate, toast]);
 
+  // STEP 3 — Update password
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -69,6 +78,7 @@ const ResetPassword = () => {
     if (password !== confirmPassword) {
       toast({
         title: "Passwords do not match",
+        description: "Both fields must match.",
         variant: "destructive",
       });
       return;
@@ -76,7 +86,8 @@ const ResetPassword = () => {
 
     if (password.length < 10) {
       toast({
-        title: "Password must be 10+ characters",
+        title: "Password too short",
+        description: "Minimum 10 characters.",
         variant: "destructive",
       });
       return;
@@ -89,16 +100,17 @@ const ResetPassword = () => {
       if (error) throw error;
 
       setSuccess(true);
+
       toast({
-        title: "Password updated!",
-        description: "You can now log in.",
+        title: "Password updated",
+        description: "You can now sign in.",
       });
 
-      setTimeout(() => navigate("/auth"), 1800);
-    } catch (err: any) {
+      setTimeout(() => navigate("/auth"), 2000);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: err.message,
+        description: error.message || "Failed to update password.",
         variant: "destructive",
       });
     } finally {
@@ -106,6 +118,7 @@ const ResetPassword = () => {
     }
   };
 
+  // LOADING SCREEN
   if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -114,18 +127,21 @@ const ResetPassword = () => {
     );
   }
 
+  // SUCCESS SCREEN
   if (success) {
     return (
       <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
         <Card className="w-full text-center">
           <CardHeader>
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-            <CardTitle>Password Updated</CardTitle>
-            <CardDescription>Redirecting…</CardDescription>
+            <div className="flex justify-center mb-3">
+              <CheckCircle className="h-16 w-16 text-green-500" />
+            </div>
+            <CardTitle>Password Reset Successful</CardTitle>
+            <CardDescription>Redirecting you to sign in…</CardDescription>
           </CardHeader>
           <CardFooter>
             <Button className="w-full" onClick={() => navigate("/auth")}>
-              Sign In
+              Sign In Now
             </Button>
           </CardFooter>
         </Card>
@@ -133,40 +149,48 @@ const ResetPassword = () => {
     );
   }
 
+  // PASSWORD RESET FORM (only if tokenValid)
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
         <CardHeader>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/auth")}
+            className="mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
 
           <div className="flex items-center gap-2 mb-2">
             <Trophy className="h-6 w-6 text-primary" />
-            <CardTitle>Choose New Password</CardTitle>
+            <CardTitle>Choose a New Password</CardTitle>
           </div>
+
           <CardDescription>Enter and confirm your new password.</CardDescription>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-
             <div className="space-y-2">
               <Label>New Password</Label>
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
+                  placeholder="New password"
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={loading}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((p) => !p)}
+                  onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -177,19 +201,21 @@ const ResetPassword = () => {
                 <Input
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
+                  placeholder="Confirm password"
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  disabled={loading}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirm((p) => !p)}
+                  onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  {showConfirm ? <EyeOff /> : <Eye />}
+                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-
           </CardContent>
 
           <CardFooter>
