@@ -1,5 +1,5 @@
 // src/pages/ResetPassword.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -33,7 +33,6 @@ const ResetPassword = () => {
 
   const { toast } = useToast();
   const navigate = useNavigate();
-  const isUpdatingRef = useRef(false);
 
   useEffect(() => {
     const checkRecovery = async () => {
@@ -42,7 +41,7 @@ const ResetPassword = () => {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
-      if (session?.user && session.user?.email) {
+      if (session?.user?.email) {
         console.log("RESET → has recovery session user:", session.user.email);
         setTokenValid(true);
       } else {
@@ -71,11 +70,6 @@ const ResetPassword = () => {
 
     if (!tokenValid) return;
 
-    if (isUpdatingRef.current) {
-      console.log("RESET → already updating, ignoring duplicate submit");
-      return;
-    }
-
     if (password !== confirmPassword) {
       toast({
         title: "Passwords do not match",
@@ -94,42 +88,30 @@ const ResetPassword = () => {
       return;
     }
 
-    isUpdatingRef.current = true;
     setLoading(true);
 
     try {
-      console.log("RESET → calling updateUser");
-      const { data, error } = await supabase.auth.updateUser({ password });
-      console.log("RESET → updateUser result:", { data, error });
-
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
-      console.log("RESET → password update successful, showing success screen");
-
-      setLoading(false);
       setSuccess(true);
 
       toast({
         title: "Password updated",
-        description: "You can now sign in with your new password.",
+        description: "You can now sign in.",
       });
 
-      if (window.location.pathname.startsWith("/reset-password")) {
-        window.history.replaceState({}, "", "/reset-password");
-      }
+      window.history.replaceState({}, "", "/reset-password");
 
-      navigate("/auth", { replace: true, state: { fromPasswordReset: true } });
-
+      setTimeout(() => navigate("/auth"), 1200);
     } catch (error: any) {
-      console.error("RESET → updateUser error:", error);
-      setLoading(false);
-      isUpdatingRef.current = false;
-
       toast({
         title: "Error",
         description: error.message || "Failed to update password.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
