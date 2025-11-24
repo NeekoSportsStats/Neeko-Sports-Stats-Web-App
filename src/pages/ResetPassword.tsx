@@ -1,5 +1,5 @@
 // src/pages/ResetPassword.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -28,14 +28,13 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Check recovery status
   const [checking, setChecking] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isUpdatingRef = useRef(false);
 
-  // STEP 1 — Ensure Supabase has a valid recovery session
   useEffect(() => {
     const checkRecovery = async () => {
       console.log("RESET → checking Supabase session for recovery");
@@ -56,7 +55,6 @@ const ResetPassword = () => {
     checkRecovery();
   }, []);
 
-  // STEP 2 — Redirect if invalid
   useEffect(() => {
     if (!checking && !tokenValid) {
       toast({
@@ -68,11 +66,15 @@ const ResetPassword = () => {
     }
   }, [checking, tokenValid, navigate, toast]);
 
-  // STEP 3 — Handle password update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!tokenValid) return;
+
+    if (isUpdatingRef.current) {
+      console.log("RESET → already updating, ignoring duplicate submit");
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast({
@@ -92,36 +94,45 @@ const ResetPassword = () => {
       return;
     }
 
+    isUpdatingRef.current = true;
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      console.log("RESET → calling updateUser");
+      const { data, error } = await supabase.auth.updateUser({ password });
+      console.log("RESET → updateUser result:", { data, error });
+
       if (error) throw error;
 
+      console.log("RESET → password update successful, showing success screen");
+
+      setLoading(false);
       setSuccess(true);
 
       toast({
         title: "Password updated",
-        description: "You can now sign in.",
+        description: "You can now sign in with your new password.",
       });
 
-      // 🔥 CRITICAL FIX: remove ?code=... from URL so recovery flow ends cleanly
-      window.history.replaceState({}, "", "/reset-password");
+      if (window.location.pathname.startsWith("/reset-password")) {
+        window.history.replaceState({}, "", "/reset-password");
+      }
 
-      // Redirect to login shortly after
-      setTimeout(() => navigate("/auth"), 1200);
+      navigate("/auth", { replace: true, state: { fromPasswordReset: true } });
+
     } catch (error: any) {
+      console.error("RESET → updateUser error:", error);
+      setLoading(false);
+      isUpdatingRef.current = false;
+
       toast({
         title: "Error",
         description: error.message || "Failed to update password.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  // LOADING SCREEN
   if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -130,7 +141,6 @@ const ResetPassword = () => {
     );
   }
 
-  // SUCCESS SCREEN
   if (success) {
     return (
       <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
@@ -152,7 +162,6 @@ const ResetPassword = () => {
     );
   }
 
-  // RESET PASSWORD FORM
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
@@ -176,8 +185,6 @@ const ResetPassword = () => {
 
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-
-            {/* NEW PASSWORD */}
             <div className="space-y-2">
               <Label>New Password</Label>
               <div className="relative">
@@ -194,13 +201,13 @@ const ResetPassword = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {/* CONFIRM PASSWORD */}
             <div className="space-y-2">
               <Label>Confirm Password</Label>
               <div className="relative">
@@ -217,6 +224,7 @@ const ResetPassword = () => {
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
+                  disabled={loading}
                 >
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
