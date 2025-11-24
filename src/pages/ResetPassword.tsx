@@ -42,7 +42,7 @@ const ResetPassword = () => {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
-      if (session?.user?.email) {
+      if (session?.user && session.user?.email) {
         console.log("RESET → has recovery session user:", session.user.email);
         setTokenValid(true);
       } else {
