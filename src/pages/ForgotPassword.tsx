@@ -17,12 +17,10 @@ export default function ForgotPassword() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  /** 🔍 DEBUGGER: When this page loads */
+  /** DEBUG: page load */
   useEffect(() => {
-    console.log("DEBUG → ForgetPassword PAGE LOADED");
-    console.log("DEBUG → Current URL:", window.location.href);
-    console.log("DEBUG → HASH:", window.location.hash);
-    console.log("DEBUG → SEARCH:", window.location.search);
+    console.log("FORGOT → PAGE LOADED");
+    console.log("URL:", window.location.href);
   }, []);
 
   const handleReset = async (e: React.FormEvent) => {
@@ -31,22 +29,22 @@ export default function ForgotPassword() {
     setFormError(null);
     setFormSuccess(null);
 
-    // 🔥 FIX: Force token to remain in hash instead of query
+    // ✔ FIX: no trailing hash
     const redirectUrl = import.meta.env.PROD
-      ? "https://www.neekostats.com.au/reset-password#"
-      : "http://localhost:5173/reset-password#";
+      ? "https://www.neekostats.com.au/reset-password"
+      : "http://localhost:5173/reset-password";
 
-    console.log("DEBUG → Sending reset request. RedirectTo:", redirectUrl);
+    console.log("FORGOT → Sending reset email with redirect:", redirectUrl);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
 
     if (error) {
-      console.log("DEBUG → Reset email ERROR:", error);
+      console.log("FORGOT → ERROR:", error);
       setFormError(error.message || "Something went wrong.");
     } else {
-      console.log("DEBUG → Reset email SENT successfully");
+      console.log("FORGOT → Reset email sent ✔");
       setFormSuccess("Password reset email sent. Check your inbox.");
     }
 
