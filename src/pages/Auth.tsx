@@ -49,8 +49,15 @@ const Auth = () => {
   const redirect = searchParams.get("redirect") || "/";
   const { user } = useAuth();
 
+  // ⭐ FIXED REDIRECT BEHAVIOUR ⭐
   useEffect(() => {
     if (!user) return;
+
+    // 🚫 Block redirects during password recovery
+    const path = window.location.pathname;
+    if (path.includes("forgot-password") || path.includes("reset-password")) {
+      return;
+    }
 
     if (redirect === "checkout") {
       navigate("/start-checkout", { replace: true });
@@ -68,21 +75,17 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setFormError(null); // clear previous errors
+    setFormError(null);
 
     try {
       emailSchema.parse(email);
 
-      //
-      // 🔥 LOGIN
-      //
       if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        // Supabase login error formats from your logs
         if (error?.code === "invalid_credentials") {
           setFormError("Incorrect email or password");
           return;
@@ -96,9 +99,7 @@ const Auth = () => {
         return;
       }
 
-      //
-      // 🔥 SIGNUP
-      //
+      // SIGNUP
       passwordSchema.parse(password);
 
       if (password !== confirmPassword) {
@@ -111,7 +112,6 @@ const Auth = () => {
         password,
       });
 
-      // Supabase signup error formats from your logs
       if (error?.code === "user_already_exists") {
         setFormError("An account with this email already exists.");
         return;
