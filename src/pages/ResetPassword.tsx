@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-import { Eye, EyeOff, ArrowLeft, CheckCircle, Trophy } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle, Trophy, Loader2 } from "lucide-react";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -26,53 +26,53 @@ const ResetPassword = () => {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // NEW STATES:
+  const [checking, setChecking] = useState(true); 
+  const [tokenValid, setTokenValid] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  /** 🔍 DEBUG: fire on load */
+  /** STEP 1 → VERIFY TOKEN EXISTS */
   useEffect(() => {
-    console.log("DEBUG → ResetPassword PAGE LOADED");
-    console.log("DEBUG → URL:", window.location.href);
-    console.log("DEBUG → HASH:", window.location.hash);
-  }, []);
+    const hash = window.location.hash || "";
 
-  /** 🔥 REAL GUARANTEED FIX:
-   * Only load reset page if the hash has a recovery token.
-   */
-  useEffect(() => {
-    const hash = window.location.hash;
+    console.log("DEBUG → ResetPassword hash:", hash);
 
-    console.log("DEBUG → Processing hash:", hash);
-
-    const hasRequiredToken =
+    const hasToken =
       hash.includes("type=recovery") &&
       hash.includes("access_token");
 
-    console.log("DEBUG → Has required token:", hasRequiredToken);
-
-    if (hasRequiredToken) {
-      setReady(true);
-      return;
+    if (hasToken) {
+      console.log("DEBUG → Recovery token detected ✔");
+      setTokenValid(true);
+    } else {
+      console.log("DEBUG → No token in URL ❌");
     }
 
-    console.log("DEBUG → No valid token → redirecting back");
+    setChecking(false);
+  }, []);
 
-    toast({
-      title: "Invalid or expired link",
-      description: "Please request a new password reset link.",
-      variant: "destructive",
-    });
+  /** STEP 2 → If no token → redirect after showing toast */
+  useEffect(() => {
+    if (!checking && !tokenValid) {
+      toast({
+        title: "Invalid or expired link",
+        description: "Please request a new password reset link.",
+        variant: "destructive",
+      });
 
-    navigate("/forgot-password");
-  }, [navigate, toast]);
+      navigate("/forgot-password");
+    }
+  }, [checking, tokenValid, navigate, toast]);
 
+  /** STEP 3 → Handle password update */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!ready) return;
+    if (!tokenValid) return;
 
     if (password !== confirmPassword) {
       toast({
@@ -106,12 +106,12 @@ const ResetPassword = () => {
         description: "You can now sign in with your new password.",
       });
 
-      setTimeout(() => navigate("/auth"), 2200);
+      setTimeout(() => navigate("/auth"), 2000);
     } catch (error: any) {
       console.error("ERROR → updateUser failed:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update password",
+        description: error.message || "Failed to update password.",
         variant: "destructive",
       });
     } finally {
@@ -119,7 +119,16 @@ const ResetPassword = () => {
     }
   };
 
-  /* SUCCESS SCREEN */
+  /** STEP 4 → Show verifying screen (no redirect yet) */
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin h-8 w-8 text-primary" />
+      </div>
+    );
+  }
+
+  /** SUCCESS SCREEN */
   if (success) {
     return (
       <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
@@ -143,7 +152,7 @@ const ResetPassword = () => {
     );
   }
 
-  /* PASSWORD RESET FORM */
+  /** PASSWORD RESET FORM (only shown if tokenValid===true) */
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
