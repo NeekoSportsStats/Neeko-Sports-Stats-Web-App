@@ -9,17 +9,12 @@ export const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 Always allow reset-password
-  if (location.pathname === "/reset-password") {
-    console.log("RequireAuth → bypass during reset-password");
-    return <>{children}</>;
-  }
-
   const allowedPaths = [
     "/success",
     "/cancel",
     "/auth",
     "/forgot-password",
+    "/reset-password",
   ];
 
   const currentPath = location.pathname;

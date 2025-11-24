@@ -29,16 +29,10 @@ function createSupabaseClient(): SupabaseClient {
   const projectRef = getProjectRef(supabaseUrl);
   const storageKey = `sb-${projectRef}-auth-token`;
 
-  // 🔥 CRUCIAL PATCH — Prevent Supabase from consuming tokens on reset-password
-  const disableDetectForRecovery =
-    typeof window !== "undefined" &&
-    window.location.pathname === "/reset-password";
-
   console.log("🔵 Creating Supabase client:", {
     url: supabaseUrl,
     projectRef,
     storageKey,
-    detectSessionInUrl: !disableDetectForRecovery,
   });
 
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
@@ -46,10 +40,7 @@ function createSupabaseClient(): SupabaseClient {
       flowType: "pkce",
       persistSession: true,
       autoRefreshToken: true,
-
-      // 🔥 PATCH — stop wiping the reset-password token
-      detectSessionInUrl: !disableDetectForRecovery,
-
+      detectSessionInUrl: true,
       storageKey,
       storage: {
         getItem: (key) => {

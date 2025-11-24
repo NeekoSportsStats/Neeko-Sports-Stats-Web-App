@@ -17,7 +17,6 @@ export default function ForgotPassword() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  /** DEBUG: page load */
   useEffect(() => {
     console.log("FORGOT → PAGE LOADED");
     console.log("URL:", window.location.href);
@@ -29,10 +28,14 @@ export default function ForgotPassword() {
     setFormError(null);
     setFormSuccess(null);
 
-    // ✔ FIX: no trailing hash
-    const redirectUrl = import.meta.env.PROD
-      ? "https://www.neekostats.com.au/reset-password"
-      : "http://localhost:5173/reset-password";
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : import.meta.env.PROD
+        ? "https://www.neekostats.com.au"
+        : "http://localhost:5173";
+
+    const redirectUrl = `${origin}/reset-password`;
 
     console.log("FORGOT → Sending reset email with redirect:", redirectUrl);
 
@@ -68,7 +71,7 @@ export default function ForgotPassword() {
           <Mail className="h-10 w-10 mx-auto text-primary" />
           <h2 className="text-xl font-semibold">Reset Password</h2>
           <p className="text-sm text-muted-foreground">
-            Enter your email and we’ll send you a reset link.
+            Enter your email and we'll send you a reset link.
           </p>
         </div>
 
