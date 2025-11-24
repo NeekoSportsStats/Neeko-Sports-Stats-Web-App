@@ -1,6 +1,8 @@
+// src/pages/ResetPassword.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+
 import {
   Card,
   CardContent,
@@ -9,17 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Eye,
-  EyeOff,
-  ArrowLeft,
-  CheckCircle,
-  Trophy,
-} from "lucide-react";
+
+import { Eye, EyeOff, ArrowLeft, CheckCircle, Trophy } from "lucide-react";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -34,24 +32,34 @@ const ResetPassword = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  /**
-   * 🔥 REAL FIX:
-   * Only allow page to load if URL contains:
-   * #access_token=...&type=recovery
+  /** 🔍 DEBUG: fire on load */
+  useEffect(() => {
+    console.log("DEBUG → ResetPassword PAGE LOADED");
+    console.log("DEBUG → URL:", window.location.href);
+    console.log("DEBUG → HASH:", window.location.hash);
+  }, []);
+
+  /** 🔥 REAL GUARANTEED FIX:
+   * Only load reset page if the hash has a recovery token.
    */
   useEffect(() => {
     const hash = window.location.hash;
 
-    const hasToken =
-      hash.includes("type=recovery") &&
-      (hash.includes("access_token") || hash.includes("refresh_token"));
+    console.log("DEBUG → Processing hash:", hash);
 
-    if (hasToken) {
+    const hasRequiredToken =
+      hash.includes("type=recovery") &&
+      hash.includes("access_token");
+
+    console.log("DEBUG → Has required token:", hasRequiredToken);
+
+    if (hasRequiredToken) {
       setReady(true);
       return;
     }
 
-    // No valid token → redirect back
+    console.log("DEBUG → No valid token → redirecting back");
+
     toast({
       title: "Invalid or expired link",
       description: "Please request a new password reset link.",
@@ -78,7 +86,7 @@ const ResetPassword = () => {
     if (password.length < 10) {
       toast({
         title: "Password too short",
-        description: "Password must be at least 10 characters.",
+        description: "Must be at least 10 characters.",
         variant: "destructive",
       });
       return;
@@ -87,23 +95,23 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
+      console.log("DEBUG → Calling supabase.auth.updateUser...");
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
 
       setSuccess(true);
-
       toast({
         title: "Password updated",
         description: "You can now sign in with your new password.",
       });
 
-      setTimeout(() => navigate("/auth"), 2500);
+      setTimeout(() => navigate("/auth"), 2200);
     } catch (error: any) {
-      console.error("Error resetting password:", error);
+      console.error("ERROR → updateUser failed:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to reset password",
+        description: error.message || "Failed to update password",
         variant: "destructive",
       });
     } finally {
@@ -111,9 +119,7 @@ const ResetPassword = () => {
     }
   };
 
-  /* -------------------------------
-     SUCCESS SCREEN
-  --------------------------------- */
+  /* SUCCESS SCREEN */
   if (success) {
     return (
       <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
@@ -127,7 +133,6 @@ const ResetPassword = () => {
               Redirecting you to sign in...
             </CardDescription>
           </CardHeader>
-
           <CardFooter>
             <Button onClick={() => navigate("/auth")} className="w-full">
               Sign In Now
@@ -138,9 +143,7 @@ const ResetPassword = () => {
     );
   }
 
-  /* -------------------------------
-     PASSWORD RESET FORM
-  --------------------------------- */
+  /* PASSWORD RESET FORM */
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
