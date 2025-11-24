@@ -22,11 +22,13 @@ export default function ForgotPassword() {
     setFormError(null);
     setFormSuccess(null);
 
+    // 🔥 THE FIX — FORCE HASH ROUTE SO SAFARI DOESN’T STRIP TOKEN
+    const redirectUrl = import.meta.env.PROD
+      ? "https://www.neekostats.com.au/reset-password#"
+      : "http://localhost:5173/reset-password#";
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo:
-        import.meta.env.PROD
-          ? "https://www.neekostats.com.au/reset-password"
-          : "http://localhost:5173/reset-password",
+      redirectTo: redirectUrl,
     });
 
     if (error) {
