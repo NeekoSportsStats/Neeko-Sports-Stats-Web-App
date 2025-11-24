@@ -1,5 +1,5 @@
 // src/pages/ResetPassword.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -33,6 +33,7 @@ const ResetPassword = () => {
 
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isUpdatingRef = useRef(false);
 
   useEffect(() => {
     const checkRecovery = async () => {
@@ -70,6 +71,11 @@ const ResetPassword = () => {
 
     if (!tokenValid) return;
 
+    if (isUpdatingRef.current) {
+      console.log("RESET → already updating, ignoring duplicate submit");
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast({
         title: "Passwords do not match",
@@ -88,30 +94,42 @@ const ResetPassword = () => {
       return;
     }
 
+    isUpdatingRef.current = true;
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      console.log("RESET → calling updateUser");
+      const { data, error } = await supabase.auth.updateUser({ password });
+      console.log("RESET → updateUser result:", { data, error });
+
       if (error) throw error;
 
+      console.log("RESET → password update successful, showing success screen");
+
+      setLoading(false);
       setSuccess(true);
 
       toast({
         title: "Password updated",
-        description: "You can now sign in.",
+        description: "You can now sign in with your new password.",
       });
 
-      window.history.replaceState({}, "", "/reset-password");
+      if (window.location.pathname.startsWith("/reset-password")) {
+        window.history.replaceState({}, "", "/reset-password");
+      }
 
-      setTimeout(() => navigate("/auth"), 1200);
+      navigate("/auth", { replace: true, state: { fromPasswordReset: true } });
+
     } catch (error: any) {
+      console.error("RESET → updateUser error:", error);
+      setLoading(false);
+      isUpdatingRef.current = false;
+
       toast({
         title: "Error",
         description: error.message || "Failed to update password.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
