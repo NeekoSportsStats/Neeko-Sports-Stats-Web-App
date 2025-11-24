@@ -28,14 +28,14 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // NEW STATES (no window.location.hash logic anymore)
+  // Check recovery status
   const [checking, setChecking] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // STEP 1 — Check if user has a recovery session (Supabase V2)
+  // STEP 1 — Ensure Supabase has a valid recovery session
   useEffect(() => {
     const checkRecovery = async () => {
       console.log("RESET → checking Supabase session for recovery");
@@ -43,7 +43,6 @@ const ResetPassword = () => {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
-      // If Supabase sees a recovery user, the session contains it
       if (session?.user && session.user?.email) {
         console.log("RESET → has recovery session user:", session.user.email);
         setTokenValid(true);
@@ -57,7 +56,7 @@ const ResetPassword = () => {
     checkRecovery();
   }, []);
 
-  // STEP 2 — If no valid token/session → redirect
+  // STEP 2 — Redirect if invalid
   useEffect(() => {
     if (!checking && !tokenValid) {
       toast({
@@ -69,7 +68,7 @@ const ResetPassword = () => {
     }
   }, [checking, tokenValid, navigate, toast]);
 
-  // STEP 3 — Update password
+  // STEP 3 — Handle password update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -106,7 +105,11 @@ const ResetPassword = () => {
         description: "You can now sign in.",
       });
 
-      setTimeout(() => navigate("/auth"), 2000);
+      // 🔥 CRITICAL FIX: remove ?code=... from URL so recovery flow ends cleanly
+      window.history.replaceState({}, "", "/reset-password");
+
+      // Redirect to login shortly after
+      setTimeout(() => navigate("/auth"), 1200);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -149,7 +152,7 @@ const ResetPassword = () => {
     );
   }
 
-  // PASSWORD RESET FORM (only if tokenValid)
+  // RESET PASSWORD FORM
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
@@ -173,6 +176,8 @@ const ResetPassword = () => {
 
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+
+            {/* NEW PASSWORD */}
             <div className="space-y-2">
               <Label>New Password</Label>
               <div className="relative">
@@ -195,6 +200,7 @@ const ResetPassword = () => {
               </div>
             </div>
 
+            {/* CONFIRM PASSWORD */}
             <div className="space-y-2">
               <Label>Confirm Password</Label>
               <div className="relative">
