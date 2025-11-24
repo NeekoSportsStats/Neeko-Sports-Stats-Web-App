@@ -13,7 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle, Trophy } from "lucide-react";
+import {
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  CheckCircle,
+  Trophy,
+} from "lucide-react";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -22,16 +29,34 @@ const ResetPassword = () => {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Ensure the URL is valid (Supabase injects a session if reset link was valid)
+  /**
+   * 🔥 FIXED: Proper Supabase password recovery handling
+   */
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          setReady(true); // allow resetting password
+        }
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  /**
+   * If the user landed here manually or with an expired token,
+   * `ready` will stay false.
+   */
+  useEffect(() => {
+    setTimeout(() => {
+      if (!ready) {
         toast({
           title: "Invalid or expired link",
           description: "Please request a new password reset link.",
@@ -39,15 +64,14 @@ const ResetPassword = () => {
         });
         navigate("/forgot-password");
       }
-    };
-
-    checkSession();
-  }, [navigate, toast]);
+    }, 800);
+  }, [ready, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
+    if (!ready) return;
+
     if (password !== confirmPassword) {
       toast({
         title: "Passwords do not match",
@@ -105,9 +129,7 @@ const ResetPassword = () => {
               <CheckCircle className="h-16 w-16 text-green-500" />
             </div>
             <CardTitle>Password Reset Successful</CardTitle>
-            <CardDescription>
-              Redirecting you to sign in...
-            </CardDescription>
+            <CardDescription>Redirecting you to sign in...</CardDescription>
           </CardHeader>
 
           <CardFooter>
