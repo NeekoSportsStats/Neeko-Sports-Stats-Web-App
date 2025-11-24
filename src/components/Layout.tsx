@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Crown, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
+import { useSidebar } from "@/components/ui/sidebar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -12,11 +13,32 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, isPremium, signOut } = useAuth();
+  const { open, setOpen } = useSidebar();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open, setOpen]);
 
   return (
     <SidebarProvider>
       <div className="min-h-screen w-full bg-background">
-        <AppSidebar />
+        <div ref={sidebarRef}>
+          <AppSidebar />
+        </div>
 
         <div className="w-full flex flex-col">
           {/* HEADER */}
@@ -37,8 +59,6 @@ export function Layout({ children }: LayoutProps) {
 
               {/* RIGHT BUTTONS */}
               <div className="flex items-center gap-1.5 lg:gap-2">
-
-                {/* ⭐ PREMIUM USERS — crown only */}
                 {isPremium && (
                   <Link to="/account">
                     <Button variant="outline" size="sm" className="gap-2">
@@ -47,7 +67,6 @@ export function Layout({ children }: LayoutProps) {
                   </Link>
                 )}
 
-                {/* NON PREMIUM — Neeko+ button */}
                 {!isPremium && (
                   <Link to="/neeko-plus">
                     <Button variant="outline" size="sm" className="gap-2">
@@ -57,20 +76,13 @@ export function Layout({ children }: LayoutProps) {
                   </Link>
                 )}
 
-                {/* LOGGED IN → Logout */}
                 {user && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={signOut}
-                    className="gap-2"
-                  >
+                  <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
                     <LogOut className="h-4 w-4" />
                     <span className="hidden sm:inline">Logout</span>
                   </Button>
                 )}
 
-                {/* NOT LOGGED IN → Sign In */}
                 {!user && (
                   <Link to="/auth">
                     <Button variant="default" size="sm">
@@ -82,7 +94,6 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </header>
 
-          {/* BODY */}
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>
