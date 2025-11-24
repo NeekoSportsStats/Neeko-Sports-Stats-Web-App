@@ -35,41 +35,31 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   /**
-   * 🔥 PATCH 1:
-   * Accept BOTH possible Supabase password recovery events.
+   * 🔥 REAL FIX:
+   * Only allow page to load if URL contains:
+   * #access_token=...&type=recovery
    */
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("AUTH EVENT:", event);
+    const hash = window.location.hash;
 
-        if (event === "PASSWORD_RECOVERY" || event === "USER_UPDATED") {
-          setReady(true); // allow password reset
-        }
-      }
-    );
+    const hasToken =
+      hash.includes("type=recovery") &&
+      (hash.includes("access_token") || hash.includes("refresh_token"));
 
-    return () => listener.subscription.unsubscribe();
-  }, []);
+    if (hasToken) {
+      setReady(true);
+      return;
+    }
 
-  /**
-   * 🔥 PATCH 2:
-   * Increase timeout to avoid rejecting valid links too early.
-   */
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!ready) {
-        toast({
-          title: "Invalid or expired link",
-          description: "Please request a new password reset link.",
-          variant: "destructive",
-        });
-        navigate("/forgot-password");
-      }
-    }, 2000);
+    // No valid token → redirect back
+    toast({
+      title: "Invalid or expired link",
+      description: "Please request a new password reset link.",
+      variant: "destructive",
+    });
 
-    return () => clearTimeout(timeout);
-  }, [ready, navigate, toast]);
+    navigate("/forgot-password");
+  }, [navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +98,7 @@ const ResetPassword = () => {
         description: "You can now sign in with your new password.",
       });
 
-      setTimeout(() => navigate("/auth"), 3000);
+      setTimeout(() => navigate("/auth"), 2500);
     } catch (error: any) {
       console.error("Error resetting password:", error);
       toast({
