@@ -26,11 +26,13 @@ export function Layout({ children }: LayoutProps) {
 
               {/* LOGO */}
               <div className="flex items-center mr-auto">
-                <img
-                  src="/logo.png"
-                  alt="Neeko Sports Logo"
-                  className="h-[5.25rem] w-auto -my-3"
-                />
+                <Link to="/" className="flex items-center hover:opacity-80 transition">
+                  <img
+                    src="/logo.png"
+                    alt="Neeko Sports Logo"
+                    className="h-[5.25rem] w-auto -my-3"
+                  />
+                </Link>
               </div>
 
               {/* RIGHT BUTTONS */}
@@ -57,7 +59,12 @@ export function Layout({ children }: LayoutProps) {
 
                 {/* LOGGED IN → Logout */}
                 {user && (
-                  <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={signOut}
+                    className="gap-2"
+                  >
                     <LogOut className="h-4 w-4" />
                     <span className="hidden sm:inline">Logout</span>
                   </Button>
