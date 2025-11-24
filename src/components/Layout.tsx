@@ -1,11 +1,10 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Crown, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { ReactNode, useEffect, useRef } from "react";
-import { useSidebar } from "@/components/ui/sidebar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,28 +12,14 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, isPremium, signOut } = useAuth();
-  const { open, setOpen } = useSidebar();
+
   const sidebarRef = useRef<HTMLDivElement>(null);
-
-  // Close sidebar when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open, setOpen]);
 
   return (
     <SidebarProvider>
+      {/* ✅ NOW useSidebar() is *inside* the provider */}
+      <SidebarHandler sidebarRef={sidebarRef} />
+
       <div className="min-h-screen w-full bg-background">
         <div ref={sidebarRef}>
           <AppSidebar />
@@ -99,6 +84,31 @@ export function Layout({ children }: LayoutProps) {
       </div>
     </SidebarProvider>
   );
+}
+
+/* --------------------------
+   Sidebar outside-click logic
+--------------------------- */
+function SidebarHandler({ sidebarRef }: { sidebarRef: React.RefObject<HTMLDivElement> }) {
+  const { open, setOpen } = useSidebar();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open, setOpen]);
+
+  return null; // no visual output
 }
 
 export default Layout;
