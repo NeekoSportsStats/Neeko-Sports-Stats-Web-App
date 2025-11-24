@@ -1,7 +1,7 @@
 // src/pages/ResetPassword.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
 
 import {
   Card,
@@ -17,33 +17,55 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-import { Eye, EyeOff, ArrowLeft, CheckCircle, Trophy, Loader2 } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  CheckCircle,
+  Trophy,
+  Loader2,
+} from "lucide-react";
 
 const ResetPassword = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // form state
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // process state
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  // NEW STATES
   const [checking, setChecking] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const { toast } = useToast();
-  const navigate = useNavigate();
+  /** -----------------------------------------------------------
+   * PATCH #1 — Create a SAFE Supabase client for token recovery
+   * -----------------------------------------------------------
+   */
+  const supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL!,
+    import.meta.env.VITE_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false, // ⛔ DO NOT consume recovery token
+      },
+    }
+  );
 
-  /** STEP 1 — CHECK IF TOKEN EXISTS */
+  /** STEP 1 — Detect token BEFORE Supabase eats it */
   useEffect(() => {
     const hash = window.location.hash || "";
 
     console.log("RESET → hash:", hash);
 
     const hasToken =
-      hash.includes("type=recovery") &&
-      hash.includes("access_token");
+      hash.includes("type=recovery") && hash.includes("access_token");
 
     console.log("RESET → hasToken:", hasToken);
 
@@ -51,7 +73,7 @@ const ResetPassword = () => {
     setChecking(false);
   }, []);
 
-  /** STEP 2 — If invalid token → redirect back */
+  /** STEP 2 — Invalid link → redirect */
   useEffect(() => {
     if (!checking && !tokenValid) {
       toast({
@@ -64,7 +86,7 @@ const ResetPassword = () => {
     }
   }, [checking, tokenValid, navigate, toast]);
 
-  /** STEP 3 — Submit reset */
+  /** STEP 3 — Submit new password */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -82,7 +104,7 @@ const ResetPassword = () => {
     if (password.length < 10) {
       toast({
         title: "Password too short",
-        description: "Minimum 10 characters.",
+        description: "Must be at least 10 characters.",
         variant: "destructive",
       });
       return;
@@ -91,7 +113,8 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      console.log("RESET → updating user");
+      console.log("RESET → updating user password…");
+
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
@@ -104,11 +127,11 @@ const ResetPassword = () => {
       });
 
       setTimeout(() => navigate("/auth"), 2000);
-    } catch (error: any) {
-      console.error("RESET → update error:", error);
+    } catch (err: any) {
+      console.error("RESET → update error:", err);
       toast({
         title: "Error",
-        description: error.message || "Failed to update password.",
+        description: err.message || "Failed to update password.",
         variant: "destructive",
       });
     } finally {
@@ -147,7 +170,7 @@ const ResetPassword = () => {
     );
   }
 
-  /** RESET FORM (only if tokenValid) */
+  /** PASSWORD RESET FORM */
   return (
     <div className="container max-w-md py-12 flex items-center justify-center min-h-[70vh]">
       <Card className="w-full">
@@ -166,12 +189,13 @@ const ResetPassword = () => {
             <CardTitle>Choose a New Password</CardTitle>
           </div>
 
-          <CardDescription>Enter and confirm your new password.</CardDescription>
+          <CardDescription>
+            Enter and confirm your new password.
+          </CardDescription>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-
             {/* NEW PASSWORD */}
             <div className="space-y-2">
               <Label>New Password</Label>
@@ -194,7 +218,7 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            {/* CONFIRM */}
+            {/* CONFIRM PASSWORD */}
             <div className="space-y-2">
               <Label>Confirm Password</Label>
               <div className="relative">
@@ -215,7 +239,6 @@ const ResetPassword = () => {
                 </button>
               </div>
             </div>
-
           </CardContent>
 
           <CardFooter>
