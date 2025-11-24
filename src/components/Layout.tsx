@@ -1,10 +1,10 @@
-import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Crown, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode } from "react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,17 +13,10 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { user, isPremium, signOut } = useAuth();
 
-  const sidebarRef = useRef<HTMLDivElement>(null);
-
   return (
     <SidebarProvider>
-      {/* ✅ NOW useSidebar() is *inside* the provider */}
-      <SidebarHandler sidebarRef={sidebarRef} />
-
       <div className="min-h-screen w-full bg-background">
-        <div ref={sidebarRef}>
-          <AppSidebar />
-        </div>
+        <AppSidebar />
 
         <div className="w-full flex flex-col">
           {/* HEADER */}
@@ -62,7 +55,12 @@ export function Layout({ children }: LayoutProps) {
                 )}
 
                 {user && (
-                  <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={signOut}
+                    className="gap-2"
+                  >
                     <LogOut className="h-4 w-4" />
                     <span className="hidden sm:inline">Logout</span>
                   </Button>
@@ -79,36 +77,12 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </header>
 
+          {/* BODY */}
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>
     </SidebarProvider>
   );
-}
-
-/* --------------------------
-   Sidebar outside-click logic
---------------------------- */
-function SidebarHandler({ sidebarRef }: { sidebarRef: React.RefObject<HTMLDivElement> }) {
-  const { open, setOpen } = useSidebar();
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open, setOpen]);
-
-  return null; // no visual output
 }
 
 export default Layout;
