@@ -214,6 +214,7 @@ const statOptions = [
 
 const freeStatSet = new Set(["disposals", "goals", "fantasy"]);
 
+// decide tier based on average
 // target threshold label based on selected stat
 function getHitTarget(selectedStat: string) {
   switch (selectedStat) {
