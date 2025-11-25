@@ -214,16 +214,6 @@ const statOptions = [
 
 const freeStatSet = new Set(["disposals", "goals", "fantasy"]);
 
-// decide tier based on average
-function getTier(avg: number) {
-  if (avg >= 30) return { label: "S", className: "bg-amber-400 text-black" };
-  if (avg >= 25)
-    return { label: "A", className: "bg-emerald-500/90 text-black" };
-  if (avg >= 20)
-    return { label: "B", className: "bg-sky-500/80 text-black" };
-  return { label: "C", className: "bg-neutral-700 text-neutral-100" };
-}
-
 // target threshold label based on selected stat
 function getHitTarget(selectedStat: string) {
   switch (selectedStat) {
@@ -476,17 +466,14 @@ export default function AFLPlayers() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
       {/* Running Hot */}
       <div className="relative rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/70 via-neutral-950 to-emerald-900/20 p-4 shadow-[0_0_25px_rgba(16,185,129,0.25)] overflow-hidden">
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-center gap-2">
           <div className="inline-flex items-center gap-2 rounded-full drop-shadow-[0_0_6px_rgba(255,255,255,0.25)] border border-emerald-400/40 bg-emerald-600/15 px-3 py-1.5 backdrop-blur">
             <span className="text-sm">🔥 Running Hot</span>
-            <span className="text-[11px] text-emerald-200">
-              Top 10 by recent form (last 5 games)
-            </span>
           </div>
           <HotColdStatFilter />
         </div>
 
-        <ul className="space-y-2 text-sm relative z-10">
+        <ul className="space-y-1.5 text-sm relative z-10">
           {hotPlayers.map((p, index) => {
             const locked = !premiumUser && index >= freeHotVisible;
             const last5 = getStatSeries(p, selectedStat).slice(-5);
@@ -505,7 +492,7 @@ export default function AFLPlayers() {
                 <button
                   type="button"
                   onClick={() => !locked && toggleHotRow(p.id)}
-                  className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 py-2 leading-normal"
+                  className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-center gap-2 px-3 py-2 leading-normal"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {locked && <LockIcon />}
@@ -517,10 +504,7 @@ export default function AFLPlayers() {
                     </span>
                   </div>
                   <div className="flex flex-col items-end gap-1 w-full sm:w-auto">
-                    <div className="w-full sm:w-28 md:w-32">
-                      <TrendSparkline values={last5} />
-                    </div>
-                    <div className="text-xs text-emerald-300 flex flex-col items-end">
+                                        <div className="text-xs text-emerald-300 flex flex-col items-end">
                       <span className="font-semibold flex items-center whitespace-nowrap">
                         Avg {Math.round(avg)}
                         {strongTrend && <FireIcon />}
@@ -567,17 +551,14 @@ export default function AFLPlayers() {
 
       {/* Going Cold */}
       <div className="relative rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-950/70 via-neutral-950 to-red-900/20 p-4 shadow-[0_0_25px_rgba(239,68,68,0.25)] overflow-hidden">
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-center gap-2">
           <div className="inline-flex items-center gap-2 rounded-full drop-shadow-[0_0_6px_rgba(255,255,255,0.25)] border border-red-400/40 bg-red-600/15 px-3 py-1.5 backdrop-blur">
             <span className="text-sm">❄️ Going Cold</span>
-            <span className="text-[11px] text-red-200">
-              Bottom 10 by recent form (last 5 games)
-            </span>
           </div>
           <HotColdStatFilter />
         </div>
 
-        <ul className="space-y-2 text-sm relative z-10">
+        <ul className="space-y-1.5 text-sm relative z-10">
           {coldPlayers.map((p, index) => {
             const locked = !premiumUser && index >= freeHotVisible;
             const last5 = getStatSeries(p, selectedStat).slice(-5);
@@ -596,7 +577,7 @@ export default function AFLPlayers() {
                 <button
                   type="button"
                   onClick={() => !locked && toggleColdRow(p.id)}
-                  className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 py-2 leading-normal"
+                  className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-center gap-2 px-3 py-2 leading-normal"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {locked && <LockIcon />}
@@ -608,10 +589,7 @@ export default function AFLPlayers() {
                     </span>
                   </div>
                   <div className="flex flex-col items-end gap-1 w-full sm:w-auto">
-                    <div className="w-full sm:w-28 md:w-32">
-                      <TrendSparkline values={last5} />
-                    </div>
-                    <div className="text-xs text-red-300 flex flex-col items-end">
+                                        <div className="text-xs text-red-300 flex flex-col items-end">
                       <span className="font-semibold flex items-center whitespace-nowrap">
                         Avg {Math.round(avg)}
                         {strongDrop && <ColdIcon />}
@@ -702,7 +680,7 @@ const AIInsightsSection = () => (
       </div>
 
       {!premiumUser && (
-        <div className="pointer-events-none absolute inset-x-0 top-24 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/88 to-black/96 backdrop-blur-2xl flex items-start justify-center">
+        <div className="pointer-events-none absolute inset-x-0 top-24 bottom-0 bg-gradient-to-b from-transparent from-black/85 via-black/75 to-black/90 backdrop-blur-xl flex items-start justify-center">
           <div className="mt-8 inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-base font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)] animate-pulse transform transition-transform hover:scale-[1.03] active:scale-[0.98]">
             <LockIcon />
             <span>Unlock with Neeko+</span>
@@ -714,265 +692,287 @@ const AIInsightsSection = () => (
 
   
 
-  const ComparePlayersSection = () => {
-    // Simple two-step selector: Team -> Player, for each side.
-    const [teamA, setTeamA] = useState<string>("COLL");
-    const [teamB, setTeamB] = useState<string>("ESS");
-    const [playerAId, setPlayerAId] = useState<number | null>(null);
-    const [playerBId, setPlayerBId] = useState<number | null>(null);
+  
 
-    const playersForTeamA = fullData.filter((p) => teamA === "All Teams" || p.team === teamA);
-    const playersForTeamB = fullData.filter((p) => teamB === "All Teams" || p.team === teamB);
+const ComparePlayersSection = () => {
+  // Two-step selector: Team -> Player, for each side.
+  const [teamA, setTeamA] = useState<string>("COLL");
+  const [teamB, setTeamB] = useState<string>("ESS");
+  const [playerAId, setPlayerAId] = useState<number | null>(null);
+  const [playerBId, setPlayerBId] = useState<number | null>(null);
 
-    const playerA = playersForTeamA.find((p) => p.id === playerAId) ?? playersForTeamA[0];
-    const playerB = playersForTeamB.find((p) => p.id === playerBId) ?? playersForTeamB[0];
+  const playersForTeamA = fullData.filter((p) => teamA === "All Teams" || p.team === teamA);
+  const playersForTeamB = fullData.filter((p) => teamB === "All Teams" || p.team === teamB);
 
-    const seriesA = playerA ? getStatSeries(playerA, selectedStat).slice(-5) : [];
-    const seriesB = playerB ? getStatSeries(playerB, selectedStat).slice(-5) : [];
+  const playerA = playersForTeamA.find((p) => p.id === playerAId) ?? playersForTeamA[0];
+  const playerB = playersForTeamB.find((p) => p.id === playerBId) ?? playersForTeamB[0];
 
-    const avgA =
-      seriesA.length > 0
-        ? seriesA.reduce((s, v) => s + v, 0) / seriesA.length
-        : 0;
-    const avgB =
-      seriesB.length > 0
-        ? seriesB.reduce((s, v) => s + v, 0) / seriesB.length
-        : 0;
+  const seriesA = playerA ? getStatSeries(playerA, selectedStat).slice(-5) : [];
+  const seriesB = playerB ? getStatSeries(playerB, selectedStat).slice(-5) : [];
 
-    const handleTeamAChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = e.target.value;
-      if (!premiumUser) {
-        showLockedToast("Unlock Neeko+ to use Compare Players.");
-        e.target.blur();
-        return;
-      }
-      setTeamA(value);
-      setPlayerAId(null);
-    };
+  const avgA = seriesA.length ? seriesA.reduce((s, v) => s + v, 0) / seriesA.length : 0;
+  const avgB = seriesB.length ? seriesB.reduce((s, v) => s + v, 0) / seriesB.length : 0;
 
-    const handleTeamBChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = e.target.value;
-      if (!premiumUser) {
-        showLockedToast("Unlock Neeko+ to use Compare Players.");
-        e.target.blur();
-        return;
-      }
-      setTeamB(value);
-      setPlayerBId(null);
-    };
+  const hitTarget = getHitTarget(selectedStat);
+  const hitPctA = computeHitPercent(seriesA, hitTarget.threshold);
+  const hitPctB = computeHitPercent(seriesB, hitTarget.threshold);
 
-    const handlePlayerAChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = Number(e.target.value);
-      if (!premiumUser) {
-        showLockedToast("Unlock Neeko+ to use Compare Players.");
-        e.target.blur();
-        return;
-      }
-      setPlayerAId(value || null);
-    };
-
-    const handlePlayerBChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = Number(e.target.value);
-      if (!premiumUser) {
-        showLockedToast("Unlock Neeko+ to use Compare Players.");
-        e.target.blur();
-        return;
-      }
-      setPlayerBId(value || null);
-    };
-
-    const statLabels = [
-      "Last 5 avg",
-      "Best score",
-      "Worst score",
-      "Total last 5",
-      "Hit rate vs threshold",
-    ];
-
-    const hitPctA = computeHitPercent(
-      seriesA,
-      getHitTarget(selectedStat).threshold
-    );
-    const hitPctB = computeHitPercent(
-      seriesB,
-      getHitTarget(selectedStat).threshold
-    );
-
-    return (
-      <div className="relative mt-8 rounded-3xl border border-yellow-500/30 bg-neutral-950/95 p-5 shadow-[0_0_32px_rgba(250,204,21,0.18)] max-w-6xl mx-auto overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold">Compare Players</h2>
-            <p className="text-xs text-neutral-400">
-              Head-to-head view of player form and key stats for the selected metric.
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-2 text-[11px] text-neutral-400">
-            <span>Neeko+ feature</span>
-            <LockIcon />
-          </div>
-        </div>
-
-        {/* Selectors */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          {/* Player A selectors */}
-          <div className="flex flex-col gap-2">
-            <span className="text-[11px] uppercase tracking-wide text-neutral-500">
-              Player A
-            </span>
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
-              value={teamA}
-              onChange={handleTeamAChange}
-            >
-              {allTeams.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
-              value={playerA?.id ?? ""}
-              onChange={handlePlayerAChange}
-            >
-              {playersForTeamA.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {p.pos}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Stat label column */}
-          <div className="flex flex-col gap-2 items-center justify-center">
-            <span className="text-[11px] uppercase tracking-wide text-neutral-500">
-              Stat
-            </span>
-            <span className="inline-flex items-center rounded-full border border-yellow-500/40 bg-neutral-900 px-3 py-1 text-[11px] text-yellow-200">
-              {statOptions.find((s) => s.value === selectedStat)?.label ??
-                "Stat"}
-            </span>
-          </div>
-
-          {/* Player B selectors */}
-          <div className="flex flex-col gap-2">
-            <span className="text-[11px] uppercase tracking-wide text-right text-neutral-500">
-              Player B
-            </span>
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
-              value={teamB}
-              onChange={handleTeamBChange}
-            >
-              {allTeams.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
-              value={playerB?.id ?? ""}
-              onChange={handlePlayerBChange}
-            >
-              {playersForTeamB.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {p.pos}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Comparison grid */}
-        <div className="relative mt-4 rounded-2xl border border-neutral-800 bg-neutral-950/90 p-4 overflow-hidden">
-          <div className="grid grid-cols-3 gap-3 text-[11px] md:text-xs">
-            <div className="space-y-2">
-              <div className="font-semibold text-neutral-100 truncate">
-                {playerA?.name}
-              </div>
-              <div className="text-[10px] text-neutral-400">
-                {playerA?.pos} · {playerA?.team}
-              </div>
-            </div>
-            <div className="space-y-2 text-center text-neutral-400">
-              <div className="font-semibold text-neutral-200">
-                Key metrics (last 5)
-              </div>
-              <div className="text-[10px]">
-                Showing how each player compares on the chosen stat.
-              </div>
-            </div>
-            <div className="space-y-2 text-right">
-              <div className="font-semibold text-neutral-100 truncate">
-                {playerB?.name}
-              </div>
-              <div className="text-[10px] text-neutral-400">
-                {playerB?.pos} · {playerB?.team}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-3 text-[11px] md:text-xs">
-            <div className="space-y-1 text-right text-neutral-100">
-              <div className="tabular-nums">{avgA ? Math.round(avgA) : "--"}</div>
-              <div className="tabular-nums">
-                {seriesA.length ? Math.max(...seriesA) : "--"}
-              </div>
-              <div className="tabular-nums">
-                {seriesA.length ? Math.min(...seriesA) : "--"}
-              </div>
-              <div className="tabular-nums">
-                {seriesA.length ? seriesA.reduce((s, v) => s + v, 0) : "--"}
-              </div>
-              <div className="tabular-nums">
-                {seriesA.length ? `${hitPctA}%` : "--"}
-              </div>
-            </div>
-
-            <div className="space-y-1 text-center text-neutral-400">
-              {statLabels.map((label) => (
-                <div key={label}>{label}</div>
-              ))}
-            </div>
-
-            <div className="space-y-1 text-left text-neutral-100">
-              <div className="tabular-nums">{avgB ? Math.round(avgB) : "--"}</div>
-              <div className="tabular-nums">
-                {seriesB.length ? Math.max(...seriesB) : "--"}
-              </div>
-              <div className="tabular-nums">
-                {seriesB.length ? Math.min(...seriesB) : "--"}
-              </div>
-              <div className="tabular-nums">
-                {seriesB.length ? seriesB.reduce((s, v) => s + v, 0) : "--"}
-              </div>
-              <div className="tabular-nums">
-                {seriesB.length ? `${hitPctB}%` : "--"}
-              </div>
-            </div>
-          </div>
-
-          {/* Blur + premium CTA overlay for free users */}
-          {!premiumUser && (
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-xl flex items-center justify-center">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-sm font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)] animate-pulse transform transition-transform hover:scale-[1.03] active:scale-[0.98]"
-                onClick={() => showLockedToast("Compare Players is a Neeko+ feature.")}
-              >
-                <LockIcon />
-                <span>Unlock Player Comparison — Neeko+</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const showLockedToast = (message: string) => {
+    // In real app, hook into your toast system.
+    console.log(message);
   };
 
+  const handleTeamAChange = (e: any) => {
+    const value = e.target.value;
+    if (!premiumUser) {
+      showLockedToast("Unlock Neeko+ to use Compare Players.");
+      e.target.blur();
+      return;
+    }
+    setTeamA(value);
+    setPlayerAId(null);
+  };
 
+  const handleTeamBChange = (e: any) => {
+    const value = e.target.value;
+    if (!premiumUser) {
+      showLockedToast("Unlock Neeko+ to use Compare Players.");
+      e.target.blur();
+      return;
+    }
+    setTeamB(value);
+    setPlayerBId(null);
+  };
+
+  const handlePlayerAChange = (e: any) => {
+    const value = Number(e.target.value);
+    if (!premiumUser) {
+      showLockedToast("Unlock Neeko+ to use Compare Players.");
+      e.target.blur();
+      return;
+    }
+    setPlayerAId(value || null);
+  };
+
+  const handlePlayerBChange = (e: any) => {
+    const value = Number(e.target.value);
+    if (!premiumUser) {
+      showLockedToast("Unlock Neeko+ to use Compare Players.");
+      e.target.blur();
+      return;
+    }
+    setPlayerBId(value || null);
+  };
+
+  const statRows = [
+    {
+      label: "Last 5 avg",
+      valueA: seriesA.length ? Math.round(avgA) : "--",
+      valueB: seriesB.length ? Math.round(avgB) : "--",
+    },
+    {
+      label: "Best score",
+      valueA: seriesA.length ? Math.max(...seriesA) : "--",
+      valueB: seriesB.length ? Math.max(...seriesB) : "--",
+    },
+    {
+      label: "Worst score",
+      valueA: seriesA.length ? Math.min(...seriesA) : "--",
+      valueB: seriesB.length ? Math.min(...seriesB) : "--",
+    },
+    {
+      label: "Total last 5",
+      valueA: seriesA.length ? seriesA.reduce((s, v) => s + v, 0) : "--",
+      valueB: seriesB.length ? seriesB.reduce((s, v) => s + v, 0) : "--",
+    },
+    {
+      label: `Hit ${hitTarget.label}`,
+      valueA: seriesA.length ? `${hitPctA}%` : "--",
+      valueB: seriesB.length ? `${hitPctB}%` : "--",
+    },
+    {
+      label: "Disposals",
+      valueA: "--",
+      valueB: "--",
+    },
+    {
+      label: "Kicks",
+      valueA: "--",
+      valueB: "--",
+    },
+    {
+      label: "Handballs",
+      valueA: "--",
+      valueB: "--",
+    },
+    {
+      label: "Marks",
+      valueA: "--",
+      valueB: "--",
+    },
+    {
+      label: "Tackles",
+      valueA: "--",
+      valueB: "--",
+    },
+  ];
+
+  return (
+    <div className="relative mt-8 rounded-3xl border border-neutral-800 bg-neutral-950/90 p-5 shadow-[0_0_28px_rgba(148,163,184,0.2)] max-w-6xl mx-auto overflow-hidden">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-neutral-500 mb-1">
+            Compare Players
+          </p>
+          <p className="text-xs text-neutral-400">
+            Side-by-side breakdown for the selected stat &amp; last 5 games.
+          </p>
+        </div>
+        <div className="hidden md:flex items-center gap-2 text-[11px] text-neutral-400">
+          <span>Neeko+ feature</span>
+          <LockIcon />
+        </div>
+      </div>
+
+      {/* Selectors */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        {/* Player A selectors */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-neutral-500">
+            Player A
+          </span>
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
+            value={teamA}
+            onChange={handleTeamAChange}
+          >
+            {allTeams.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
+            value={playerA?.id ?? ""}
+            onChange={handlePlayerAChange}
+          >
+            {playersForTeamA.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Stat name column */}
+        <div className="flex flex-col items-center justify-center text-[11px] text-neutral-400">
+          <span className="mb-2 uppercase tracking-[0.16em] text-neutral-500">
+            Stat lines
+          </span>
+          <span className="text-xs text-neutral-300">
+            Last 5 &amp; core volume stats
+          </span>
+        </div>
+
+        {/* Player B selectors */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-neutral-500">
+            Player B
+          </span>
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
+            value={teamB}
+            onChange={handleTeamBChange}
+          >
+            {allTeams.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner transition-colors focus:outline-none focus:ring-1 focus:ring-yellow-400/60"
+            value={playerB?.id ?? ""}
+            onChange={handlePlayerBChange}
+          >
+            {playersForTeamB.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Player labels */}
+      <div className="mt-4 grid grid-cols-3 gap-3 text-[11px] md:text-xs">
+        <div className="space-y-1 text-left">
+          <div className="font-semibold text-neutral-100 truncate">
+            {playerA?.name}
+          </div>
+          <div className="text-[10px] text-neutral-400">
+            {playerA?.pos} · {playerA?.team}
+          </div>
+        </div>
+        <div className="flex items-center justify-center text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+          Stat
+        </div>
+        <div className="space-y-1 text-right">
+          <div className="font-semibold text-neutral-100 truncate">
+            {playerB?.name}
+          </div>
+          <div className="text-[10px] text-neutral-400">
+            {playerB?.pos} · {playerB?.team}
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison grid */}
+      <div className="mt-4 grid grid-cols-3 gap-3 text-[11px] md:text-xs">
+        <div className="space-y-1 text-right text-neutral-100">
+          {statRows.map((row) => (
+            <div key={row.label} className="tabular-nums">
+              {row.valueA}
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1 text-center text-neutral-400">
+          {statRows.map((row) => (
+            <div key={row.label} className="uppercase tracking-[0.12em]">
+              {row.label}
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1 text-left text-neutral-100">
+          {statRows.map((row) => (
+            <div key={row.label} className="tabular-nums">
+              {row.valueB}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Lock overlay for free users */}
+      {!premiumUser && (
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/90 backdrop-blur-xl flex items-center justify-center">
+          <a
+            href="/neeko-plus"
+            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-sm font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)] transform transition-transform hover:scale-[1.03] active:scale-[0.98]"
+          >
+            <LockIcon />
+            <span>Unlock Player Comparison — Neeko+</span>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// PATCH 4 TODO: Replace selects with custom dropdowns
 const MasterTable = () => {
     const hitTarget = getHitTarget(selectedStat);
 
@@ -1070,7 +1070,7 @@ const MasterTable = () => {
                 {allRoundOptions.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt}
-                    {!premiumUser && opt !== "Season to Date" ? " 🔒" : ""}
+                    {!premiumUser && opt !== "All Rounds" ? " 🔒" : ""}
                   </option>
                 ))}
               </select>
@@ -1203,7 +1203,7 @@ const MasterTable = () => {
                               <h4 className="mb-2 text-xs font-semibold text-neutral-200">
                                 Recent Trend (last 5)
                               </h4>
-                              <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
+                              <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 w-full">
                                 <TrendSparkline values={last5} />
                                 <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-neutral-300">
                                   {last5.map((v, i) => (
@@ -1240,7 +1240,7 @@ const MasterTable = () => {
 
         {/* Neeko+ CTA below blurred rows */}
         {!premiumUser && (
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-yellow-500/40 bg-gradient-to-r from-neutral-950 via-neutral-900 to-yellow-900/30 px-3 py-2 text-[11px] text-neutral-200">
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-yellow-500/40 bg-gradient-to-r from-black/85 via-black/80 to-yellow-900/40 backdrop-blur-xl px-3 py-2 text-[11px] text-neutral-200">
             <div className="flex items-center gap-2">
               <LockIcon />
               <span>
@@ -1299,7 +1299,7 @@ const MasterTable = () => {
         </span>
       </div>
 
-      <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-end justify-center gap-2">
         <div>
           <h1 className="text-2xl font-bold md:text-3xl">AFL Player Stats</h1>
           <p className="text-xs text-neutral-400 md:text-sm">
