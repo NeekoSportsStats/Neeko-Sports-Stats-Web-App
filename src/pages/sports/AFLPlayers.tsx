@@ -1,83 +1,153 @@
-// AFLPlayers.tsx — Clean rewritten version
-// Features:
-// - Infinite scroll (40 → load more)
-// - Team / Position / Stat filters (UI only for now)
-// - Compact mode (hide round columns)
-// - Compare mode toggle (stub)
-// - Premium rows with blur + Neeko+ CTA overlay (per-row, not full page)
-// - Row dropdown: animated sparkline + AI trend text (full-width row)
+// AFLPlayers.tsx — Rebuilt to match Matthew's player-page criteria
+// NOTE: This version uses local UI stubs so it runs in this sandbox.
+// In your real app, replace the stubs with:
+//   import { Button } from "@/components/ui/button";
+//   import { ArrowLeft, Flame, Snowflake, Lock, TrendingUp, TrendingDown } from "lucide-react";
+//   import { useAuth } from "@/lib/auth";
+//   import { useNavigate } from "react-router-dom";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 
-// ---- STUB COMPONENTS (replace with real imports in app) ----
-const Button = ({ children, onClick }) => (
-  <button onClick={onClick} className="px-3 py-2 bg-neutral-800 rounded text-white">
+// ────────────────────────────────────────────────
+// UI STUBS (for canvas / preview)
+// ────────────────────────────────────────────────
+const Button = ({ children, onClick, className = "" }) => (
+  <button
+    onClick={onClick}
+    className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium bg-neutral-800 hover:bg-neutral-700 text-white ${className}`}
+  >
     {children}
   </button>
 );
 
-const ArrowLeft = () => <span>{"<-"}</span>;
+const ArrowLeftIcon = () => <span className="mr-2">←</span>;
 
+const LockIcon = () => (
+  <span className="inline-flex items-center justify-center w-4 h-4 mr-1 text-[10px] rounded-full border border-yellow-400/60 text-yellow-300">
+    🔒
+  </span>
+);
+
+// Simple sparkline stub
 const Sparkline = () => (
-  <svg width="160" height="32">
+  <svg width="160" height="40" className="overflow-visible">
     <polyline
       fill="none"
-      stroke="#10b981"
+      stroke="#22c55e"
       strokeWidth="2"
-      points="0,24 20,18 40,12 60,16 80,10 100,8 120,12 140,6 160,4"
+      points="0,26 20,22 40,18 60,20 80,14 100,10 120,12 140,8 160,10"
     />
   </svg>
 );
 
-const PremiumOverlay = () => (
-  <div className="absolute inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center rounded-md pointer-events-auto animate-pulse">
-    <a
-      href="/neeko-plus"
-      className="px-2 py-1 rounded text-[10px] font-semibold shadow whitespace-nowrap flex items-center gap-1 bg-yellow-400 text-black hover:bg-yellow-300 transition-transform duration-200 hover:scale-105 ring-2 ring-yellow-300/60"
-    >
-      <span className="text-yellow-700">🔒</span>
-      Unlock Neeko+
-    </a>
+// Fake auth stub (replace with real useAuth in your app)
+function useAuth() {
+  return { isPremium: false }; // toggle to true to see premium state
+}
+
+// ────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────
+const thresholdsMap: Record<string, { low: number; mid: number; high: number }> = {
+  disposals: { low: 15, mid: 20, high: 25 },
+  goals: { low: 1, mid: 2, high: 3 },
+  fantasy: { low: 80, mid: 100, high: 120 },
+  marks: { low: 4, mid: 6, high: 8 },
+  tackles: { low: 3, mid: 6, high: 8 },
+};
+
+function computePerc(values: number[], type: string) {
+  const t = thresholdsMap[type] ?? thresholdsMap.disposals;
+  const played = values.filter((v) => v != null && !Number.isNaN(v));
+  const games = played.length;
+  if (!games) return { pLow: 0, pMid: 0, pHigh: 0 };
+
+  const pLow = Math.round((played.filter((v) => v >= t.low).length / games) * 100);
+  const pMid = Math.round((played.filter((v) => v >= t.mid).length / games) * 100);
+  const pHigh = Math.round((played.filter((v) => v >= t.high).length / games) * 100);
+
+  return { pLow, pMid, pHigh };
+}
+
+function percentColor(p: number) {
+  if (p >= 80) return "bg-emerald-500";
+  if (p >= 60) return "bg-lime-400";
+  if (p >= 40) return "bg-amber-400";
+  return "bg-red-500";
+}
+
+// Animated % ticker
+const AnimatedPercent = ({ value }: { value: number }) => {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    let frame: number;
+    const step = () => {
+      setDisplay((d) => {
+        if (d >= value) return value;
+        const delta = Math.max(1, Math.ceil(value / 20));
+        return Math.min(value, d + delta);
+      });
+      frame = requestAnimationFrame(step);
+    };
+    step();
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+
+  return <span className="tabular-nums">{display}%</span>;
+};
+
+const PercentCell = ({ value }: { value: number }) => (
+  <div className="flex items-center gap-2">
+    <div className="h-1.5 w-12 bg-neutral-800 rounded overflow-hidden">
+      <div
+        className={`h-full ${percentColor(value)}`}
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
+    </div>
+    <AnimatedPercent value={value} />
   </div>
 );
 
-function useAuth() {
-  return { isPremium: false };
+// ────────────────────────────────────────────────
+// Main Component
+// ────────────────────────────────────────────────
+
+interface DummyPlayer {
+  id: number;
+  name: string;
+  pos: string;
+  team: string;
+  rounds: number[]; // OR, R1, R2, ...
 }
 
-const Shimmer = () => (
-  <div className="w-full h-3 rounded bg-neutral-800 animate-pulse" />
-);
-
-// ---- MAIN COMPONENT ----
 export default function AFLPlayers() {
   const { isPremium } = useAuth();
-  const premiumUser = isPremium ?? false;
+  const premiumUser = !!isPremium;
 
-  const [loading] = useState(false);
-  const [selectedStat, setSelectedStat] = useState("disposals");
-  const [compactMode, setCompactMode] = useState(true);
-  const [compareMode, setCompareMode] = useState(false);
+  const [selectedStat, setSelectedStat] = useState<string>("disposals");
+  const [compactMode, setCompactMode] = useState<boolean>(true);
+  const [compareMode, setCompareMode] = useState<boolean>(false);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
 
-  // 🔥 Row expansion state for dropdown
-  const [expandedRows, setExpandedRows] = useState({});
-  const toggleRow = (id) => {
+  const toggleRow = (id: number) =>
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
 
-  // ---- Dummy Data (200 rows for infinite scroll demonstration) ----
-  const fullData = Array.from({ length: 200 }).map((_, idx) => ({
-    id: idx + 1,
-    name: `Player ${idx + 1}`,
-    pos: idx % 4 === 0 ? "RUC" : idx % 3 === 0 ? "DEF" : idx % 2 ? "MID" : "FWD",
-    team: idx % 3 === 0 ? "COLL" : idx % 3 === 1 ? "ESS" : "SYD",
-    rounds: [30, 28, 26, 25, 29, 27].map((v) => v - (idx % 5)),
-    isPremiumRow: idx >= 40, // first 40 rows free
-  }));
+  // Dummy data: 200 players, 6 rounds
+  const fullData: DummyPlayer[] = Array.from({ length: 200 }).map((_, idx) => {
+    const base = 30 - (idx % 7);
+    return {
+      id: idx + 1,
+      name: `Player ${idx + 1}`,
+      pos: idx % 4 === 0 ? "RUC" : idx % 3 === 0 ? "DEF" : idx % 2 ? "MID" : "FWD",
+      team: ["COLL", "ESS", "SYD", "CARL"][idx % 4],
+      rounds: [base, base + 2, base - 1, base + 3, base - 2, base + 1],
+    };
+  });
 
-  // ---- INFINITE SCROLL ----
-  const [visibleCount, setVisibleCount] = useState(40);
-  const loadMoreRef = useRef(null);
+  // Infinite scroll
+  const [visibleCount, setVisibleCount] = useState<number>(40);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -90,246 +160,101 @@ export default function AFLPlayers() {
     );
 
     if (loadMoreRef.current) observer.observe(loadMoreRef.current);
-    // ✅ Correct cleanup function
+
     return () => observer.disconnect();
   }, [fullData.length]);
 
   const masterData = fullData.slice(0, visibleCount);
 
-  // ---- Table Logic ----
-  const thresholds = {
-    disposals: { low: 15, mid: 20, high: 25 },
-    goals: { low: 1, mid: 2, high: 3 },
-    fantasy: { low: 80, mid: 100, high: 120 },
+  // For top/cold cards – simple sort by average of rounds
+  const sortedByForm = [...fullData].sort((a, b) => {
+    const avgA = a.rounds.reduce((s, v) => s + v, 0) / a.rounds.length;
+    const avgB = b.rounds.reduce((s, v) => s + v, 0) / a.rounds.length;
+    return avgB - avgA;
+  });
+
+  const hotPlayers = sortedByForm.slice(0, 10);
+  const coldPlayers = [...sortedByForm].reverse().slice(0, 10);
+
+  const freeHotVisible = 4;
+  const freeAIVisible = 4;
+  const freeMasterRows = 15; // rows fully clear before blur/lock for free users
+
+  const statOptions = [
+    { value: "disposals", label: "Disposals" },
+    { value: "goals", label: "Goals" },
+    { value: "fantasy", label: "Fantasy" },
+    { value: "marks", label: "Marks" },
+    { value: "tackles", label: "Tackles" },
+  ];
+
+  const isStatLocked = (value: string) => {
+    // Free users: only Disposals, Goals, Fantasy enabled; others greyed
+    if (premiumUser) return false;
+    return !["disposals", "goals", "fantasy"].includes(value);
   };
 
-  function computePerc(values, type) {
-    const t = thresholds[type] || thresholds.disposals;
-    const played = values.filter((v) => v !== null && v !== undefined);
-    const g = played.length;
-    if (!g) return { p80: 0, p90: 0, p100: 0 };
-    return {
-      p80: Math.round((played.filter((v) => v >= t.low).length / g) * 100),
-      p90: Math.round((played.filter((v) => v >= t.mid).length / g) * 100),
-      p100: Math.round((played.filter((v) => v >= t.high).length / g) * 100),
-    };
-  }
+  // AI insight dummy data
+  const aiInsights = [
+    {
+      id: 1,
+      text: "High-possession mids up in consistency over the last 3 rounds",
+      value: +6,
+    },
+    {
+      id: 2,
+      text: "Key forwards seeing reduced inside-50 targets week-on-week",
+      value: -4,
+    },
+    {
+      id: 3,
+      text: "Intercept defenders gaining more uncontested marks across half-back",
+      value: +3,
+    },
+    {
+      id: 4,
+      text: "Rucks showing a spike in hit-out-to-advantage impact",
+      value: +2,
+    },
+    {
+      id: 5,
+      text: "Tackling pressure slightly down in contested situations",
+      value: -2,
+    },
+    {
+      id: 6,
+      text: "Outside runners increasing uncontested chains through the corridor",
+      value: +5,
+    },
+    {
+      id: 7,
+      text: "Small forwards seeing volatile role changes impacting scoreboard",
+      value: -3,
+    },
+    {
+      id: 8,
+      text: "Inside mids stabilising time-on-ground after early-season fluctuations",
+      value: +4,
+    },
+    {
+      id: 9,
+      text: "Half-backs slightly down on rebound 50 involvement",
+      value: -1,
+    },
+    {
+      id: 10,
+      text: "Tagging roles creating sharp dips in elite mid output",
+      value: -5,
+    },
+  ];
 
-  function getColor(p) {
-    if (p >= 80) return "bg-emerald-500";
-    if (p >= 60) return "bg-lime-400";
-    if (p >= 40) return "bg-amber-400";
-    return "bg-red-500";
-  }
-
-  const PercentCell = ({ value }) => (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-10 bg-neutral-800 rounded overflow-hidden">
-        <div className={`h-full ${getColor(value)}`} style={{ width: `${value}%` }} />
-      </div>
-      <span className="text-xs text-neutral-200">{value}%</span>
-    </div>
-  );
-
-  // ---- MASTER TABLE ----
-  const MasterTable = () => (
-    <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-4 mt-6 relative">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-neutral-400 text-sm">Team:</span>
-          <select className="bg-neutral-800 border border-neutral-700 rounded p-2 text-sm">
-            <option>All Teams</option>
-            <option>COLL</option>
-            <option>ESS</option>
-            <option>SYD</option>
-          </select>
-
-          <span className="text-neutral-400 text-sm">Position:</span>
-          <select className="bg-neutral-800 border border-neutral-700 rounded p-2 text-sm">
-            <option>All Positions</option>
-            <option>FWD</option>
-            <option>MID</option>
-            <option>DEF</option>
-            <option>RUC</option>
-          </select>
-
-          <span className="text-neutral-400 text-sm">Stat Type:</span>
-          <select
-            value={selectedStat}
-            onChange={(e) => setSelectedStat(e.target.value)}
-            className="bg-neutral-800 border border-neutral-700 rounded p-2 text-sm"
-          >
-            <option value="disposals">Disposals</option>
-            <option value="goals">Goals</option>
-            <option value="fantasy">Fantasy</option>
-          </select>
+  const TopBottomSection = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      {/* Running Hot */}
+      <div className="relative rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/70 via-emerald-900/40 to-emerald-700/10 p-4 shadow-[0_0_25px_rgba(16,185,129,0.25)]">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/50 bg-emerald-600/15 px-3 py-1.5 backdrop-blur">
+          <span className="text-sm">🔥 Running Hot</span>
+          <span className="text-[11px] text-emerald-200">Top 10 by recent form</span>
         </div>
 
-        <div className="flex items-center gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={compactMode}
-              onChange={() => setCompactMode(!compactMode)}
-            />
-            Compact Mode
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={compareMode}
-              onChange={() => setCompareMode(!compareMode)}
-            />
-            Compare Mode
-          </label>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-neutral-800">
-              <th className="p-2">Player</th>
-              <th className="p-2">Pos</th>
-              <th className="p-2">Team</th>
-              {/* Round columns */}
-              {!compactMode &&
-                masterData[0].rounds.map((_, i) => (
-                  <th key={i} className="p-2">
-                    R{i + 1}
-                  </th>
-                ))}
-              <th className="p-2">80%+</th>
-              <th className="p-2">90%+</th>
-              <th className="p-2">100%+</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {masterData.map((p) => {
-              const locked = !premiumUser && p.isPremiumRow;
-              const { p80, p90, p100 } = computePerc(p.rounds, selectedStat);
-              const isOpen = expandedRows[p.id];
-
-              return (
-                <>
-                  {/* MAIN ROW */}
-                  <tr key={p.id} className="border-b border-neutral-800 relative">
-                    <td
-                      className="p-2 cursor-pointer"
-                      onClick={() => toggleRow(p.id)}
-                    >
-                      {isOpen ? "▼" : "▶"} {p.name}
-                    </td>
-                    <td className="p-2">{p.pos}</td>
-                    <td className="p-2">{p.team}</td>
-
-                    {/* Round values */}
-                    {!compactMode &&
-                      p.rounds.map((r, i) => (
-                        <td
-                          key={i}
-                          className={locked ? "p-2 text-neutral-400 blur-[1px]" : "p-2"}
-                        >
-                          {r}
-                        </td>
-                      ))}
-
-                    <td className="p-2 relative">
-                      <PercentCell value={p80} />
-                      {locked && <PremiumOverlay />}
-                    </td>
-                    <td className="p-2">
-                      <PercentCell value={p90} />
-                    </td>
-                    <td className="p-2">
-                      <PercentCell value={p100} />
-                    </td>
-                  </tr>
-
-                  {/* EXPANDED ROW CONTENT */}
-                  {isOpen && (
-                    <tr
-                      key={`expand-${p.id}`}
-                      className="bg-neutral-900/40 border-b border-neutral-800"
-                    >
-                      <td
-                        colSpan={
-                          3 + (compactMode ? 0 : masterData[0].rounds.length) + 3
-                        }
-                        className="p-4"
-                      >
-                        <div className="space-y-3">
-                          <div className="w-full">
-                            <Sparkline />
-                          </div>
-                          <div className="text-xs text-neutral-300 space-y-1">
-                            <p>
-                              • Trending upward: +12% form improvement over the last
-                              3 rounds.
-                            </p>
-                            <p>
-                              • Consistency rating: 82% — classified as a stable
-                              performer with occasional spike games.
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Infinite Scroll Trigger */}
-      <div
-        ref={loadMoreRef}
-        className="py-6 text-center text-neutral-500 text-sm"
-      >
-        Loading more...
-      </div>
-    </div>
-  );
-
-  // ---- PAGE UI (Top Performers + AI + Table) ----
-  return (
-    <div className="container mx-auto px-4 py-8 text-white">
-      <Button>
-        <ArrowLeft /> Back
-      </Button>
-
-      {/* Top/Bottom sections (simple placeholders for now) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-          🔥 Running Hot
-        </div>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-          ❄️ Going Cold
-        </div>
-      </div>
-
-      {/* AI Insights Box (placeholder text) */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 mt-8">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">AI Trend Insights</h2>
-          <a
-            href="#"
-            className="text-xs text-yellow-400 hover:underline"
-          >
-            View full AI analysis →
-          </a>
-        </div>
-        <p className="text-xs text-neutral-300">
-          Short, punchy AI-generated summaries about player form and trends will
-          appear here.
-        </p>
-      </div>
-
-      {/* MASTER TABLE */}
-      {loading ? <Shimmer /> : <MasterTable />}
-    </div>
-  );
-}
+        <ul className="space-y-2 text-sm">
