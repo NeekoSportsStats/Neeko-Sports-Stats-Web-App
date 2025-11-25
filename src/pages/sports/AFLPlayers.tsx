@@ -1,10 +1,10 @@
-// AFLPlayers.tsx (Stub Preview Version v2)
+// AFLPlayers.tsx (Stub Preview Version v3)
 // FULL VALID JSX — ALL TAGS CLOSED — VERCEL-SAFE
 //
 // This is a self-contained preview component:
 // - Uses local UI stubs (no project imports)
 // - Dummy player + AI data
-// - Includes premium-style blur/overlay gating
+// - Premium blur + overlays + locked filters
 // - Layout roughly matches EPL Player Stats card layout
 
 import { useState, useEffect, useRef, Fragment } from "react";
@@ -49,6 +49,15 @@ const Sparkline = () => (
 // Fake auth stub
 function useAuth() {
   return { isPremium: false };
+}
+
+// Simple toast stub
+function showLockedToast(message = "Unlock with Neeko+ to use this feature.") {
+  if (typeof window !== "undefined" && window.alert) {
+    window.alert(message);
+  } else {
+    console.log("LOCKED:", message);
+  }
 }
 
 // ────────────────────────────────────────────────
@@ -129,6 +138,8 @@ const statOptions = [
   { value: "contested", label: "Contested Possessions", premium: true },
 ];
 
+const freeStatSet = new Set(["disposals", "goals", "fantasy"]);
+
 // ────────────────────────────────────────────────
 // Main Component
 // ────────────────────────────────────────────────
@@ -138,7 +149,7 @@ export default function AFLPlayers() {
 
   const [selectedStat, setSelectedStat] = useState("disposals");
   const [compactMode, setCompactMode] = useState(true);
-  const [compareMode, setCompareMode] = useState(false); // reserved for later
+  const [compareMode] = useState(false); // reserved for later
   const [expandedRows, setExpandedRows] = useState({});
 
   const [teamFilter, setTeamFilter] = useState("All Teams");
@@ -160,11 +171,11 @@ export default function AFLPlayers() {
     };
   });
 
-  // Very light filter application (just to make UI feel real)
+  // Filter application
   const filteredData = fullData.filter((p) => {
     if (teamFilter !== "All Teams" && p.team !== teamFilter) return false;
     if (positionFilter !== "All Positions" && p.pos !== positionFilter) return false;
-    // roundFilter not used on dummy data; left for real integration
+    // roundFilter not used on dummy data; reserved for real integration
     return true;
   });
 
@@ -199,10 +210,7 @@ export default function AFLPlayers() {
 
   const freeHotVisible = 4;
   const freeAIVisible = 4;
-  const freeMasterRows = 15;
-
-  const isStatLocked = (value) =>
-    statOptions.find((s) => s.value === value)?.premium && !premiumUser;
+  const freeMasterRows = 10; // show 10 clear rows before blur
 
   const aiInsights = [
     { id: 1, text: "High-possession mids up in consistency over the last 3 rounds", value: +6 },
@@ -216,6 +224,49 @@ export default function AFLPlayers() {
     { id: 9, text: "Half-backs slightly down on rebound 50 involvement", value: -1 },
     { id: 10, text: "Tagging roles creating sharp dips in elite mid output", value: -5 },
   ];
+
+  // ────────────────────────────────────────────────
+  // Filter handlers with lock behaviour
+  // ────────────────────────────────────────────────
+  const handleTeamChange = (e) => {
+    const value = e.target.value;
+    if (!premiumUser && value !== "All Teams") {
+      showLockedToast("Unlock with Neeko+ to filter by team.");
+      e.target.blur();
+      return;
+    }
+    setTeamFilter(value);
+  };
+
+  const handlePositionChange = (e) => {
+    const value = e.target.value;
+    if (!premiumUser && value !== "All Positions") {
+      showLockedToast("Unlock with Neeko+ to filter by position.");
+      e.target.blur();
+      return;
+    }
+    setPositionFilter(value);
+  };
+
+  const handleRoundChange = (e) => {
+    const value = e.target.value;
+    if (!premiumUser && value !== "All Rounds") {
+      showLockedToast("Unlock with Neeko+ to filter by rounds.");
+      e.target.blur();
+      return;
+    }
+    setRoundFilter(value);
+  };
+
+  const handleStatChange = (e) => {
+    const value = e.target.value;
+    if (!premiumUser && !freeStatSet.has(value)) {
+      showLockedToast("Unlock with Neeko+ to use advanced stat types.");
+      e.target.blur();
+      return;
+    }
+    setSelectedStat(value);
+  };
 
   // ────────────────────────────────────────────────
   // Sections
@@ -243,19 +294,21 @@ export default function AFLPlayers() {
                   locked ? "opacity-60 blur-md" : "bg-neutral-900/40 hover:bg-neutral-900/80"
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   {locked && <LockIcon />}
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-[11px] text-neutral-400">
+                  <span className="font-medium truncate max-w-[9rem] md:max-w-[12rem]">
+                    {p.name}
+                  </span>
+                  <span className="text-[11px] text-neutral-400 whitespace-nowrap">
                     {p.pos} · {p.team}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="hidden sm:block w-20">
+                <div className="flex items-center gap-3 min-w-[8rem] justify-end">
+                  <div className="hidden sm:block w-24 mr-1">
                     <Sparkline />
                   </div>
                   <div className="text-xs text-emerald-300 flex flex-col items-end">
-                    <span className="font-semibold flex items-center">
+                    <span className="font-semibold flex items-center whitespace-nowrap">
                       Avg {avg}
                       {strongTrend && <FireIcon />}
                     </span>
@@ -268,8 +321,8 @@ export default function AFLPlayers() {
         </ul>
 
         {!premiumUser && (
-          <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/80 to-black/95 backdrop-blur-xl flex items-start justify-center pt-6">
-            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-4 py-1 text-xs font-semibold shadow-lg">
+          <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/85 to-black/95 backdrop-blur-2xl flex items-center justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
               <LockIcon />
               <span>Unlock with Neeko+</span>
             </div>
@@ -297,19 +350,21 @@ export default function AFLPlayers() {
                   locked ? "opacity-60 blur-md" : "bg-neutral-900/40 hover:bg-neutral-900/80"
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   {locked && <LockIcon />}
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-[11px] text-neutral-400">
+                  <span className="font-medium truncate max-w-[9rem] md:max-w-[12rem]">
+                    {p.name}
+                  </span>
+                  <span className="text-[11px] text-neutral-400 whitespace-nowrap">
                     {p.pos} · {p.team}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="hidden sm:block w-20">
+                <div className="flex items-center gap-3 min-w-[8rem] justify-end">
+                  <div className="hidden sm:block w-24 mr-1">
                     <Sparkline />
                   </div>
                   <div className="text-xs text-red-300 flex flex-col items-end">
-                    <span className="font-semibold flex items-center">
+                    <span className="font-semibold flex items-center whitespace-nowrap">
                       Avg {avg}
                       {strongDrop && (
                         <span className="ml-1 text-[10px]" role="img" aria-label="cold">
@@ -326,8 +381,8 @@ export default function AFLPlayers() {
         </ul>
 
         {!premiumUser && (
-          <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/80 to-black/95 backdrop-blur-xl flex items-start justify-center pt-6">
-            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-4 py-1 text-xs font-semibold shadow-lg">
+          <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/85 to-black/95 backdrop-blur-2xl flex items-center justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
               <LockIcon />
               <span>Unlock with Neeko+</span>
             </div>
@@ -346,9 +401,12 @@ export default function AFLPlayers() {
             Sentence-level trends with % shifts — most recent rounds only.
           </p>
         </div>
-        <span className="text-xs text-yellow-400 underline underline-offset-2 cursor-default">
+        <button
+          type="button"
+          className="text-xs text-yellow-400 hover:text-yellow-300 underline underline-offset-2"
+        >
           View full AI analysis
-        </span>
+        </button>
       </div>
 
       <div className="divide-y divide-neutral-800 text-sm relative z-10">
@@ -380,8 +438,8 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="pointer-events-none absolute inset-x-0 top-10 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/85 to-black/95 backdrop-blur-xl flex items-start justify-center pt-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-4 py-1 text-xs font-semibold shadow-lg">
+        <div className="pointer-events-none absolute inset-x-0 top-10 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/88 to-black/96 backdrop-blur-2xl flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
             <LockIcon />
             <span>Unlock with Neeko+</span>
           </div>
@@ -434,11 +492,12 @@ export default function AFLPlayers() {
           <select
             className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner"
             value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
+            onChange={handleTeamChange}
           >
             {allTeams.map((team) => (
               <option key={team} value={team}>
                 {team}
+                {!premiumUser && team !== "All Teams" ? " 🔒" : ""}
               </option>
             ))}
           </select>
@@ -452,11 +511,12 @@ export default function AFLPlayers() {
           <select
             className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner"
             value={positionFilter}
-            onChange={(e) => setPositionFilter(e.target.value)}
+            onChange={handlePositionChange}
           >
             {allPositions.map((pos) => (
               <option key={pos} value={pos}>
                 {pos}
+                {!premiumUser && pos !== "All Positions" ? " 🔒" : ""}
               </option>
             ))}
           </select>
@@ -470,11 +530,12 @@ export default function AFLPlayers() {
           <select
             className="h-9 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner"
             value={roundFilter}
-            onChange={(e) => setRoundFilter(e.target.value)}
+            onChange={handleRoundChange}
           >
             {allRoundOptions.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
+                {!premiumUser && opt !== "All Rounds" ? " 🔒" : ""}
               </option>
             ))}
           </select>
@@ -488,16 +549,12 @@ export default function AFLPlayers() {
           <select
             className="h-9 rounded-full border border-yellow-500/40 bg-neutral-900 px-3 text-neutral-100 shadow-inner"
             value={selectedStat}
-            onChange={(e) => setSelectedStat(e.target.value)}
+            onChange={handleStatChange}
           >
             {statOptions.map((opt) => (
-              <option
-                key={opt.value}
-                value={opt.value}
-                disabled={opt.premium && !premiumUser}
-              >
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
-                {opt.premium ? " (Neeko+)" : ""}
+                {opt.premium ? " (Neeko+ 🔒)" : ""}
               </option>
             ))}
           </select>
@@ -543,8 +600,6 @@ export default function AFLPlayers() {
                     className={`border-b border-neutral-900/80 transition-colors ${
                       isLockedRow
                         ? "opacity-60 blur-md"
-                        : compareMode
-                        ? "hover:bg-neutral-900/70"
                         : "hover:bg-neutral-900/60"
                     }`}
                   >
@@ -630,8 +685,8 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="pointer-events-none absolute inset-x-0 top-32 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/88 to-black/98 backdrop-blur-2xl flex items-start justify-center pt-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-4 py-1 text-xs font-semibold shadow-2xl">
+        <div className="pointer-events-none absolute inset-x-0 top-32 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/90 to-black/98 backdrop-blur-2xl flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
             <LockIcon />
             <span>Unlock with Neeko+</span>
           </div>
