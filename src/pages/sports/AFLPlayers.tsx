@@ -249,6 +249,14 @@ function computeHitPercent(values: number[], threshold: number) {
   return Math.round((played.filter((v) => v >= threshold).length / games) * 100);
 }
 
+function isStatLocked(stat: string, premiumUser: boolean) {
+  if (premiumUser) return false;
+  const freeStats = new Set(["disposals", "goals", "fantasy"]);
+  return !freeStats.has(stat);
+}
+
+
+
 // ────────────────────────────────────────────────
 // Types
 // ────────────────────────────────────────────────
