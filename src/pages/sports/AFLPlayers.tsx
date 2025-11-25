@@ -276,7 +276,7 @@ export default function AFLPlayers() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
       {/* Running Hot */}
       <div className="relative rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/70 via-neutral-950 to-emerald-900/20 p-4 shadow-[0_0_25px_rgba(16,185,129,0.25)] overflow-hidden">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-600/15 px-3 py-1.5 backdrop-blur">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full drop-shadow-[0_0_6px_rgba(255,255,255,0.25)] border border-emerald-400/40 bg-emerald-600/15 px-3 py-1.5 backdrop-blur">
           <span className="text-sm">🔥 Running Hot</span>
           <span className="text-[11px] text-emerald-200">Top 10 by recent form</span>
         </div>
@@ -290,7 +290,7 @@ export default function AFLPlayers() {
             return (
               <li
                 key={p.id}
-                className={`flex items-center justify-between rounded-lg px-2 py-1.5 transition-transform duration-150 hover:-translate-y-0.5 ${
+                className={`flex items-center justify-between rounded-lg max-w-xl mx-auto px-2 py-1.5 leading-normal transition-transform duration-150 hover:-translate-y-0.5 ${
                   locked ? "opacity-60 blur-md" : "bg-neutral-900/40 hover:bg-neutral-900/80"
                 }`}
               >
@@ -303,7 +303,7 @@ export default function AFLPlayers() {
                     {p.pos} · {p.team}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 min-w-[8rem] justify-end">
+                <div className="flex flex-col items-end gap-1 min-w-[9rem]">
                   <div className="hidden sm:block w-24 mr-1">
                     <Sparkline />
                   </div>
@@ -322,7 +322,7 @@ export default function AFLPlayers() {
 
         {!premiumUser && (
           <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/85 to-black/95 backdrop-blur-2xl flex items-center justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-base font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)]">
               <LockIcon />
               <span>Unlock with Neeko+</span>
             </div>
@@ -332,7 +332,7 @@ export default function AFLPlayers() {
 
       {/* Going Cold */}
       <div className="relative rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-950/70 via-neutral-950 to-red-900/20 p-4 shadow-[0_0_25px_rgba(239,68,68,0.25)] overflow-hidden">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-red-600/15 px-3 py-1.5 backdrop-blur">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full drop-shadow-[0_0_6px_rgba(255,255,255,0.25)] border border-red-400/40 bg-red-600/15 px-3 py-1.5 backdrop-blur">
           <span className="text-sm">❄️ Going Cold</span>
           <span className="text-[11px] text-red-200">Bottom 10 by recent form</span>
         </div>
@@ -346,7 +346,7 @@ export default function AFLPlayers() {
             return (
               <li
                 key={p.id}
-                className={`flex items-center justify-between rounded-lg px-2 py-1.5 transition-transform duration-150 hover:-translate-y-0.5 ${
+                className={`flex items-center justify-between rounded-lg max-w-xl mx-auto px-2 py-1.5 leading-normal transition-transform duration-150 hover:-translate-y-0.5 ${
                   locked ? "opacity-60 blur-md" : "bg-neutral-900/40 hover:bg-neutral-900/80"
                 }`}
               >
@@ -359,7 +359,7 @@ export default function AFLPlayers() {
                     {p.pos} · {p.team}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 min-w-[8rem] justify-end">
+                <div className="flex flex-col items-end gap-1 min-w-[9rem]">
                   <div className="hidden sm:block w-24 mr-1">
                     <Sparkline />
                   </div>
@@ -382,7 +382,7 @@ export default function AFLPlayers() {
 
         {!premiumUser && (
           <div className="pointer-events-none absolute inset-x-0 top-16 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/85 to-black/95 backdrop-blur-2xl flex items-center justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-base font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)]">
               <LockIcon />
               <span>Unlock with Neeko+</span>
             </div>
@@ -438,8 +438,8 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="pointer-events-none absolute inset-x-0 top-10 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/88 to-black/96 backdrop-blur-2xl flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
+        <div className="pointer-events-none absolute inset-x-0 top-24 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/88 to-black/96 backdrop-blur-2xl flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-base font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)]">
             <LockIcon />
             <span>Unlock with Neeko+</span>
           </div>
@@ -685,8 +685,8 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="pointer-events-none absolute inset-x-0 top-32 bottom-0 bg-gradient-to-b from-transparent via-neutral-950/90 to-black/98 backdrop-blur-2xl flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-6 py-2 text-sm font-semibold shadow-2xl">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-b from-transparent via-neutral-950/90 to-black/98 backdrop-blur-2xl flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400 text-black px-8 py-3 text-base font-semibold shadow-[0_0_25px_rgba(255,215,0,0.4)]">
             <LockIcon />
             <span>Unlock with Neeko+</span>
           </div>
