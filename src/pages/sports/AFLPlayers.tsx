@@ -1217,7 +1217,7 @@ export default function AFLPlayers() {
                 <th className="px-2 py-2 text-right">Max</th>
                 <th className="px-2 py-2 text-right">Avg</th>
                 <th className="px-2 py-2 text-right">Total</th>
-                {/* Disposals thresholds */}
+                
                 <th className="px-2 py-2 text-right">%15+</th>
                 <th className="px-2 py-2 text-right">%20+</th>
                 <th className="px-2 py-2 text-right">%25+</th>
@@ -1330,7 +1330,7 @@ export default function AFLPlayers() {
                       >
                         {games ? total : "-"}
                       </td>
-                      {/* Disposals thresholds */}
+                      
                       {disposalsThresholds.map((pct, i) => (
                         <td
                           key={`d-${p.id}-${i}`}
