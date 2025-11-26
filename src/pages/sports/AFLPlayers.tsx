@@ -118,12 +118,12 @@ const ALL_ROUND_FILTERS = ["All Rounds", "Opening Round", "R1", "R2", "R3", "R4"
 
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
 
-const DASH_HOT_FREE = 2;
-const DASH_COLD_FREE = 2;
+const DASH_HOT_FREE = 999; // hot list now fully free
+const DASH_COLD_FREE = 999; // risk watchlist now fully free
 const AI_FREE = 2;
-const RISERS_FREE = 2;
-const STABILITY_FREE = 4; // v2: 4 free cards
-const TABLE_FREE_ROWS = 15;
+const RISERS_FREE = 3;
+const STABILITY_FREE = 6; // v14: 6 free cards
+const TABLE_FREE_ROWS = 25;
 
 const FREE_STAT_SET = new Set<StatKey>(["fantasy", "disposals", "goals"]);
 
@@ -318,7 +318,7 @@ export default function AFLPlayers() {
       return { player: p, vol: stdDev(l5) };
     })
     .sort((a, b) => a.vol - b.vol)
-    .slice(0, 20);
+    .slice(0, 14);
 
   // Table filtering (mock: year and roundFilter not yet wired to data)
   const filteredTable = ALL_PLAYERS.filter((p) => {
@@ -428,224 +428,197 @@ export default function AFLPlayers() {
     </div>
   );
 
-  const renderDashboardRow = () => (
-    <div className="mt-6 grid gap-4 md:grid-cols-3">
-      {/* Hot list */}
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/80 via-neutral-950 to-emerald-900/30 p-4 shadow-[0_0_26px_rgba(16,185,129,0.35)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/15 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-xs md:text-sm font-medium text-emerald-100">
-              🔥 Form Leaders
-            </span>
-            <span className="text-[10px] text-emerald-200/80">
-              Top 6 by last-5 average
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            Neeko+ expands this
+const renderDashboardRow = () => (
+  <div className="mt-6 grid gap-4 md:grid-cols-3">
+    {/* Hot list (Form Leaders) */}
+    <div className="relative overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/80 via-neutral-950 to-emerald-900/30 p-4 shadow-[0_0_26px_rgba(16,185,129,0.35)]">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/15 px-3 py-1.5 backdrop-blur-md">
+          <span className="text-xs md:text-sm font-medium text-emerald-100">
+            🔥 Form Leaders
+          </span>
+          <span className="text-[10px] text-emerald-200/80">
+            Top 6 by last-5 average
           </span>
         </div>
-
-        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
-          {hotList.map((p, idx) => {
-            const series = lastN(getSeriesForStat(p, selectedStat), 5);
-            const avg = Math.round(average(series));
-            const isLocked = !premiumUser && idx >= DASH_HOT_FREE;
-            const strong = avg >= 110;
-
-            return (
-              <li
-                key={p.id}
-                className={`flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95 ${
-                  isLocked ? "opacity-40 blur-sm" : ""
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  {isLocked && <LockIcon />}
-                  <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{p.name}</span>
-                  <span className="whitespace-nowrap text-[10px] text-neutral-400">
-                    {p.pos} · {p.team}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-0.5">
-                  <span className="flex items-center text-xs text-emerald-300">
-                    Avg {avg}
-                    {strong && <FireIcon />}
-                  </span>
-                  <span className="text-[10px] text-neutral-500">
-                    Season snapshot (mock L5)
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-
-        {!premiumUser && (
-          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
-            <a
-              href="/neeko-plus"
-              className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
-            >
-              <LockIcon />
-              <span>Unlock full hot list — Neeko+</span>
-            </a>
-          </div>
-        )}
+        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          Live form preview
+        </span>
       </div>
 
-      {/* Position trends */}
-      <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.35)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
-              <span className="text-xs md:text-sm font-medium text-cyan-100">
-                📊 Position Trends
-              </span>
-            </div>
-            <span className="text-[10px] text-neutral-400">
-              Avg last-5 {selectedStat === "fantasy" ? "fantasy scores" : selectedStat} by
-              role
+      <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+        {hotList.map((p) => {
+          const series = lastN(getSeriesForStat(p, selectedStat), 5);
+          const avg = Math.round(average(series));
+          const strong = avg >= 110;
+
+          return (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
+                  {p.name}
+                </span>
+                <span className="whitespace-nowrap text-[10px] text-neutral-400">
+                  {p.pos} · {p.team}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="flex items-center text-xs text-emerald-300">
+                  Avg {avg}
+                  {strong && <FireIcon />}
+                </span>
+                <span className="text-[10px] text-neutral-500">
+                  Season snapshot (mock L5)
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+
+    {/* Position trends — 4 horizontal pills, fully free */}
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.35)]">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
+            <span className="text-xs md:text-sm font-medium text-cyan-100">
+              📊 Position Trends
             </span>
           </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            MID &amp; RUC view free
+          <span className="text-[10px] text-neutral-400">
+            Avg last-5 {selectedStat === "fantasy" ? "fantasy scores" : selectedStat} by role
           </span>
         </div>
+        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          All roles free
+        </span>
+      </div>
 
-        <div className="relative z-10 grid grid-cols-2 gap-2 text-xs md:text-sm">
-          {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
-            const players = ALL_PLAYERS.filter((p) => p.pos === pos);
-            const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
-            const curVals = allSeries.flatMap((s) => lastN(s, 5));
-            const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
-            const avgCur = average(curVals);
-            const avgPrev = prevVals.length ? average(prevVals) : avgCur;
-            const pctDiff =
-              avgPrev !== 0 ? Math.round(((avgCur - avgPrev) / avgPrev) * 100) : 0;
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 text-xs md:text-sm">
+        {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
+          const players = ALL_PLAYERS.filter((p) => p.pos === pos);
+          const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
+          const curVals = allSeries.flatMap((s) => lastN(s, 5));
+          const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
+          const avgCur = average(curVals);
+          const avgPrev = prevVals.length ? average(prevVals) : avgCur;
+          const pctDiff =
+            avgPrev !== 0 ? Math.round(((avgCur - avgPrev) / avgPrev) * 100) : 0;
 
-            const top = players
-              .map((p) => {
-                const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
-                return { player: p, avg: average(l5) };
-              })
-              .sort((a, b) => b.avg - a.avg)[0];
+          const top = players
+            .map((p) => {
+              const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+              return { player: p, avg: average(l5) };
+            })
+            .sort((a, b) => b.avg - a.avg)[0];
 
-            const isLocked =
-              !premiumUser && !(pos === "MID" || pos === "RUC"); // v2: MID+RUC free
+          const arrow = pctDiff > 3 ? "▲" : pctDiff < -3 ? "▼" : "●";
+          const arrowColour =
+            pctDiff > 3
+              ? "text-emerald-300"
+              : pctDiff < -3
+              ? "text-red-300"
+              : "text-yellow-300";
 
-            const arrow =
-              pctDiff > 3 ? "▲" : pctDiff < -3 ? "▼" : "●";
-            const arrowColour =
-              pctDiff > 3
-                ? "text-emerald-300"
-                : pctDiff < -3
-                ? "text-red-300"
-                : "text-yellow-300";
-
-            return (
-              <div
-                key={pos}
-                className={`flex flex-col gap-1 rounded-xl border border-cyan-400/30 bg-neutral-950/85 px-3 py-2 ${
-                  isLocked ? "opacity-40 blur-sm" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-neutral-300">{pos}</span>
-                  <span className="text-[10px] text-neutral-500">
-                    {players.length} players
+          return (
+            <div
+              key={pos}
+              className="flex h-16 items-center justify-between rounded-full border border-cyan-400/40 bg-neutral-950/90 px-3 shadow-[0_0_18px_rgba(34,211,238,0.28)] transition-all hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.6)]"
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[11px] text-neutral-200">{pos}</span>
+                <span className="text-[10px] text-neutral-500">
+                  {players.length} players
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="flex items-center gap-1 text-xs text-cyan-300">
+                  Avg {Math.round(avgCur || 0)}
+                  <span className={arrowColour}>
+                    {arrow} {Math.abs(pctDiff)}%
                   </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-xs text-cyan-300">
-                    Avg {Math.round(avgCur || 0)}
-                    <span className={arrowColour}>
-                      {arrow} {Math.abs(pctDiff)}%
-                    </span>
-                  </span>
-                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-neutral-900">
-                    <div
-                      className="h-full bg-cyan-400"
-                      style={{
-                        width: `${Math.max(
-                          10,
-                          Math.min(100, (avgCur || 0) / 1.4)
-                        )}%`,
-                      }}
-                    />
-                  </div>
+                </span>
+                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-neutral-900">
+                  <div
+                    className="h-full bg-cyan-400"
+                    style={{
+                      width: `${Math.max(
+                        10,
+                        Math.min(100, (avgCur || 0) / 1.4)
+                      )}%`,
+                    }}
+                  />
                 </div>
                 {top && (
-                  <div className="flex items-center justify-between text-[10px] text-neutral-400">
-                    <span className="truncate pr-2">Top: {top.player.name}</span>
-                    <span className="tabular-nums">
-                      {Math.round(top.avg)} avg
-                    </span>
-                  </div>
+                  <span className="text-[9px] text-neutral-400">
+                    Top: {top.player.name}
+                  </span>
                 )}
               </div>
-            );
-          })}
-        </div>
-
-      </div>
-
-      {/* Risk watchlist */}
-      <div className="relative overflow-hidden rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(239,68,68,0.35)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/15 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-xs md:text-sm font-medium text-red-100">
-              ⚠️ Risk Watchlist
-            </span>
-            <span className="text-[10px] text-red-200/80">
-              Trending cold or volatile
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            Neeko+ expands this
-          </span>
-        </div>
-
-        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
-          {coldList.map((p, idx) => {
-            const series = lastN(getSeriesForStat(p, selectedStat), 5);
-            const avg = Math.round(average(series));
-            const vol = stdDev(series);
-            const isLocked = !premiumUser && idx >= DASH_COLD_FREE;
-            const veryCold = avg <= 80;
-            const label =
-              vol > 10 ? "High volatility" : veryCold ? "Trending down" : "At risk";
-
-            return (
-              <li
-                key={p.id}
-                className={`flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95 ${
-                  isLocked ? "opacity-40 blur-sm" : ""
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  {isLocked && <LockIcon />}
-                  <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{p.name}</span>
-                  <span className="whitespace-nowrap text-[10px] text-neutral-400">
-                    {p.pos} · {p.team}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-0.5">
-                  <span className="flex items-center text-xs text-red-300">
-                    Avg {avg}
-                    {veryCold && <ColdIcon />}
-                    {vol > 10 && <WarningIcon />}
-                  </span>
-                  <span className="text-[10px] text-neutral-500">{label}</span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
+
+    {/* Risk watchlist — fully free */}
+    <div className="relative overflow-hidden rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(239,68,68,0.35)]">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/15 px-3 py-1.5 backdrop-blur-md">
+          <span className="text-xs md:text-sm font-medium text-red-100">
+            ⚠️ Risk Watchlist
+          </span>
+          <span className="text-[10px] text-red-200/80">
+            Trending cold or volatile
+          </span>
+        </div>
+        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          Full list free
+        </span>
+      </div>
+
+      <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+        {coldList.map((p) => {
+          const series = lastN(getSeriesForStat(p, selectedStat), 5);
+          const avg = Math.round(average(series));
+          const vol = stdDev(series);
+          const veryCold = avg <= 80;
+          const label =
+            vol > 10 ? "High volatility" : veryCold ? "Trending down" : "At risk";
+
+          return (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
+                  {p.name}
+                </span>
+                <span className="whitespace-nowrap text-[10px] text-neutral-400">
+                  {p.pos} · {p.team}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="flex items-center text-xs text-red-300">
+                  Avg {avg}
+                  {veryCold && <ColdIcon />}
+                  {vol > 10 && <WarningIcon />}
+                </span>
+                <span className="text-[10px] text-neutral-500">{label}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  </div>
+);
+
 
   const renderAISignals = () => (
     <div className="relative mt-8 overflow-hidden rounded-2xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
@@ -771,264 +744,258 @@ export default function AFLPlayers() {
     </div>
   );
 
-  const renderCompare = () => (
-    <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
-      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            Compare Players
-          </p>
-          <p className="text-xs text-neutral-400">
-            Side-by-side form view for your selected stat.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-neutral-400">
-          <LockIcon />
-          <span>Neeko+ Feature</span>
-        </div>
+const renderCompare = () => (
+  <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
+    <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          Compare Players
+        </p>
+        <p className="text-xs text-neutral-400">
+          Side-by-side form view for your selected stat.
+        </p>
       </div>
-
-      {/* Headers visible for all users */}
-      <div className="mb-3 grid grid-cols-3 gap-4 text-[11px] md:text-xs">
-        <div className="text-left text-neutral-400">
-          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
-            Player A
-          </span>
-          <span>Choose team &amp; player on the left.</span>
-        </div>
-        <div className="text-center text-neutral-400">
-          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
-            Stat lens
-          </span>
-          <span>
-            {selectedStat === "fantasy"
-              ? "Fantasy points (season view)"
-              : selectedStat === "disposals"
-              ? "Disposals"
-              : "Goals"}
-          </span>
-        </div>
-        <div className="text-right text-neutral-400">
-          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
-            Player B
-          </span>
-          <span>Choose team &amp; player on the right.</span>
-        </div>
+      <div className="flex items-center gap-2 text-[11px] text-neutral-400">
+        <LockIcon />
+        <span>Interactive compare is part of Neeko+.</span>
       </div>
-
-      {/* Selectors & metrics (locked by overlay for free users) */}
-      <div className="opacity-60">
-        <div className="mb-4 grid grid-cols-1 gap-4 text-xs md:grid-cols-3 md:text-sm">
-          {/* Player A */}
-          <div className="flex flex-col gap-2">
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
-              value={teamA}
-              onChange={(e) => {
-                if (!premiumUser) {
-                  showLockedToast("Unlock Neeko+ to use interactive comparison.");
-                  return;
-                }
-                setTeamA(e.target.value);
-                setPlayerAId(null);
-              }}
-            >
-              {ALL_TEAMS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
-              value={playerA?.id ?? ""}
-              onChange={(e) => {
-                if (!premiumUser) {
-                  showLockedToast("Unlock Neeko+ to use interactive comparison.");
-                  return;
-                }
-                setPlayerAId(Number(e.target.value));
-              }}
-            >
-              {playersTeamA.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Stat descriptor */}
-          <div className="flex flex-col items-center justify-center text-[11px] text-neutral-400">
-            <span className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-              Stat lines
-            </span>
-            <span className="flex items-center gap-1 text-xs text-neutral-300">
-              Compare averages, best/worst &amp; totals
-              <CrownIcon />
-            </span>
-          </div>
-
-          {/* Player B */}
-          <div className="flex flex-col gap-2">
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
-              value={teamB}
-              onChange={(e) => {
-                if (!premiumUser) {
-                  showLockedToast("Unlock Neeko+ to use interactive comparison.");
-                  return;
-                }
-                setTeamB(e.target.value);
-                setPlayerBId(null);
-              }}
-            >
-              {ALL_TEAMS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <select
-              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
-              value={playerB?.id ?? ""}
-              onChange={(e) => {
-                if (!premiumUser) {
-                  showLockedToast("Unlock Neeko+ to use interactive comparison.");
-                  return;
-                }
-                setPlayerBId(Number(e.target.value));
-              }}
-            >
-              {playersTeamB.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Metrics */}
-        <div className="mb-4 grid grid-cols-3 gap-3 text-[11px] md:text-xs">
-          <div className="space-y-1 text-right text-neutral-100">
-            <div className="tabular-nums">{Math.round(compareAvgA || 0)}</div>
-            <div className="tabular-nums">{compareBestA || "--"}</div>
-            <div className="tabular-nums">{compareWorstA || "--"}</div>
-            <div className="tabular-nums">{compareTotalA || "--"}</div>
-          </div>
-          <div className="space-y-1 text-center text-neutral-400">
-            <div className="uppercase tracking-[0.12em]">Season Avg</div>
-            <div className="uppercase tracking-[0.12em]">Best</div>
-            <div className="uppercase tracking-[0.12em]">Worst</div>
-            <div className="uppercase tracking-[0.12em]">Season Total</div>
-          </div>
-          <div className="space-y-1 text-left text-neutral-100">
-            <div className="tabular-nums">{Math.round(compareAvgB || 0)}</div>
-            <div className="tabular-nums">{compareBestB || "--"}</div>
-            <div className="tabular-nums">{compareWorstB || "--"}</div>
-            <div className="tabular-nums">{compareTotalB || "--"}</div>
-          </div>
-        </div>
-
-        {/* Sparklines */}
-        <div className="grid grid-cols-1 gap-4 text-[11px] md:grid-cols-2 md:text-xs">
-          <div>
-            <p className="mb-1 text-neutral-300">Player A — trend preview</p>
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
-              <TrendSparkline values={compareSeriesA} />
-            </div>
-          </div>
-          <div>
-            <p className="mb-1 text-neutral-300">Player B — trend preview</p>
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
-              <TrendSparkline values={compareSeriesB} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {!premiumUser && (
-        <div
-          className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "52%" }}
-        >
-          <a
-            href="/neeko-plus"
-            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-8 py-3 text-sm font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.9)]"
-          >
-            <LockIcon />
-            <span>Unlock interactive player comparison — Neeko+</span>
-          </a>
-        </div>
-      )}
     </div>
-  );
 
-  const renderStability = () => (
-    <div className="relative mt-8 overflow-hidden rounded-2xl border border-sky-500/40 bg-gradient-to-br from-sky-950/80 via-neutral-950 to-sky-900/30 p-4 shadow-[0_0_26px_rgba(56,189,248,0.45)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-            Stability Meter
-          </p>
-          <p className="text-xs text-neutral-300">
-            Measures how swingy a player has been over the last 5 games.
-          </p>
-        </div>
-        <span className="flex items-center gap-1 text-[11px] text-neutral-400">
-          <LockIcon />
-          Neeko+ deep view
+    {/* Headers visible for all users */}
+    <div className="mb-3 grid grid-cols-3 gap-4 text-[11px] md:text-xs">
+      <div className="text-left text-neutral-400">
+        <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
+          Player A
+        </span>
+        <span>Select a team &amp; player on Neeko+.</span>
+      </div>
+      <div className="text-center text-neutral-400">
+        <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
+          Stat lens
+        </span>
+        <span>
+          {selectedStat === "fantasy"
+            ? "Fantasy points (season view)"
+            : selectedStat === "disposals"
+            ? "Disposals"
+            : "Goals"}
         </span>
       </div>
+      <div className="text-right text-neutral-400">
+        <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
+          Player B
+        </span>
+        <span>Second player unlocks with Neeko+.</span>
+      </div>
+    </div>
 
-      <div className="relative z-10 grid grid-cols-1 gap-2 text-xs md:grid-cols-2 md:text-sm">
-        {stabilityList.map((entry, idx) => {
-          const { player, vol } = entry;
-          const isLocked = !premiumUser && idx >= STABILITY_FREE;
-          const meta = stabilityMeta(vol);
+    {/* Selectors & metrics */}
+    <div className={premiumUser ? "" : "opacity-60"}>
+      <div className="mb-4 grid grid-cols-1 gap-4 text-xs md:grid-cols-3 md:text-sm">
+        {/* Player A */}
+        <div className="flex flex-col gap-2">
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+            value={teamA}
+            disabled={!premiumUser}
+            onChange={(e) => {
+              setTeamA(e.target.value);
+              setPlayerAId(null);
+            }}
+          >
+            {ALL_TEAMS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+            value={playerA?.id ?? ""}
+            disabled={!premiumUser}
+            onChange={(e) => {
+              setPlayerAId(Number(e.target.value));
+            }}
+          >
+            {playersTeamA.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          return (
-            <div
-              key={player.id}
-              className={`flex items-center justify-between rounded-xl border border-sky-400/40 bg-neutral-950/90 px-3 py-2 ${
-                isLocked ? "opacity-40 blur-sm" : ""
-              }`}
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-neutral-100">{player.name}</span>
-                <span className="text-[10px] text-neutral-400">
-                  {player.pos} · {player.team}
-                </span>
-              </div>
-              <div className="flex max-w-[11rem] flex-col items-end gap-0.5 text-right">
-                <span className={`text-xs ${meta.colour}`}>{meta.label}</span>
-                <span className="text-[10px] text-neutral-400">
-                  Volatility: {vol.toFixed(1)}
-                </span>
-                <span className="text-[10px] text-neutral-400">{meta.reason}</span>
-              </div>
-            </div>
-          );
-        })}
+        {/* Stat descriptor */}
+        <div className="flex flex-col items-center justify-center text-[11px] text-neutral-400">
+          <span className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            Stat lines
+          </span>
+          <span className="flex items-center gap-1 text-xs text-neutral-300">
+            Compare averages, best/worst &amp; totals
+            <CrownIcon />
+          </span>
+        </div>
+
+        {/* Player B */}
+        <div className="flex flex-col gap-2">
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+            value={teamB}
+            disabled={!premiumUser}
+            onChange={(e) => {
+              setTeamB(e.target.value);
+              setPlayerBId(null);
+            }}
+          >
+            {ALL_TEAMS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+            value={playerB?.id ?? ""}
+            disabled={!premiumUser}
+            onChange={(e) => {
+              setPlayerBId(Number(e.target.value));
+            }}
+          >
+            {playersTeamB.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {!premiumUser && (
-        <div
-          className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "44%" }} // overlay starts above row 3 so 4 cards remain free
-        >
+      {/* Metrics */}
+      <div className="mb-4 grid grid-cols-3 gap-3 text-[11px] md:text-xs">
+        <div className="space-y-1 text-right text-neutral-100">
+          <div className="tabular-nums">{Math.round(compareAvgA || 0)}</div>
+          <div className="tabular-nums">{compareBestA || "--"}</div>
+          <div className="tabular-nums">{compareWorstA || "--"}</div>
+          <div className="tabular-nums">{compareTotalA || "--"}</div>
+        </div>
+        <div className="space-y-1 text-center text-neutral-400">
+          <div className="uppercase tracking-[0.12em]">Season Avg</div>
+          <div className="uppercase tracking-[0.12em]">Best</div>
+          <div className="uppercase tracking-[0.12em]">Worst</div>
+          <div className="uppercase tracking-[0.12em]">Season Total</div>
+        </div>
+        <div className="space-y-1 text-left text-neutral-100">
+          <div className="tabular-nums">{Math.round(compareAvgB || 0)}</div>
+          <div className="tabular-nums">{compareBestB || "--"}</div>
+          <div className="tabular-nums">{compareWorstB || "--"}</div>
+          <div className="tabular-nums">{compareTotalB || "--"}</div>
+        </div>
+      </div>
+
+      {/* Sparklines */}
+      <div className="grid grid-cols-1 gap-4 text-[11px] md:grid-cols-2 md:text-xs">
+        <div>
+          <p className="mb-1 text-neutral-300">Player A — trend preview</p>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
+            <TrendSparkline values={compareSeriesA} />
+          </div>
+        </div>
+        <div>
+          <p className="mb-1 text-neutral-300">Player B — trend preview</p>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
+            <TrendSparkline values={compareSeriesB} />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {!premiumUser && (
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent backdrop-blur-lg"
+        style={{ top: "40%" }}
+      >
+        <div className="flex h-full items-center justify-center">
           <a
             href="/neeko-plus"
-            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-8 py-3 text-sm font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.9)]"
+          >
+            <LockIcon />
+            <span>Unlock full interactive compare — Neeko+</span>
+          </a>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+
+const renderStability = () => (
+  <div className="relative mt-8 overflow-hidden rounded-2xl border border-sky-500/40 bg-gradient-to-br from-sky-950/80 via-neutral-950 to-sky-900/30 p-4 shadow-[0_0_26px_rgba(56,189,248,0.45)]">
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <div>
+        <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+          Stability Meter
+        </p>
+        <p className="text-xs text-neutral-300">
+          Measures how swingy a player has been over the last 5 games.
+        </p>
+      </div>
+      <span className="flex items-center gap-1 text-[11px] text-neutral-400">
+        <LockIcon />
+        Deeper view with Neeko+
+      </span>
+    </div>
+
+    <div className="relative z-10 grid grid-cols-1 gap-2 text-xs md:grid-cols-2 md:text-sm">
+      {stabilityList.map((entry, idx) => {
+        const { player, vol } = entry;
+        const isLocked = !premiumUser && idx >= STABILITY_FREE;
+        const meta = stabilityMeta(vol);
+
+        return (
+          <div
+            key={player.id}
+            className={`flex items-center justify-between rounded-xl border border-sky-400/40 bg-neutral-950/90 px-3 py-2 ${
+              isLocked ? "opacity-40 blur-[1px]" : ""
+            }`}
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-neutral-100">{player.name}</span>
+              <span className="text-[10px] text-neutral-400">
+                {player.pos} · {player.team}
+              </span>
+            </div>
+            <div className="flex max-w-[11rem] flex-col items-end gap-0.5 text-right">
+              <span className={`text-xs ${meta.colour}`}>{meta.label}</span>
+              <span className="text-[10px] text-neutral-400">
+                Volatility: {vol.toFixed(1)}
+              </span>
+              <span className="text-[10px] text-neutral-400">{meta.reason}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {!premiumUser && (
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/96 via-black/80 to-transparent backdrop-blur-xl"
+        style={{ top: "50%" }}  // roughly after 6 cards (2 cols x 3 rows)
+      >
+        <div className="flex h-full items-center justify-center">
+          <a
+            href="/neeko-plus"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
           >
             <LockIcon />
             <span>Unlock full stability rankings — Neeko+</span>
           </a>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
+
 
 
   const calcThresholdPercent = (series: number[], threshold: number) => {
