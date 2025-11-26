@@ -1253,15 +1253,15 @@ export default function AFLPlayers() {
                 const fantasySeries = getSeriesForStat(p, "fantasy");
                 const goalsSeries = getSeriesForStat(p, "goals");
 
-                const disposalsThresholds = [15, 20, 25, 30, 35].map((t) =>
-                  calcThresholdPercent(disposalsSeries, t)
-                );
-                const fantasyThresholds = [60, 70, 80, 90, 100].map((t) =>
-                  calcThresholdPercent(fantasySeries, t)
-                );
-                const goalsThresholds = [1, 2, 3, 4, 5].map((t) =>
-                  calcThresholdPercent(goalsSeries, t)
-                );
+                // Dynamic threshold configuration based on current table stat
+                const thresholdConfig =
+                  tableStat === "disposals"
+                    ? { series: disposalsSeries, thresholds: [15, 20, 25, 30, 35] }
+                    : tableStat === "fantasy"
+                    ? { series: fantasySeries, thresholds: [60, 70, 80, 90, 100] }
+                    : tableStat === "goals"
+                    ? { series: goalsSeries, thresholds: [1, 2, 3, 4, 5] }
+                    : { series, thresholds: [] as number[] };
 
                 const cellPad = compactMode ? "py-1.5" : "py-2.5";
 
@@ -1327,54 +1327,25 @@ export default function AFLPlayers() {
                       >
                         {games ? total : "-"}
                       </td>
-                      
-                      {disposalsThresholds.map((pct, i) => (
-                        <td
-                          key={`d-${p.id}-${i}`}
-                          className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
-                        >
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="tabular-nums text-neutral-100">
-                              {pct ? Math.round(pct) : 0}%
-                            </span>
-                            <span
-                              className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
-                            />
-                          </div>
-                        </td>
-                      ))}
-                      
-                      {fantasyThresholds.map((pct, i) => (
-                        <td
-                          key={`f-${p.id}-${i}`}
-                          className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
-                        >
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="tabular-nums text-neutral-100">
-                              {pct ? Math.round(pct) : 0}%
-                            </span>
-                            <span
-                              className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
-                            />
-                          </div>
-                        </td>
-                      ))}
-                      
-                      {goalsThresholds.map((pct, i) => (
-                        <td
-                          key={`g-${p.id}-${i}`}
-                          className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
-                        >
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="tabular-nums text-neutral-100">
-                              {pct ? Math.round(pct) : 0}%
-                            </span>
-                            <span
-                              className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
-                            />
-                          </div>
-                        </td>
-                      ))}
+
+                      {thresholdConfig.thresholds.map((t, i) => {
+                        const pct = calcThresholdPercent(thresholdConfig.series, t);
+                        return (
+                          <td
+                            key={`th-${p.id}-${i}`}
+                            className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="tabular-nums text-neutral-100">
+                                {pct ? Math.round(pct) : 0}%
+                              </span>
+                              <span
+                                className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
                       <td
                         className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
                       >
