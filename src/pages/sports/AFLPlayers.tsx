@@ -119,6 +119,18 @@ const ALL_ROUND_FILTERS = ["All Rounds", "Opening Round", "R1", "R2", "R3", "R4"
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
 
 const DASH_HOT_FREE = 6; // fully free in UI now
+// All selectable stat types for Compare Players
+const ALL_STATS = [
+  { key: "fantasy", label: "Fantasy Points" },
+  { key: "disposals", label: "Disposals" },
+  { key: "goals", label: "Goals" },
+  { key: "marks", label: "Marks" },
+  { key: "tackles", label: "Tackles" },
+  { key: "kicks", label: "Kicks" },
+  { key: "handballs", label: "Handballs" },
+  { key: "hitouts", label: "Hitouts" },
+];
+
 const DASH_COLD_FREE = 6; // fully free in UI now
 const AI_FREE = 3; // first 3 AI insights emphasised as free
 const RISERS_FREE = 6; // risers now visually free; constant kept for future use
