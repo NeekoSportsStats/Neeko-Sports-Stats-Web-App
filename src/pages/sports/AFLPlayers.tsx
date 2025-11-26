@@ -794,7 +794,7 @@ export default function AFLPlayers() {
   );
 
   const renderCompare = () => (
-    <div className="relative mt-8 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
+    <div className="relative mt-12 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
@@ -973,7 +973,7 @@ export default function AFLPlayers() {
       {!premiumUser && (
         <div
           className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "50%" }}
+          style={{ top: "48%" }}
         >
           <a
             href="/neeko-plus"
@@ -1038,7 +1038,7 @@ export default function AFLPlayers() {
       {!premiumUser && (
         <div
           className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "42%" }} // overlay starts above row 3 so 4 cards remain free
+          style={{ top: "40%" }} // overlay starts above row 3 so 4 cards remain free
         >
           <a
             href="/neeko-plus"
@@ -1231,7 +1231,7 @@ export default function AFLPlayers() {
                   ));
                   return null;
                 })()}
-                <th className="px-2 py-2 text-right">Stability</th>
+                <th className="px-3 py-2 text-right">Stability</th>
 
               </tr>
             </thead>
@@ -1280,7 +1280,7 @@ export default function AFLPlayers() {
                           {isExpanded ? "▼" : "▶"}
                         </span>
                         {lockedRow && <LockIcon />}
-                        <span className="font-medium">{p.name}</span>
+                        <span className="font-medium whitespace-nowrap truncate">{p.name}</span>
                       </td>
                       <td
                         className={`px-3 ${cellPad} align-middle text-neutral-300`}
@@ -1399,7 +1399,7 @@ export default function AFLPlayers() {
           {!premiumUser && (
             <div
               className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-              style={{ top: "60%" }}
+              style={{ top: "58%" }}
             >
               <a
                 href="/neeko-plus"
