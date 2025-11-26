@@ -498,7 +498,7 @@ const renderDashboardRow = () => (
         </span>
       </div>
 
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 text-xs md:text-sm">
+      <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs md:text-sm">
         {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
           const players = ALL_PLAYERS.filter((p) => p.pos === pos);
           const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
@@ -527,7 +527,7 @@ const renderDashboardRow = () => (
           return (
             <div
               key={pos}
-              className="flex h-16 items-center justify-between rounded-full border border-cyan-400/40 bg-neutral-950/90 px-3 shadow-[0_0_18px_rgba(34,211,238,0.28)] transition-all hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.6)]"
+              className="flex h-[70px] flex-1 min-w-[140px] items-center justify-between rounded-full border border-cyan-400/40 bg-neutral-950/90 px-3 shadow-[0_0_18px_rgba(34,211,238,0.28)] transition-all hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.6)]"
             >
               <div className="flex flex-col gap-0.5">
                 <span className="text-[11px] text-neutral-200">{pos}</span>
@@ -620,7 +620,65 @@ const renderDashboardRow = () => (
 );
 
 
-  const renderAISignals = () => (
+  const renderRisers = () => (
+    <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-950/80 via-neutral-950 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
+          <span className="text-xs md:text-sm font-medium text-purple-100">
+            📈 Role &amp; Form Risers
+          </span>
+          <span className="text-[10px] text-purple-200/80">
+            Last game vs previous four
+          </span>
+        </div>
+        
+      </div>
+
+      <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+        {risers.map((entry, idx) => {
+          const { player, diff, last } = entry;
+          return (
+            <li
+              key={player.id}
+              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{player.name}</span>
+                <span className="whitespace-nowrap text-[10px] text-neutral-400">
+                  {player.pos} · {player.team}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="text-xs text-emerald-300">
+                  Last: {Math.round(last)} ({diff >= 0 ? "+" : ""}
+                  {Math.round(diff)})
+                </span>
+                <span className="text-[10px] text-neutral-500">
+                  Strong short-term lift
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {!premiumUser && (
+        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
+          <a
+            href="/neeko-plus"
+            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
+          >
+            <LockIcon />
+            <span>Full Risers Breakdown — Neeko+</span>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+
+
+
+const renderAISignals = () => (
     <div className="relative mt-8 overflow-hidden rounded-2xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
@@ -681,70 +739,7 @@ const renderDashboardRow = () => (
     </div>
   );
 
-  const renderRisers = () => (
-    <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-950/80 via-neutral-950 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
-          <span className="text-xs md:text-sm font-medium text-purple-100">
-            📈 Role &amp; Form Risers
-          </span>
-          <span className="text-[10px] text-purple-200/80">
-            Last game vs previous four
-          </span>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-          Neeko+ expands this
-        </span>
-      </div>
-
-      <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
-        {risers.map((entry, idx) => {
-          const { player, diff, last } = entry;
-          const isLocked = !premiumUser && idx >= RISERS_FREE;
-
-          return (
-            <li
-              key={player.id}
-              className={`flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95 ${
-                isLocked ? "opacity-40 blur-sm" : ""
-              }`}
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                {isLocked && <LockIcon />}
-                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{player.name}</span>
-                <span className="whitespace-nowrap text-[10px] text-neutral-400">
-                  {player.pos} · {player.team}
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="text-xs text-emerald-300">
-                  Last: {Math.round(last)} ({diff >= 0 ? "+" : ""}
-                  {Math.round(diff)})
-                </span>
-                <span className="text-[10px] text-neutral-500">
-                  Strong short-term lift
-                </span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
-          <a
-            href="/neeko-plus"
-            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
-          >
-            <LockIcon />
-            <span>Full Risers Breakdown — Neeko+</span>
-          </a>
-        </div>
-      )}
-    </div>
-  );
-
-const renderCompare = () => (
+  const renderCompare = () => (
   <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
     <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
