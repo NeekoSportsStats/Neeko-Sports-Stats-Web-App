@@ -40,7 +40,7 @@ const Button = ({
   </button>
 );
 
-const ArrowLeftIcon = () => <span className="mr-1">←</span>;
+const ArrowLeftIcon = () => <span className="mr-1 text-xs">←</span>;
 
 const CrownIcon = () => (
   <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[11px] text-black shadow-sm ml-1">
@@ -482,7 +482,7 @@ export default function AFLPlayers() {
         </ul>
 
         {!premiumUser && (
-          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
+          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
             <a
               href="/neeko-plus"
               className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
@@ -588,17 +588,6 @@ export default function AFLPlayers() {
           })}
         </div>
 
-        {!premiumUser && (
-          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
-            <a
-              href="/neeko-plus"
-              className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.9)]"
-            >
-              <LockIcon />
-              <span>Unlock full role trends — Neeko+</span>
-            </a>
-          </div>
-        )}
       </div>
 
       {/* Risk watchlist */}
@@ -654,17 +643,6 @@ export default function AFLPlayers() {
           })}
         </ul>
 
-        {!premiumUser && (
-          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
-            <a
-              href="/neeko-plus"
-              className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
-            >
-              <LockIcon />
-              <span>Unlock full risk watchlist — Neeko+</span>
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -717,13 +695,13 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
+        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
           <a
             href="/neeko-plus"
             className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
           >
             <LockIcon />
-            <span>Unlock full AI signals — Neeko+</span>
+            <span>Unlock full AI insights — with Neeko+</span>
           </a>
         </div>
       )}
@@ -780,13 +758,13 @@ export default function AFLPlayers() {
       </ul>
 
       {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
+        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
           <a
             href="/neeko-plus"
             className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
           >
             <LockIcon />
-            <span>Unlock all risers — Neeko+</span>
+            <span>Full Risers Breakdown — Neeko+</span>
           </a>
         </div>
       )}
@@ -794,7 +772,7 @@ export default function AFLPlayers() {
   );
 
   const renderCompare = () => (
-    <div className="relative mt-12 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
+    <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
@@ -973,7 +951,7 @@ export default function AFLPlayers() {
       {!premiumUser && (
         <div
           className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "48%" }}
+          style={{ top: "52%" }}
         >
           <a
             href="/neeko-plus"
@@ -1038,7 +1016,7 @@ export default function AFLPlayers() {
       {!premiumUser && (
         <div
           className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "40%" }} // overlay starts above row 3 so 4 cards remain free
+          style={{ top: "44%" }} // overlay starts above row 3 so 4 cards remain free
         >
           <a
             href="/neeko-plus"
@@ -1070,7 +1048,7 @@ export default function AFLPlayers() {
     const roundLabels = ["OR", "R1", "R2", "R3", "R4", "R5"];
 
     return (
-      <div className="relative mx-auto mt-8 max-w-6xl rounded-3xl border border-yellow-500/35 bg-neutral-950/98 p-5 shadow-[0_0_34px_rgba(250,204,21,0.35)]">
+      <div className="relative mx-auto mt-8 max-w-6xl rounded-3xl border border-yellow-400/45 bg-neutral-950/98 p-5 shadow-[0_0_30px_rgba(250,204,21,0.45)]">
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -1271,6 +1249,7 @@ export default function AFLPlayers() {
                       className={`border-b border-neutral-900/80 transition-colors ${
                         lockedRow ? "opacity-40 blur-sm" : "hover:bg-neutral-900/70"
                       }`}
+                      style={{ height: compactMode ? 36 : 44 }}
                     >
                       <td
                         className={`px-3 ${cellPad} align-middle cursor-pointer text-neutral-100`}
@@ -1399,7 +1378,7 @@ export default function AFLPlayers() {
           {!premiumUser && (
             <div
               className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-              style={{ top: "58%" }}
+              style={{ top: "52%" }}
             >
               <a
                 href="/neeko-plus"
@@ -1430,53 +1409,127 @@ export default function AFLPlayers() {
     );
   };
 
-  // ---------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
   // Shell
   // ---------------------------------------------------------------------------
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-8 text-white">
-      {/* Top bar */}
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <Button
-          onClick={handleBack}
-          className="bg-transparent px-0 text-sm text-neutral-300 hover:bg-transparent hover:text-neutral-100"
-        >
-          <ArrowLeftIcon />
-          Back
-        </Button>
-        <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
-          AFL · Player Stats
+  const renderQuickNav = () => (
+    <div className="fixed right-4 top-1/3 z-40 hidden flex-col gap-3 text-[10px] text-neutral-400 lg:flex">
+      <a
+        href="#section-form-leaders"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          🔥
         </span>
-      </div>
-
-      {/* Hero */}
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            AFL Player Stats
-          </h1>
-          <p className="mt-1 text-xs md:text-sm text-neutral-400">
-            Live player form, volatility and role-driven signals — built for fantasy &
-            betting decisions.
-          </p>
-        </div>
-        <div className="flex flex-col items-start gap-2 md:items-end">
-          {renderStatSelector()}
-          {!premiumUser && (
-            <span className="max-w-xs text-right text-[10px] text-neutral-500">
-              Fantasy, Disposals &amp; Goals are available on this page. Advanced stats,
-              deeper AI and more live on Neeko+.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {renderDashboardRow()}
-      {renderAISignals()}
-      {renderRisers()}
-      {renderCompare()}
-      {renderStability()}
-      {renderMasterTable()}
+        <span className="opacity-0 group-hover:opacity-100">Form</span>
+      </a>
+      <a
+        href="#section-ai-signals"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          🧠
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">AI</span>
+      </a>
+      <a
+        href="#section-risers"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          ⬆️
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">Risers</span>
+      </a>
+      <a
+        href="#section-compare"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          🔀
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">Compare</span>
+      </a>
+      <a
+        href="#section-stability"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          📉
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">Stability</span>
+      </a>
+      <a
+        href="#section-master-table"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          📑
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">Table</span>
+      </a>
     </div>
+  );
+
+  return (
+    <>
+      <div className="mx-auto max-w-6xl px-4 py-8 text-white">
+        {/* Top bar */}
+        <div className="mb-6 flex items-center justify-between gap-2">
+          <Button
+            onClick={handleBack}
+            className="bg-transparent px-0 text-sm text-neutral-300 hover:bg-transparent hover:text-neutral-100"
+          >
+            <ArrowLeftIcon />
+            Back
+          </Button>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+            AFL · Player Stats
+          </span>
+        </div>
+
+        {/* Hero */}
+        <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              AFL Player Stats
+            </h1>
+            <p className="mt-1 text-xs md:text-sm text-neutral-400">
+              Live player form, volatility and role-driven signals — built for fantasy &
+              betting decisions.
+            </p>
+          </div>
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            {renderStatSelector()}
+            {!premiumUser && (
+              <span className="max-w-xs text-right text-[10px] text-neutral-500">
+                Fantasy, Disposals &amp; Goals are available on this page. Advanced stats,
+                deeper AI and more live on Neeko+.
+              </span>
+            )}
+          </div>
+        </div>
+
+        <section id="section-form-leaders">
+          {renderDashboardRow()}
+        </section>
+        <section id="section-ai-signals">
+          {renderAISignals()}
+        </section>
+        <section id="section-risers">
+          {renderRisers()}
+        </section>
+        <section id="section-compare">
+          {renderCompare()}
+        </section>
+        <section id="section-stability">
+          {renderStability()}
+        </section>
+        <section id="section-master-table">
+          {renderMasterTable()}
+        </section>
+      </div>
+      {renderQuickNav()}
+    </>
   );
 }
