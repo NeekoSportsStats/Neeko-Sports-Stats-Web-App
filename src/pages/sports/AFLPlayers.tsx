@@ -696,7 +696,7 @@ const renderAISignals = () => (
       {/* Soft lock: only top 3 are clearly visible for free users */}
       {!premiumUser && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/95 to-transparent backdrop-blur-2xl"
+          className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
           style={{ top: "68%" }}
         >
           <div className="flex h-full items-center justify-center">
@@ -799,7 +799,7 @@ const renderCompare = () => (
   <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-2xl border border-neutral-700 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
     <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
-        <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+        <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
           Compare Players
         </p>
         <p className="text-xs text-neutral-400">
@@ -931,7 +931,7 @@ const renderCompare = () => (
     {/* Soft lock overlay */}
     {!premiumUser && (
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl"
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
         style={{ top: "55%" }}
       >
         <div className="flex h-full items-center justify-center">
@@ -997,12 +997,12 @@ const renderStability = () => (
 
       {!premiumUser && (
         <div
-          className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
           style={{ top: "44%" }} // overlay starts above row 3 so 4 cards remain free
         >
           <a
             href="/neeko-plus"
-            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
           >
             <LockIcon />
             <span>Unlock full stability rankings — Neeko+</span>
@@ -1034,7 +1034,7 @@ const renderStability = () => (
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+            <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
               Master Player Table
             </p>
             <p className="text-xs text-neutral-400">
@@ -1359,12 +1359,12 @@ const renderStability = () => (
 
           {!premiumUser && (
             <div
-              className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
+              className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
               style={{ top: "52%" }}
             >
               <a
                 href="/neeko-plus"
-                className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
               >
                 <LockIcon />
                 <span>Unlock full master table — Neeko+</span>
