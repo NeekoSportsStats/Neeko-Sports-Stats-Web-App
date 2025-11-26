@@ -1207,7 +1207,7 @@ export default function AFLPlayers() {
                 <th className="px-3 py-2">Player</th>
                 <th className="px-3 py-2">Pos</th>
                 <th className="px-3 py-2">Team</th>
-                {roundLabels.map((label) => (
+                {!compactMode && roundLabels.map((label) => (
                   <th key={label} className="px-2 py-2 text-right">
                     {label}
                   </th>
@@ -1293,7 +1293,7 @@ export default function AFLPlayers() {
                         {p.team}
                       </td>
 
-                      {roundLabels.map((_, i) => (
+                      {!compactMode && roundLabels.map((_, i) => (
                         <td
                           key={i}
                           className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-200`}
