@@ -1095,7 +1095,7 @@ const renderStability = () => (
         {/* Filters */}
         <div className="mb-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
               Team
             </span>
             <select
@@ -1113,7 +1113,7 @@ const renderStability = () => (
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
               Position
             </span>
             <select
@@ -1131,7 +1131,7 @@ const renderStability = () => (
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
               Rounds
             </span>
             <select
