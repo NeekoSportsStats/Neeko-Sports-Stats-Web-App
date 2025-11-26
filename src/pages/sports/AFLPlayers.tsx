@@ -1360,7 +1360,7 @@ const renderStability = () => (
           {!premiumUser && (
             <div
               className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
-              style={{ top: "52%" }}
+              style={{ top: "58%" }}
             >
               <a
                 href="/neeko-plus"
