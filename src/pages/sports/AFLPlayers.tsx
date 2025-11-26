@@ -270,6 +270,8 @@ export default function AFLPlayers() {
   const { isPremium } = useAuth();
   const premiumUser = !!isPremium;
 
+  const [openRiserId, setOpenRiserId] = useState<number | null>(null);
+
   // Shared stat lens
   const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
 
@@ -480,90 +482,79 @@ const renderDashboardRow = () => (
       </ul>
     </div>
 
-    {/* Position trends — 4 horizontal pills, fully free */}
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.35)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-xs md:text-sm font-medium text-cyan-100">
-              📊 Position Trends
-            </span>
-          </div>
-          <span className="text-[10px] text-neutral-400">
-            Avg last-5 {selectedStat === "fantasy" ? "fantasy scores" : selectedStat} by role
-          </span>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-          All roles free
+{/* Position trends — role list, fully free */}
+<div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.35)]">
+  <div className="mb-3 flex items-center justify-between gap-2">
+    <div className="flex flex-col gap-1">
+      <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
+        <span className="text-xs md:text-sm font-medium text-cyan-100">
+          📊 Position Trends
         </span>
       </div>
-
-      <div className="mt-2 flex flex-col gap-2 text-xs md:text-sm">
-        {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
-          const players = ALL_PLAYERS.filter((p) => p.pos === pos);
-          const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
-          const curVals = allSeries.flatMap((s) => lastN(s, 5));
-          const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
-          const avgCur = average(curVals);
-          const avgPrev = prevVals.length ? average(prevVals) : avgCur;
-          const pctDiff =
-            avgPrev !== 0 ? Math.round(((avgCur - avgPrev) / avgPrev) * 100) : 0;
-
-          const top = players
-            .map((p) => {
-              const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
-              return { player: p, avg: average(l5) };
-            })
-            .sort((a, b) => b.avg - a.avg)[0];
-
-          const arrow = pctDiff > 3 ? "▲" : pctDiff < -3 ? "▼" : "●";
-          const arrowColour =
-            pctDiff > 3
-              ? "text-emerald-300"
-              : pctDiff < -3
-              ? "text-red-300"
-              : "text-yellow-300";
-
-          return (
-            <div
-              key={pos}
-              className="flex h-[70px] w-full items-center justify-between rounded-full border border-cyan-400/40 bg-neutral-950/90 px-3 shadow-[0_0_18px_rgba(34,211,238,0.28)] transition-all hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.6)]"
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[11px] text-neutral-200">{pos}</span>
-                <span className="text-[10px] text-neutral-500">
-                  {players.length} players
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="flex items-center gap-1 text-xs text-cyan-300">
-                  Avg {Math.round(avgCur || 0)}
-                  <span className={arrowColour}>
-                    {arrow} {Math.abs(pctDiff)}%
-                  </span>
-                </span>
-                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-neutral-900">
-                  <div
-                    className="h-full bg-cyan-400"
-                    style={{
-                      width: `${Math.max(
-                        10,
-                        Math.min(100, (avgCur || 0) / 1.4)
-                      )}%`,
-                    }}
-                  />
-                </div>
-                {top && (
-                  <span className="text-[9px] text-neutral-400">
-                    Top: {top.player.name}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <span className="text-[10px] text-neutral-400">
+        Avg last-5 {selectedStat === "fantasy" ? "fantasy scores" : selectedStat} by role
+      </span>
     </div>
+    <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+      All roles free
+    </span>
+  </div>
+
+  <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+    {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
+      const players = ALL_PLAYERS.filter((p) => p.pos === pos);
+      const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
+      const curVals = allSeries.flatMap((s) => lastN(s, 5));
+      const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
+      const avgCur = average(curVals);
+      const avgPrev = prevVals.length ? average(prevVals) : avgCur;
+      const pctDiff =
+        avgPrev !== 0 ? Math.round(((avgCur - avgPrev) / avgPrev) * 100) : 0;
+
+      const arrow = pctDiff > 3 ? "▲" : pctDiff < -3 ? "▼" : "●";
+      const arrowColour =
+        pctDiff > 3
+          ? "text-emerald-300"
+          : pctDiff < -3
+          ? "text-red-300"
+          : "text-yellow-300";
+
+      const top = players
+        .map((p) => {
+          const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+          return { player: p, avg: average(l5) };
+        })
+        .sort((a, b) => b.avg - a.avg)[0];
+
+      return (
+        <li
+          key={pos}
+          className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+        >
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="font-medium text-neutral-100">{pos}</span>
+            <span className="text-[10px] text-neutral-500">
+              {players.length} players
+            </span>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="flex items-center gap-1 text-xs text-cyan-300">
+              Avg {Math.round(avgCur || 0)}
+              <span className={arrowColour}>
+                {arrow} {Math.abs(pctDiff)}%
+              </span>
+            </span>
+            {top && (
+              <span className="text-[10px] text-neutral-400">
+                Top: {top.player.name}
+              </span>
+            )}
+          </div>
+        </li>
+      );
+    })}
+  </ul>
+</div>
 
     {/* Risk watchlist — fully free */}
     <div className="relative overflow-hidden rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(239,68,68,0.35)]">
@@ -621,29 +612,47 @@ const renderDashboardRow = () => (
 
 
   const renderRisers = () => (
-    <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-950/80 via-neutral-950 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
-          <span className="text-xs md:text-sm font-medium text-purple-100">
-            📈 Role &amp; Form Risers
-          </span>
-          <span className="text-[10px] text-purple-200/80">
-            Last game vs previous four
-          </span>
-        </div>
-        
+  <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-950/80 via-neutral-950 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
+        <span className="text-xs md:text-sm font-medium text-purple-100">
+          📈 Role &amp; Form Risers
+        </span>
+        <span className="text-[10px] text-purple-200/80">
+          Last game vs previous four
+        </span>
       </div>
+    </div>
 
-      <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
-        {risers.map((entry, idx) => {
-          const { player, diff, last } = entry;
-          return (
-            <li
-              key={player.id}
-              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+    <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+      {risers.map((entry) => {
+        const { player, diff, last, prevAvg } = entry as any;
+        const isOpen = openRiserId === player.id;
+
+        const mockSeries = [
+          Math.round(prevAvg * 0.94),
+          Math.round(prevAvg * 0.97),
+          Math.round(prevAvg * 1.0),
+          Math.round(prevAvg * 1.03),
+          Math.round(last),
+        ];
+
+        return (
+          <li
+            key={player.id}
+            className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setOpenRiserId(isOpen ? null : player.id)
+              }
+              className="flex w-full items-center justify-between gap-2 text-left"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{player.name}</span>
+                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
+                  {player.name}
+                </span>
                 <span className="whitespace-nowrap text-[10px] text-neutral-400">
                   {player.pos} · {player.team}
                 </span>
@@ -657,17 +666,27 @@ const renderDashboardRow = () => (
                   Strong short-term lift
                 </span>
               </div>
-            </li>
-          );
-        })}
-      </ul>
+            </button>
 
-      
-    </div>
-  );
-
-
-
+            {isOpen && (
+              <div className="mt-2 rounded-2xl border border-purple-400/40 bg-purple-950/40 p-3">
+                <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-300">
+                  <span>Last game vs previous four (mock trend)</span>
+                  <span className="text-neutral-400">
+                    {player.pos} · {player.team}
+                  </span>
+                </div>
+                <div className="overflow-hidden rounded-xl bg-neutral-950/80 px-3 py-2">
+                  <TrendSparkline values={mockSeries} />
+                </div>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+);
 const renderAISignals = () => (
     <div className="relative mt-8 overflow-hidden rounded-2xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -1468,19 +1487,19 @@ const renderStability = () => (
           </div>
         </div>
 
-        <section id="section-form-leaders">
+        <section id="section-form-leaders" className="scroll-mt-28">
           {renderDashboardRow()}
         </section>
-        <section id="section-risers">
+        <section id="section-risers" className="scroll-mt-28">
           {renderRisers()}
         </section>
-        <section id="section-ai-signals">
+        <section id="section-ai-signals" className="scroll-mt-28">
           {renderAISignals()}
         </section>
-        <section id="section-compare">
+        <section id="section-compare" className="scroll-mt-28">
           {renderCompare()}
         </section>
-        <section id="section-stability">
+        <section id="section-stability" className="scroll-mt-28">
           {renderStability()}
         </section>
         <section id="section-master-table">
