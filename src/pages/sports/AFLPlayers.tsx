@@ -973,7 +973,7 @@ export default function AFLPlayers() {
       {!premiumUser && (
         <div
           className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
-          style={{ top: "55%" }}
+          style={{ top: "50%" }}
         >
           <a
             href="/neeko-plus"
