@@ -91,7 +91,7 @@ function showLockedToast(message: string) {
 // -----------------------------------------------------------------------------
 type StatKey = "fantasy" | "disposals" | "goals";
 
-type Position = "MID" | "RUC" | "DEF" | "FWD";
+type Position = "MID" | "FWD" | "DEF" | "RUC";
 
 interface Player {
   id: number;
@@ -112,7 +112,7 @@ const ALL_TEAMS = [
   "RICH",
 ];
 
-const ALL_POSITIONS = ["All Positions", "MID", "RUC", "DEF", "FWD"];
+const ALL_POSITIONS = ["All Positions", "MID", "FWD", "DEF", "RUC"];
 
 const ALL_ROUND_FILTERS = ["All Rounds", "Opening Round", "R1", "R2", "R3", "R4", "R5"];
 
@@ -514,7 +514,7 @@ export default function AFLPlayers() {
         </div>
 
         <div className="relative z-10 grid grid-cols-2 gap-2 text-xs md:text-sm">
-          {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
+          {(["MID", "FWD", "DEF", "RUC"] as Position[]).map((pos) => {
             const players = ALL_PLAYERS.filter((p) => p.pos === pos);
             const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
             const curVals = allSeries.flatMap((s) => lastN(s, 5));
