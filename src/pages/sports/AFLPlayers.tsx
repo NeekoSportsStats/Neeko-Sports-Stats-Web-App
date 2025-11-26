@@ -482,7 +482,7 @@ export default function AFLPlayers() {
         </ul>
 
         {!premiumUser && (
-          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl">
+          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
             <a
               href="/neeko-plus"
               className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
@@ -514,7 +514,7 @@ export default function AFLPlayers() {
         </div>
 
         <div className="relative z-10 grid grid-cols-2 gap-2 text-xs md:text-sm">
-          {(["MID", "FWD", "DEF", "RUC"] as Position[]).map((pos) => {
+          {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
             const players = ALL_PLAYERS.filter((p) => p.pos === pos);
             const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
             const curVals = allSeries.flatMap((s) => lastN(s, 5));
@@ -589,14 +589,10 @@ export default function AFLPlayers() {
         </div>
 
         {!premiumUser && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-1/2 bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl" />
-        )}
-
-        {!premiumUser && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
             <a
               href="/neeko-plus"
-              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
+              className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.9)]"
             >
               <LockIcon />
               <span>Unlock full role trends — Neeko+</span>
@@ -659,7 +655,7 @@ export default function AFLPlayers() {
         </ul>
 
         {!premiumUser && (
-          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl">
+          <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
             <a
               href="/neeko-plus"
               className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
@@ -721,7 +717,7 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl">
+        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
           <a
             href="/neeko-plus"
             className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
@@ -784,7 +780,7 @@ export default function AFLPlayers() {
       </ul>
 
       {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl">
+        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
           <a
             href="/neeko-plus"
             className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
@@ -975,7 +971,10 @@ export default function AFLPlayers() {
       </div>
 
       {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl">
+        <div
+          className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
+          style={{ top: "44%" }}
+        >
           <a
             href="/neeko-plus"
             className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-8 py-3 text-sm font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.9)]"
@@ -1038,8 +1037,8 @@ export default function AFLPlayers() {
 
       {!premiumUser && (
         <div
-          className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl"
-          style={{ top: "46%" }} // v2: overlay starts higher to cover rows 3–4
+          className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
+          style={{ top: "42%" }} // overlay starts above row 3 so 4 cards remain free
         >
           <a
             href="/neeko-plus"
@@ -1052,6 +1051,20 @@ export default function AFLPlayers() {
       )}
     </div>
   );
+
+
+  const calcThresholdPercent = (series: number[], threshold: number) => {
+    if (!series.length) return 0;
+    const count = series.filter((v) => v >= threshold).length;
+    return (count / series.length) * 100;
+  };
+
+  const thresholdBarClass = (pct: number) => {
+    if (pct >= 70) return "bg-emerald-500/80";
+    if (pct >= 40) return "bg-yellow-400/80";
+    if (pct > 0) return "bg-red-500/80";
+    return "bg-neutral-800";
+  };
 
   const renderMasterTable = () => {
     const roundLabels = ["OR", "R1", "R2", "R3", "R4", "R5"];
@@ -1204,6 +1217,24 @@ export default function AFLPlayers() {
                 <th className="px-2 py-2 text-right">Max</th>
                 <th className="px-2 py-2 text-right">Avg</th>
                 <th className="px-2 py-2 text-right">Total</th>
+                {/* Disposals thresholds */}
+                <th className="px-2 py-2 text-right">%15+</th>
+                <th className="px-2 py-2 text-right">%20+</th>
+                <th className="px-2 py-2 text-right">%25+</th>
+                <th className="px-2 py-2 text-right">%30+</th>
+                <th className="px-2 py-2 text-right">%35+</th>
+                {/* Fantasy thresholds */}
+                <th className="px-2 py-2 text-right">%60+</th>
+                <th className="px-2 py-2 text-right">%70+</th>
+                <th className="px-2 py-2 text-right">%80+</th>
+                <th className="px-2 py-2 text-right">%90+</th>
+                <th className="px-2 py-2 text-right">%100+</th>
+                {/* Goals thresholds */}
+                <th className="px-2 py-2 text-right">%1+</th>
+                <th className="px-2 py-2 text-right">%2+</th>
+                <th className="px-2 py-2 text-right">%3+</th>
+                <th className="px-2 py-2 text-right">%4+</th>
+                <th className="px-2 py-2 text-right">%5+</th>
                 <th className="px-2 py-2 text-right">Stability</th>
               </tr>
             </thead>
@@ -1219,6 +1250,21 @@ export default function AFLPlayers() {
                 const meta = stabilityMeta(vol);
                 const lockedRow = !premiumUser && idx >= TABLE_FREE_ROWS;
                 const isExpanded = !!expandedRows[p.id];
+
+                // Threshold series (always computed off their native stat)
+                const disposalsSeries = getSeriesForStat(p, "disposals");
+                const fantasySeries = getSeriesForStat(p, "fantasy");
+                const goalsSeries = getSeriesForStat(p, "goals");
+
+                const disposalsThresholds = [15, 20, 25, 30, 35].map((t) =>
+                  calcThresholdPercent(disposalsSeries, t)
+                );
+                const fantasyThresholds = [60, 70, 80, 90, 100].map((t) =>
+                  calcThresholdPercent(fantasySeries, t)
+                );
+                const goalsThresholds = [1, 2, 3, 4, 5].map((t) =>
+                  calcThresholdPercent(goalsSeries, t)
+                );
 
                 const cellPad = compactMode ? "py-1.5" : "py-2.5";
 
@@ -1284,6 +1330,54 @@ export default function AFLPlayers() {
                       >
                         {games ? total : "-"}
                       </td>
+                      {/* Disposals thresholds */}
+                      {disposalsThresholds.map((pct, i) => (
+                        <td
+                          key={`d-${p.id}-${i}`}
+                          className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="tabular-nums text-neutral-100">
+                              {pct ? Math.round(pct) : 0}%
+                            </span>
+                            <span
+                              className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
+                            />
+                          </div>
+                        </td>
+                      ))}
+                      {/* Fantasy thresholds */}
+                      {fantasyThresholds.map((pct, i) => (
+                        <td
+                          key={`f-${p.id}-${i}`}
+                          className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="tabular-nums text-neutral-100">
+                              {pct ? Math.round(pct) : 0}%
+                            </span>
+                            <span
+                              className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
+                            />
+                          </div>
+                        </td>
+                      ))}
+                      {/* Goals thresholds */}
+                      {goalsThresholds.map((pct, i) => (
+                        <td
+                          key={`g-${p.id}-${i}`}
+                          className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="tabular-nums text-neutral-100">
+                              {pct ? Math.round(pct) : 0}%
+                            </span>
+                            <span
+                              className={`h-2 w-6 rounded-full ${thresholdBarClass(pct)}`}
+                            />
+                          </div>
+                        </td>
+                      ))}
                       <td
                         className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
                       >
@@ -1335,27 +1429,20 @@ export default function AFLPlayers() {
           </table>
 
           {!premiumUser && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 top-1/2 bg-gradient-to-t from-black/98 via-black/92 to-transparent backdrop-blur-2xl" />
+            <div
+              className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl"
+              style={{ top: "60%" }}
+            >
+              <a
+                href="/neeko-plus"
+                className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
+              >
+                <LockIcon />
+                <span>Unlock full master table — Neeko+</span>
+              </a>
+            </div>
           )}
         </div>
-
-        {!premiumUser && (
-          <div className="mt-3 flex flex-col gap-2 rounded-lg border border-yellow-500/50 bg-gradient-to-r from-black/90 via-black/85 to-yellow-900/40 px-3 py-2 text-[11px] text-neutral-200 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-2">
-              <LockIcon />
-              <span>
-                Showing the first {TABLE_FREE_ROWS} players in full. Neeko+ unlocks the
-                complete table, advanced filters and per-player AI commentary.
-              </span>
-            </div>
-            <a
-              href="/neeko-plus"
-              className="inline-flex items-center justify-center rounded-full bg-yellow-400 px-3 py-1 text-[11px] font-semibold text-black hover:bg-yellow-300"
-            >
-              Unlock full table
-            </a>
-          </div>
-        )}
 
         {tableVisibleCount < tableSorted.length && (
           <div className="mt-4 flex justify-center">
