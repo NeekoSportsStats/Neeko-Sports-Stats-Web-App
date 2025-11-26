@@ -123,7 +123,7 @@ const DASH_COLD_FREE = 2;
 const AI_FREE = 2;
 const RISERS_FREE = 2;
 const STABILITY_FREE = 4; // v2: 4 free cards
-const TABLE_FREE_ROWS = 50;
+const TABLE_FREE_ROWS = 15;
 
 const FREE_STAT_SET = new Set<StatKey>(["fantasy", "disposals", "goals"]);
 
@@ -462,7 +462,7 @@ export default function AFLPlayers() {
               >
                 <div className="flex min-w-0 items-center gap-2">
                   {isLocked && <LockIcon />}
-                  <span className="max-w-[9rem] truncate font-medium">{p.name}</span>
+                  <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{p.name}</span>
                   <span className="whitespace-nowrap text-[10px] text-neutral-400">
                     {p.pos} · {p.team}
                   </span>
@@ -636,7 +636,7 @@ export default function AFLPlayers() {
               >
                 <div className="flex min-w-0 items-center gap-2">
                   {isLocked && <LockIcon />}
-                  <span className="max-w-[9rem] truncate font-medium">{p.name}</span>
+                  <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{p.name}</span>
                   <span className="whitespace-nowrap text-[10px] text-neutral-400">
                     {p.pos} · {p.team}
                   </span>
@@ -760,7 +760,7 @@ export default function AFLPlayers() {
             >
               <div className="flex min-w-0 items-center gap-2">
                 {isLocked && <LockIcon />}
-                <span className="max-w-[9rem] truncate font-medium">{player.name}</span>
+                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">{player.name}</span>
                 <span className="whitespace-nowrap text-[10px] text-neutral-400">
                   {player.pos} · {player.team}
                 </span>
@@ -1223,13 +1223,13 @@ export default function AFLPlayers() {
                 <th className="px-2 py-2 text-right">%25+</th>
                 <th className="px-2 py-2 text-right">%30+</th>
                 <th className="px-2 py-2 text-right">%35+</th>
-                {/* Fantasy thresholds */}
+                
                 <th className="px-2 py-2 text-right">%60+</th>
                 <th className="px-2 py-2 text-right">%70+</th>
                 <th className="px-2 py-2 text-right">%80+</th>
                 <th className="px-2 py-2 text-right">%90+</th>
                 <th className="px-2 py-2 text-right">%100+</th>
-                {/* Goals thresholds */}
+                
                 <th className="px-2 py-2 text-right">%1+</th>
                 <th className="px-2 py-2 text-right">%2+</th>
                 <th className="px-2 py-2 text-right">%3+</th>
@@ -1346,7 +1346,7 @@ export default function AFLPlayers() {
                           </div>
                         </td>
                       ))}
-                      {/* Fantasy thresholds */}
+                      
                       {fantasyThresholds.map((pct, i) => (
                         <td
                           key={`f-${p.id}-${i}`}
@@ -1362,7 +1362,7 @@ export default function AFLPlayers() {
                           </div>
                         </td>
                       ))}
-                      {/* Goals thresholds */}
+                      
                       {goalsThresholds.map((pct, i) => (
                         <td
                           key={`g-${p.id}-${i}`}
