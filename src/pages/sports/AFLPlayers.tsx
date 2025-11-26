@@ -498,7 +498,7 @@ const renderDashboardRow = () => (
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs md:text-sm">
+      <div className="mt-2 flex flex-col gap-2 text-xs md:text-sm">
         {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
           const players = ALL_PLAYERS.filter((p) => p.pos === pos);
           const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
@@ -527,7 +527,7 @@ const renderDashboardRow = () => (
           return (
             <div
               key={pos}
-              className="flex h-[70px] flex-1 min-w-[140px] items-center justify-between rounded-full border border-cyan-400/40 bg-neutral-950/90 px-3 shadow-[0_0_18px_rgba(34,211,238,0.28)] transition-all hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.6)]"
+              className="flex h-[70px] w-full items-center justify-between rounded-full border border-cyan-400/40 bg-neutral-950/90 px-3 shadow-[0_0_18px_rgba(34,211,238,0.28)] transition-all hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.6)]"
             >
               <div className="flex flex-col gap-0.5">
                 <span className="text-[11px] text-neutral-200">{pos}</span>
@@ -662,17 +662,7 @@ const renderDashboardRow = () => (
         })}
       </ul>
 
-      {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
-          <a
-            href="/neeko-plus"
-            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
-          >
-            <LockIcon />
-            <span>Full Risers Breakdown — Neeko+</span>
-          </a>
-        </div>
-      )}
+      
     </div>
   );
 
@@ -726,16 +716,22 @@ const renderAISignals = () => (
       </div>
 
       {!premiumUser && (
-        <div className="absolute inset-x-0 bottom-0 top-1/2 flex items-start justify-center bg-gradient-to-t from-black/98 via-black/98 to-transparent backdrop-blur-2xl">
-          <a
-            href="/neeko-plus"
-            className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
-          >
-            <LockIcon />
-            <span>Unlock full AI insights — with Neeko+</span>
-          </a>
-        </div>
-      )}
+  <div
+    className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/95 to-transparent backdrop-blur-2xl"
+    style={{ top: "70%" }}
+  >
+    <div className="flex h-full items-center justify-center">
+      <a
+        href="/neeko-plus"
+        className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.85)]"
+      >
+        <LockIcon />
+        <span>Unlock full AI insights — with Neeko+</span>
+      </a>
+    </div>
+  </div>
+)}
+
     </div>
   );
 
@@ -1475,11 +1471,11 @@ const renderStability = () => (
         <section id="section-form-leaders">
           {renderDashboardRow()}
         </section>
-        <section id="section-ai-signals">
-          {renderAISignals()}
-        </section>
         <section id="section-risers">
           {renderRisers()}
+        </section>
+        <section id="section-ai-signals">
+          {renderAISignals()}
         </section>
         <section id="section-compare">
           {renderCompare()}
