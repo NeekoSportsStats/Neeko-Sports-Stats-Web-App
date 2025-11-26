@@ -1217,25 +1217,22 @@ export default function AFLPlayers() {
                 <th className="px-2 py-2 text-right">Max</th>
                 <th className="px-2 py-2 text-right">Avg</th>
                 <th className="px-2 py-2 text-right">Total</th>
-                
-                <th className="px-2 py-2 text-right">%15+</th>
-                <th className="px-2 py-2 text-right">%20+</th>
-                <th className="px-2 py-2 text-right">%25+</th>
-                <th className="px-2 py-2 text-right">%30+</th>
-                <th className="px-2 py-2 text-right">%35+</th>
-                
-                <th className="px-2 py-2 text-right">%60+</th>
-                <th className="px-2 py-2 text-right">%70+</th>
-                <th className="px-2 py-2 text-right">%80+</th>
-                <th className="px-2 py-2 text-right">%90+</th>
-                <th className="px-2 py-2 text-right">%100+</th>
-                
-                <th className="px-2 py-2 text-right">%1+</th>
-                <th className="px-2 py-2 text-right">%2+</th>
-                <th className="px-2 py-2 text-right">%3+</th>
-                <th className="px-2 py-2 text-right">%4+</th>
-                <th className="px-2 py-2 text-right">%5+</th>
+                {/* Dynamic threshold headers */}
+                {(() => {
+                  const stat = tableStat;
+                  if (stat === "disposals") return ["%15+","%20+","%25+","%30+","%35+"].map(h=>(
+                    <th className="px-2 py-2 text-right">{h}</th>
+                  ));
+                  if (stat === "fantasy") return ["%60+","%70+","%80+","%90+","%100+"].map(h=>(
+                    <th className="px-2 py-2 text-right">{h}</th>
+                  ));
+                  if (stat === "goals") return ["%1+","%2+","%3+","%4+","%5+"].map(h=>(
+                    <th className="px-2 py-2 text-right">{h}</th>
+                  ));
+                  return null;
+                })()}
                 <th className="px-2 py-2 text-right">Stability</th>
+
               </tr>
             </thead>
             <tbody>
