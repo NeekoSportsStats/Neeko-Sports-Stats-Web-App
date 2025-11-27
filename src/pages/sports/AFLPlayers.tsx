@@ -556,10 +556,12 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
 
       <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
         {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
-          const players = ALL_PLAYERS.filter((p) => p.pos === pos);
-          const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
+          const rolePlayers = ALL_PLAYERS.filter((p) => p.pos === pos);
+          const allSeries = rolePlayers.map((p) => getSeriesForStat(p, selectedStat));
+
           const curVals = allSeries.flatMap((s) => lastN(s, 5));
           const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
+
           const avgCur = average(curVals);
           const avgPrev = prevVals.length ? average(prevVals) : avgCur;
           const pctDiff =
@@ -573,43 +575,71 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
               ? "text-red-300"
               : "text-yellow-300";
 
-          const top = players
+          // Top 3 players for this role by last-5 average
+          const topThree = rolePlayers
             .map((p) => {
               const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
               return { player: p, avg: average(l5) };
             })
-            .sort((a, b) => b.avg - a.avg)[0];
+            .sort((a, b) => b.avg - a.avg)
+            .slice(0, 3);
+
+          // Role-level mock sparkline based on current average
+          const mockRoleSeries = avgCur
+            ? [
+                Math.round(avgCur * 0.88),
+                Math.round(avgCur * 0.94),
+                Math.round(avgCur),
+                Math.round(avgCur * 1.06),
+                Math.round(avgCur * 1.1),
+              ]
+            : [0, 0, 0, 0, 0];
 
           return (
             <li
               key={pos}
-              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+              className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
             >
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="font-medium text-neutral-100">{pos}</span>
-                <span className="text-[10px] text-neutral-500">
-                  {players.length} players
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="flex items-center gap-1 text-xs text-cyan-300">
-                  Avg {Math.round(avgCur || 0)}
-                  <span className={arrowColour}>
-                    {arrow} {Math.abs(pctDiff)}%
+              {/* Header row: role + players + avg / change */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-medium text-neutral-100">{pos}</span>
+                  <span className="text-[10px] text-neutral-500">
+                    {rolePlayers.length} players
                   </span>
-                </span>
-                {top && (
-                  <span className="text-[10px] text-neutral-400">
-                    Top: {top.player.name}
+                </div>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="flex items-center gap-1 text-xs text-cyan-300">
+                    Avg {Math.round(avgCur || 0)}
+                    <span className={arrowColour}>
+                      {arrow} {Math.abs(pctDiff)}%
+                    </span>
                   </span>
-                )}
+                  <span className="text-[10px] text-neutral-500">
+                    vs previous block of games (mock)
+                  </span>
+                </div>
               </div>
+
+              {/* Full-width sparkline */}
+              <div className="mt-2 w-full rounded-lg border border-cyan-500/20 bg-neutral-950/80 px-2 py-1.5">
+                <TrendSparkline values={mockRoleSeries} />
+              </div>
+
+              {/* Top 3 by role */}
+              {topThree.length > 0 && (
+                <p className="mt-2 text-[10px] text-neutral-400 truncate">
+                  Top 3:{" "}
+                  {topThree
+                    .map((entry) => entry.player.name)
+                    .join(", ")}
+                </p>
+              )}
             </li>
           );
         })}
       </ul>
     </div>
-
     {/* Risk watchlist — fully free */}
     <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(248,113,113,0.35)]">
       <div className="mb-3 flex items-center justify-between gap-2">
