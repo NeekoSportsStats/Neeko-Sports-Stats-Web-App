@@ -363,29 +363,16 @@ const risers = moversBase
     .sort((a, b) => a.diff - b.diff)
     .slice(0, 6);
 
+  
   const stabilityList = [...ALL_PLAYERS]
     .map((p) => {
       const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
-      return { play      const l5 = lastN(series, 5);
       if (l5.length < 5) return null;
-      const prev4 = l5.slice(0, 4);
-      const last = l5[4];
-      return { player: p, diff: last - average(prev4), last };
+      const vol = stdDev(l5);
+      return { player: p, vol };
     })
-    .filter(Boolean)
-    .sort((a, b) => (b as any).diff - (a as any).diff)
-    .slice(0, 6) as { player: Player; diff: number; last: number }[];
-
-  const stabilityList = [...ALL_PLAYERS]
-    .map((p) => {
-      const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
-      return { player: p, vol: stdDev(l5) };
-    })
-    .sort((a, b) => a.vol - b.vol)
-    .slice(0, 20);
-
-  // Table filtering (mock: year and roundFilter not yet wired to data)
-  const filteredTable = ALL_PLAYERS.filter((p) => {
+    .filter(Boolean) as { player: Player; vol: number }[];
+const filteredTable = ALL_PLAYERS.filter((p) => {
     if (teamFilter !== "All Teams" && p.team !== teamFilter) return false;
     if (positionFilter !== "All Positions" && p.pos !== positionFilter) return false;
     return true;
