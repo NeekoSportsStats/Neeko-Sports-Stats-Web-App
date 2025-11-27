@@ -747,10 +747,10 @@ const renderRisers = () => (
       </span>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {/* RISERS COLUMN */}
       <div>
-        <h3 className="mb-1 text-xs font-semibold text-emerald-300 uppercase tracking-[0.16em]">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
           📈 Risers
         </h3>
         <ul className="space-y-2">
@@ -777,15 +777,13 @@ const renderRisers = () => (
                   onClick={() => setOpenRiserId(isOpen ? null : player.id)}
                   className="flex w-full items-center justify-between gap-2 text-left"
                 >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-semibold text-neutral-50">
-                        {player.name}
-                      </span>
-                      <span className="truncate text-[11px] text-neutral-400">
-                        {player.pos} · {player.team}
-                      </span>
-                    </div>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-neutral-50">
+                      {player.name}
+                    </span>
+                    <span className="truncate text-[11px] text-neutral-400">
+                      {player.pos} · {player.team}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
@@ -797,13 +795,11 @@ const renderRisers = () => (
                     <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
                       <TrendSparkline values={mockSeries} />
                     </div>
-                    <span className="text-xs text-neutral-400">
-                      {isOpen ? "▴" : "▾"}
-                    </span>
+                    <span className="text-xs text-neutral-400">{isOpen ? "▴" : "▾"}</span>
                   </div>
                 </button>
                 <div
-                  className="transition-all duration-300 ease-in-out overflow-hidden"
+                  className="overflow-hidden transition-all duration-300 ease-in-out"
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
@@ -838,9 +834,9 @@ const renderRisers = () => (
         </ul>
       </div>
 
-      {/* FALLERS COLUMN */}
+      {/* FALLS COLUMN */}
       <div>
-        <h3 className="mb-1 text-xs font-semibold text-red-300 uppercase tracking-[0.16em]">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-red-300">
           📉 Falls
         </h3>
         <ul className="space-y-2">
@@ -868,15 +864,13 @@ const renderRisers = () => (
                   onClick={() => setOpenFallerId(isOpen ? null : player.id)}
                   className="flex w-full items-center justify-between gap-2 text-left"
                 >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-semibold text-neutral-50">
-                        {player.name}
-                      </span>
-                      <span className="truncate text-[11px] text-neutral-400">
-                        {player.pos} · {player.team}
-                      </span>
-                    </div>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-neutral-50">
+                      {player.name}
+                    </span>
+                    <span className="truncate text-[11px] text-neutral-400">
+                      {player.pos} · {player.team}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
@@ -888,13 +882,11 @@ const renderRisers = () => (
                     <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
                       <TrendSparkline values={mockSeries} />
                     </div>
-                    <span className="text-xs text-neutral-400">
-                      {isOpen ? "▴" : "▾"}
-                    </span>
+                    <span className="text-xs text-neutral-400">{isOpen ? "▴" : "▾"}</span>
                   </div>
                 </button>
                 <div
-                  className="transition-all duration-300 ease-in-out overflow-hidden"
+                  className="overflow-hidden transition-all duration-300 ease-in-out"
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
@@ -1101,7 +1093,7 @@ const renderStability = () => (
       </div>
 
       <div className="relative z-10 grid grid-cols-1 gap-2 text-xs md:grid-cols-2 md:text-sm">
-        {stabilityList.map((entry, idx) => {
+        {stabilityList.slice(0, 12).map((entry, idx) => {
           const { player, vol } = entry;
           const isLocked = !premiumUser && idx >= STABILITY_FREE;
           const meta = stabilityMeta(vol);
@@ -1109,7 +1101,7 @@ const renderStability = () => (
           return (
             <div
               key={player.id}
-              className={`flex items-center justify-between rounded-xl border border-sky-400/40 bg-neutral-950/90 px-3 py-2 ${
+              className={`flex items-center justify-between rounded-xl border border-sky-400/40 bg-neutral-950/90 px-3 py-1.5 ${
                 isLocked ? "opacity-40 blur-sm" : ""
               }`}
             >
