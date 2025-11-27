@@ -652,29 +652,31 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
             vol > 10 ? "High volatility" : veryCold ? "Trending down" : "At risk";
 
           return (
-            <li
-              key={p.id}
-              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
-                  {p.name}
-                </span>
-                <span className="whitespace-nowrap text-[10px] text-neutral-400">
-                  {p.pos} · {p.team}
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="flex items-center text-xs text-red-300">
-                  Avg {avg}
-                  {veryCold && <ColdIcon />}
-                  {vol > 10 && <WarningIcon />}
-                </span>
-                <span className="text-[10px] text-neutral-500">
-                  {label}
-                </span>
-              </div>
-            </li>
+            
+<li
+  key={p.id}
+  className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+>
+  <div className="flex items-center justify-between">
+    <div className="flex flex-col min-w-0">
+      <span className="font-medium text-neutral-100 truncate">{p.name}</span>
+      <span className="text-[10px] text-neutral-500 truncate">
+        {p.pos} · {p.team}
+      </span>
+      <span className="text-[10px] text-neutral-500">
+        Season snapshot (mock L5)
+      </span>
+      <span className="text-[10px] text-neutral-400">
+        Cold / volatile recent scores
+      </span>
+    </div>
+    <span className="flex items-center gap-1 text-xs text-cyan-300">
+      Avg {avg}
+      <Snowflake size={12} className="text-cyan-300" />
+    </span>
+  </div>
+</li>
+
           );
         })}
       </ul>
