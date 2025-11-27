@@ -500,9 +500,9 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
               key={p.id}
               className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
             >
-              <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
+                  <span className="max-w-[10.5rem] truncate whitespace-nowrap font-medium">
                     {p.name}
                   </span>
                   <span className="whitespace-nowrap text-[10px] text-neutral-400">
@@ -532,7 +532,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
     <div className="relative overflow-hidden rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.28)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1 backdrop-blur-md">
             <span className="text-xs md:text-sm font-medium text-cyan-100">
               📊 Position Trends
             </span>
@@ -594,7 +594,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
             >
               {/* Header row: role + players + avg / change */}
               <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-col gap-1">
                   <span className="font-medium text-neutral-100">{pos}</span>
                   <span className="text-[10px] text-neutral-500">
                     {rolePlayers.length} players
@@ -616,7 +616,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
               {/* Full-width sparkline */}
               {/* Top 3 by role */}
               {topThree.length > 0 && (
-                <p className="mt-2 text-[10px] text-neutral-400 truncate">
+                <p className="mt-1.5 text-[10px] text-neutral-400 truncate">
                   Top 3:{" "}
                   {topThree
                     .map((entry) => entry.player.name)
@@ -629,7 +629,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
       </ul>
     </div>
     {/* Risk watchlist — fully free */}
-    <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(248,113,113,0.35)]">
+    <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_22px_rgba(248,113,113,0.28)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/20 px-3 py-1.5 backdrop-blur-md">
           <span className="text-xs md:text-sm font-medium text-red-100">
@@ -1439,7 +1439,7 @@ const renderStability = () => (
                               </h4>
                               <div className="w-full rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
                                 <TrendSparkline values={series} />
-                                <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-neutral-300">
+                                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-neutral-300">
                                   {series.map((v, i) => (
                                     <span
                                       key={i}
