@@ -482,7 +482,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
   const renderDashboardRow = () => (
   <div className="mt-6 grid gap-4 md:grid-cols-3">
     {/* Hot list — fully free */}
-    <div className="relative overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/80 via-neutral-950 to-emerald-900/30 p-4 shadow-[0_0_26px_rgba(16,185,129,0.35)]">
+    <div className="relative overflow-hidden rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/80 via-neutral-950 to-emerald-900/30 p-4 shadow-[0_0_26px_rgba(16,185,129,0.28)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/15 px-3 py-1.5 backdrop-blur-md">
           <span className="text-xs md:text-sm font-medium text-emerald-100">
@@ -537,7 +537,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
     </div>
 
     {/* Position trends — role list, fully free */}
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.35)]">
+    <div className="relative overflow-hidden rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.28)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex flex-col gap-1">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
@@ -611,7 +611,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
     </div>
 
     {/* Risk watchlist — fully free */}
-    <div className="relative overflow-hidden rounded-2xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(248,113,113,0.45)]">
+    <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(248,113,113,0.35)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/20 px-3 py-1.5 backdrop-blur-md">
           <span className="text-xs md:text-sm font-medium text-red-100">
@@ -666,7 +666,7 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
   </div>
 );
 const renderAISignals = () => (
-  <div className="relative mt-8 overflow-hidden rounded-2xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
+  <div className="relative mt-8 overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
     <div className="mb-3 flex items-center justify-between gap-2">
       <div>
         <h2 className="flex items-center gap-2 text-base md:text-lg font-semibold">
@@ -714,13 +714,13 @@ const renderAISignals = () => (
       {/* Soft lock: only top 3 are clearly visible for free users */}
       {!premiumUser && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
           style={{ top: "58%" }}
         >
           <div className="flex h-full items-center justify-center">
             <a
               href="/neeko-plus"
-              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.85)]"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.75)]"
             >
               <LockIcon />
               <span>Unlock full AI insights — with Neeko+</span>
@@ -732,7 +732,7 @@ const renderAISignals = () => (
   </div>
 );
 const renderRisers = () => (
-  <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-950/50 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
+  <div className="relative mt-6 overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-950/50 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.32)]">
     <div className="mb-3 flex items-center justify-between gap-2">
       <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
         <span className="text-xs md:text-sm font-medium text-purple-100">
@@ -770,7 +770,7 @@ const renderRisers = () => (
             return (
               <li
                 key={player.id}
-                className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(16,185,129,0.35)]"
+                className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(16,185,129,0.28)]"
               >
                 <button
                   type="button"
@@ -803,7 +803,7 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    <div className="mt-2 rounded-xl border border-purple-500/40 bg-purple-950/70 p-3 shadow-[0_0_18px_rgba(168,85,247,0.4)]">
+                    <div className="mt-2 rounded-xl border border-purple-500/40 bg-purple-950/70 p-3 shadow-[0_0_18px_rgba(168,85,247,0.32)]">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div className="text-xs font-semibold text-purple-100">
                           {player.name}
@@ -857,7 +857,7 @@ const renderRisers = () => (
             return (
               <li
                 key={player.id}
-                className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(248,113,113,0.35)]"
+                className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(248,113,113,0.28)]"
               >
                 <button
                   type="button"
@@ -890,7 +890,7 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/70 p-3 shadow-[0_0_18px_rgba(248,113,113,0.4)]">
+                    <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/70 p-3 shadow-[0_0_18px_rgba(248,113,113,0.32)]">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div className="text-xs font-semibold text-red-100">
                           {player.name}
@@ -924,7 +924,7 @@ const renderRisers = () => (
   </div>
 );
 const renderCompare = () => (
-  <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-2xl border border-neutral-700 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.35)]">
+  <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.3)]">
     <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
         <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
@@ -1047,7 +1047,7 @@ const renderCompare = () => (
       </div>
 
       {/* Comparison chart stub */}
-      <div className="rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 px-4 py-6">
+      <div className="rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 px-4 py-6">
         <p className="mb-3 text-xs text-neutral-400">
           Once unlocked, this section will show a full side-by-side trend graph, last-5
           averages and volatility comparison for your selected stat.
@@ -1059,13 +1059,13 @@ const renderCompare = () => (
     {/* Soft lock overlay */}
     {!premiumUser && (
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
         style={{ top: "55%" }}
       >
         <div className="flex h-full items-center justify-center">
           <a
             href="/neeko-plus"
-            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.9)]"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.8)]"
           >
             <LockIcon />
             <span>Unlock full interactive compare — Neeko+</span>
@@ -1076,7 +1076,7 @@ const renderCompare = () => (
   </div>
 );
 const renderStability = () => (
-    <div className="relative mt-8 overflow-hidden rounded-2xl border border-sky-500/40 bg-gradient-to-br from-sky-950/80 via-neutral-950 to-sky-900/30 p-4 shadow-[0_0_26px_rgba(56,189,248,0.45)]">
+    <div className="relative mt-8 overflow-hidden rounded-xl border border-sky-500/40 bg-gradient-to-br from-sky-950/80 via-neutral-950 to-sky-900/30 p-4 shadow-[0_0_26px_rgba(56,189,248,0.35)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
           <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
@@ -1125,12 +1125,12 @@ const renderStability = () => (
 
       {!premiumUser && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
           style={{ top: "44%" }} // overlay starts above row 3 so 4 cards remain free
         >
           <a
             href="/neeko-plus"
-            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.8)]"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.7)]"
           >
             <LockIcon />
             <span>Unlock full stability rankings — Neeko+</span>
@@ -1158,7 +1158,7 @@ const renderStability = () => (
     const roundLabels = ["OR", "R1", "R2", "R3", "R4", "R5"];
 
     return (
-      <div className="relative mx-auto mt-8 max-w-6xl rounded-3xl border border-yellow-400/45 bg-neutral-950/98 p-5 shadow-[0_0_30px_rgba(250,204,21,0.45)]">
+      <div className="relative mx-auto mt-8 max-w-6xl rounded-3xl border border-yellow-400/45 bg-neutral-950/98 p-5 shadow-[0_0_30px_rgba(250,204,21,0.35)]">
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -1288,7 +1288,7 @@ const renderStability = () => (
         </div>
 
         {/* Table */}
-        <div className="relative overflow-x-auto rounded-2xl border border-neutral-800 bg-neutral-950/95">
+        <div className="relative mt-4 mb-10 overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/95">
           <table className="min-w-[960px] w-full text-left text-[11px] md:text-xs">
             <thead>
               <tr className="border-b border-neutral-800 bg-neutral-900/85">
@@ -1487,12 +1487,12 @@ const renderStability = () => (
 
           {!premiumUser && (
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
+              className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
               style={{ top: "58%" }}
             >
               <a
                 href="/neeko-plus"
-                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.8)]"
               >
                 <LockIcon />
                 <span>Unlock full master table — Neeko+</span>
@@ -1616,6 +1616,36 @@ const renderStability = () => (
                 deeper AI and more live on Neeko+.
               </span>
             )}
+          </div>
+        </div>
+
+        {/* Sticky section tabs (desktop only) */}
+        <div className="sticky top-16 z-30 -mx-4 mb-4 hidden border-b border-neutral-900/70 bg-gradient-to-b from-black/95 via-black/90 to-transparent px-4 py-2 text-[11px] text-neutral-400 md:flex">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 overflow-x-auto">
+            <a href="#section-form-leaders" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100">
+              <span>🔥</span>
+              <span>Form &amp; Positions</span>
+            </a>
+            <a href="#section-risers" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100">
+              <span>📉📈</span>
+              <span>Movers</span>
+            </a>
+            <a href="#section-ai-signals" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100">
+              <span>🧠</span>
+              <span>AI Signals</span>
+            </a>
+            <a href="#section-compare" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100">
+              <span>🔀</span>
+              <span>Compare</span>
+            </a>
+            <a href="#section-stability" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100">
+              <span>📉</span>
+              <span>Stability</span>
+            </a>
+            <a href="#section-master-table" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100">
+              <span>📑</span>
+              <span>Master Table</span>
+            </a>
           </div>
         </div>
 
