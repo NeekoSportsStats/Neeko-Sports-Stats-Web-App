@@ -660,22 +660,22 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
   className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
 >
   <div className="flex items-center justify-between">
-    <div className="flex min-w-0 flex-col leading-[1.15]">
+    <div className="flex min-w-0 flex-col leading-tight">
       <span className="font-medium text-neutral-100 truncate">{p.name}</span>
-      <span className="text-[10px] text-neutral-500 truncate leading-[1.1]">
+      <span className="text-[10px] text-neutral-500 truncate leading-tight">
         {p.pos} · {p.team}
       </span>
-      <span className="text-[10px] text-neutral-500 leading-[1.1]">
+      <span className="text-[10px] text-neutral-500 leading-tight">
         Season snapshot (mock L5)
       </span>
     </div>
 
-    <div className="flex flex-col items-end leading-[1.1]">
+    <div className="flex flex-col items-end leading-tight">
       <span className="flex items-center gap-[2px] text-xs text-cyan-300">
         Avg {avg}
         <Snowflake size={10} className="text-cyan-300" />
       </span>
-      <span className="text-[10px] text-neutral-500 leading-[1.1]">
+      <span className="text-[10px] text-neutral-500 leading-tight">
         Cold / volatile recent scores
       </span>
     </div>
