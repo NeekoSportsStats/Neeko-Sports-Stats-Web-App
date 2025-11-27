@@ -612,10 +612,6 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
               </div>
 
               {/* Full-width sparkline */}
-              <div className="mt-2 w-full rounded-lg border border-cyan-500/20 bg-neutral-950/80 px-2 py-1.5">
-                <TrendSparkline values={mockRoleSeries} />
-              </div>
-
               {/* Top 3 by role */}
               {topThree.length > 0 && (
                 <p className="mt-2 text-[10px] text-neutral-400 truncate">
@@ -823,28 +819,6 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    <div className="mt-2 rounded-xl border border-purple-500/40 bg-purple-950/70 p-3 shadow-[0_0_18px_rgba(168,85,247,0.32)]">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-purple-100">
-                          {player.name}
-                        </div>
-                        <div className="inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] text-neutral-300">
-                          <span>{player.pos}</span>
-                          <span className="text-neutral-500">·</span>
-                          <span>{player.team}</span>
-                        </div>
-                      </div>
-                      <div className="mb-2 text-[11px] text-neutral-300">
-                        {changeLabel} — last game of {Math.round(last)} compared to a previous
-                        four-game average of{" "}
-                        <span className="font-semibold text-emerald-300">
-                          {Math.round(last - diff)}
-                        </span>
-                        .
-                      </div>
-                      <div className="rounded-xl bg-neutral-950/90 px-3 py-2">
-                        <TrendSparkline values={mockSeries} />
-                      </div>
                     </div>
                   )}
                 </div>
@@ -910,28 +884,6 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/70 p-3 shadow-[0_0_18px_rgba(248,113,113,0.32)]">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-red-100">
-                          {player.name}
-                        </div>
-                        <div className="inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] text-neutral-300">
-                          <span>{player.pos}</span>
-                          <span className="text-neutral-500">·</span>
-                          <span>{player.team}</span>
-                        </div>
-                      </div>
-                      <div className="mb-2 text-[11px] text-neutral-300">
-                        {changeLabel} — last game of {Math.round(last)} compared to a previous
-                        four-game average of{" "}
-                        <span className="font-semibold text-red-300">
-                          {Math.round(last - diff)}
-                        </span>
-                        .
-                      </div>
-                      <div className="rounded-xl bg-neutral-950/90 px-3 py-2">
-                        <TrendSparkline values={mockSeries} />
-                      </div>
                     </div>
                   )}
                 </div>
