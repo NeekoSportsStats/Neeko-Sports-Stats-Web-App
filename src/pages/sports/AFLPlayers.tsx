@@ -333,20 +333,27 @@ export default function AFLPlayers() {
   const hotList = sortedByForm.slice(0, 6);
   const coldList = [...sortedByForm].reverse().slice(0, 6);
 
+  
   const moversBase = [...ALL_PLAYERS]
     .map((p) => {
       const series = getSeriesForStat(p, selectedStat);
       const l5 = lastN(series, 5);
       if (l5.length < 5) return null;
+
       const prev4 = l5.slice(0, 4);
       const last = l5[4];
       const prevAvg = average(prev4);
       const diff = last - prevAvg;
+
       return { player: p, diff, last, prevAvg };
     })
-    .filter(Boolean) as { player: Player; diff: number; last: number; prevAvg: number }[];
-
-  const risers = moversBase
+    .filter(Boolean) as {
+      player: Player;
+      diff: number;
+      last: number;
+      prevAvg: number;
+    };
+const risers = moversBase
     .filter((m) => m.diff > 0)
     .sort((a, b) => b.diff - a.diff)
     .slice(0, 6);
