@@ -819,8 +819,12 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    </div>
-                  )}
+  <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+    <p className="text-neutral-400">
+      Detailed movement breakdown will appear here. Connect this to your AI or deeper analysis later.
+    </p>
+  </div>
+)}
                 </div>
               </li>
             );
@@ -884,8 +888,12 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    </div>
-                  )}
+  <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+    <p className="text-neutral-400">
+      Detailed movement breakdown will appear here. Connect this to your AI or deeper analysis later.
+    </p>
+  </div>
+)}
                 </div>
               </li>
             );
