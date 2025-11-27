@@ -9,6 +9,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { Snowflake } from "lucide-react";
 
+
 // -----------------------------------------------------------------------------
 // Minimal UI stubs — swap these to your real component library in your project
 // -----------------------------------------------------------------------------
@@ -193,33 +194,23 @@ function getSeriesForStat(p: Player, stat: StatKey): number[] {
 }
 
 // Sparkline
-const TrendSparkline = ({ values }: { values: number[] }) => {
+const TrendSparkline = ({ values, height = 18 }: { values: number[], height?: number }) => {
   if (!values.length) return null;
   const max = Math.max(...values);
   const min = Math.min(...values);
   const range = max - min || 1;
-
-  const points = values
-    .map((v, i) => {
+  const points = values.map((v, i) => {
       const x = (i / Math.max(values.length - 1, 1)) * 160;
-      const y = 40 - ((v - min) / range) * 30 - 5;
+      const y = height - ((v - min) / range) * (height - 4);
       return `${x},${y}`;
-    })
-    .join(" ");
-
+    }).join(" ");
   return (
-    <svg width={160} height={40} className="overflow-visible">
-      <polyline
-        fill="none"
-        stroke="#22c55e"
-        strokeWidth={2}
-        points={points}
-        className="transition-all duration-200"
-      />
+    <svg width={160} height={height} className="overflow-visible">
+      <polyline fill="none" stroke="#22c55e" strokeWidth={2} points={points} />
       {values.map((v, i) => {
         const x = (i / Math.max(values.length - 1, 1)) * 160;
-        const y = 40 - ((v - min) / range) * 30 - 5;
-        return <circle key={i} cx={x} cy={y} r={2.5} fill="#22c55e" />;
+        const y = height - ((v - min) / range) * (height - 4);
+        return <circle key={i} cx={x} cy={y} r={1.6} fill="#22c55e" />;
       })}
     </svg>
   );
@@ -557,10 +548,12 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
 
       <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
         {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
-          const players = ALL_PLAYERS.filter((p) => p.pos === pos);
-          const allSeries = players.map((p) => getSeriesForStat(p, selectedStat));
+          const rolePlayers = ALL_PLAYERS.filter((p) => p.pos === pos);
+          const allSeries = rolePlayers.map((p) => getSeriesForStat(p, selectedStat));
+
           const curVals = allSeries.flatMap((s) => lastN(s, 5));
           const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
+
           const avgCur = average(curVals);
           const avgPrev = prevVals.length ? average(prevVals) : avgCur;
           const pctDiff =
@@ -574,43 +567,67 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
               ? "text-red-300"
               : "text-yellow-300";
 
-          const top = players
+          // Top 3 players for this role by last-5 average
+          const topThree = rolePlayers
             .map((p) => {
               const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
               return { player: p, avg: average(l5) };
             })
-            .sort((a, b) => b.avg - a.avg)[0];
+            .sort((a, b) => b.avg - a.avg)
+            .slice(0, 3);
+
+          // Role-level mock sparkline based on current average
+          const mockRoleSeries = avgCur
+            ? [
+                Math.round(avgCur * 0.88),
+                Math.round(avgCur * 0.94),
+                Math.round(avgCur),
+                Math.round(avgCur * 1.06),
+                Math.round(avgCur * 1.1),
+              ]
+            : [0, 0, 0, 0, 0];
 
           return (
             <li
               key={pos}
-              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+              className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
             >
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="font-medium text-neutral-100">{pos}</span>
-                <span className="text-[10px] text-neutral-500">
-                  {players.length} players
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="flex items-center gap-1 text-xs text-cyan-300">
-                  Avg {Math.round(avgCur || 0)}
-                  <span className={arrowColour}>
-                    {arrow} {Math.abs(pctDiff)}%
+              {/* Header row: role + players + avg / change */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-medium text-neutral-100">{pos}</span>
+                  <span className="text-[10px] text-neutral-500">
+                    {rolePlayers.length} players
                   </span>
-                </span>
-                {top && (
-                  <span className="text-[10px] text-neutral-400">
-                    Top: {top.player.name}
+                </div>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="flex items-center gap-1 text-xs text-cyan-300">
+                    Avg {Math.round(avgCur || 0)}
+                    <span className={arrowColour}>
+                      {arrow} {Math.abs(pctDiff)}%
+                    </span>
                   </span>
-                )}
+                  <span className="text-[10px] text-neutral-500">
+                    vs previous block of games (mock)
+                  </span>
+                </div>
               </div>
+
+              {/* Full-width sparkline */}
+              {/* Top 3 by role */}
+              {topThree.length > 0 && (
+                <p className="mt-2 text-[10px] text-neutral-400 truncate">
+                  Top 3:{" "}
+                  {topThree
+                    .map((entry) => entry.player.name)
+                    .join(", ")}
+                </p>
+              )}
             </li>
           );
         })}
       </ul>
     </div>
-
     {/* Risk watchlist — fully free */}
     <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(248,113,113,0.35)]">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -637,29 +654,34 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
             vol > 10 ? "High volatility" : veryCold ? "Trending down" : "At risk";
 
           return (
-            <li
-              key={p.id}
-              className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
-                  {p.name}
-                </span>
-                <span className="whitespace-nowrap text-[10px] text-neutral-400">
-                  {p.pos} · {p.team}
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="flex items-center text-xs text-red-300">
-                  Avg {avg}
-                  {veryCold && <ColdIcon />}
-                  {vol > 10 && <WarningIcon />}
-                </span>
-                <span className="text-[10px] text-neutral-500">
-                  {label}
-                </span>
-              </div>
-            </li>
+            
+<li
+  key={p.id}
+  className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+>
+  <div className="flex items-center justify-between">
+    <div className="flex min-w-0 flex-col leading-[1.15]">
+      <span className="font-medium text-neutral-100 truncate">{p.name}</span>
+      <span className="text-[10px] text-neutral-500 truncate leading-[1.1]">
+        {p.pos} · {p.team}
+      </span>
+      <span className="text-[10px] text-neutral-500 leading-[1.1]">
+        Season snapshot (mock L5)
+      </span>
+    </div>
+
+    <div className="flex flex-col items-end leading-[1.1]">
+      <span className="flex items-center gap-[2px] text-xs text-cyan-300">
+        Avg {avg}
+        <Snowflake size={10} className="text-cyan-300" />
+      </span>
+      <span className="text-[10px] text-neutral-500 leading-[1.1]">
+        Cold / volatile recent scores
+      </span>
+    </div>
+  </div>
+</li>
+
           );
         })}
       </ul>
@@ -804,30 +826,12 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    <div className="mt-2 rounded-xl border border-purple-500/40 bg-purple-950/70 p-3 shadow-[0_0_18px_rgba(168,85,247,0.32)]">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-purple-100">
-                          {player.name}
-                        </div>
-                        <div className="inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] text-neutral-300">
-                          <span>{player.pos}</span>
-                          <span className="text-neutral-500">·</span>
-                          <span>{player.team}</span>
-                        </div>
-                      </div>
-                      <div className="mb-2 text-[11px] text-neutral-300">
-                        {changeLabel} — last game of {Math.round(last)} compared to a previous
-                        four-game average of{" "}
-                        <span className="font-semibold text-emerald-300">
-                          {Math.round(last - diff)}
-                        </span>
-                        .
-                      </div>
-                      <div className="rounded-xl bg-neutral-950/90 px-3 py-2">
-                        <TrendSparkline values={mockSeries} />
-                      </div>
-                    </div>
-                  )}
+  <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+    <p className="text-neutral-400">
+      Detailed movement breakdown will appear here. Connect this to your AI or deeper analysis later.
+    </p>
+  </div>
+)}
                 </div>
               </li>
             );
@@ -891,30 +895,12 @@ const renderRisers = () => (
                   style={{ maxHeight: isOpen ? "260px" : "0px" }}
                 >
                   {isOpen && (
-                    <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/70 p-3 shadow-[0_0_18px_rgba(248,113,113,0.32)]">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-red-100">
-                          {player.name}
-                        </div>
-                        <div className="inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] text-neutral-300">
-                          <span>{player.pos}</span>
-                          <span className="text-neutral-500">·</span>
-                          <span>{player.team}</span>
-                        </div>
-                      </div>
-                      <div className="mb-2 text-[11px] text-neutral-300">
-                        {changeLabel} — last game of {Math.round(last)} compared to a previous
-                        four-game average of{" "}
-                        <span className="font-semibold text-red-300">
-                          {Math.round(last - diff)}
-                        </span>
-                        .
-                      </div>
-                      <div className="rounded-xl bg-neutral-950/90 px-3 py-2">
-                        <TrendSparkline values={mockSeries} />
-                      </div>
-                    </div>
-                  )}
+  <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+    <p className="text-neutral-400">
+      Detailed movement breakdown will appear here. Connect this to your AI or deeper analysis later.
+    </p>
+  </div>
+)}
                 </div>
               </li>
             );
