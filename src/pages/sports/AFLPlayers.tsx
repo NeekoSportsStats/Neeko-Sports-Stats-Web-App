@@ -192,33 +192,23 @@ function getSeriesForStat(p: Player, stat: StatKey): number[] {
 }
 
 // Sparkline
-const TrendSparkline = ({ values }: { values: number[] }) => {
+const TrendSparkline = ({ values, height = 18 }: { values: number[], height?: number }) => {
   if (!values.length) return null;
   const max = Math.max(...values);
   const min = Math.min(...values);
   const range = max - min || 1;
-
-  const points = values
-    .map((v, i) => {
+  const points = values.map((v, i) => {
       const x = (i / Math.max(values.length - 1, 1)) * 160;
-      const y = 40 - ((v - min) / range) * 30 - 5;
+      const y = height - ((v - min) / range) * (height - 4);
       return `${x},${y}`;
-    })
-    .join(" ");
-
+    }).join(" ");
   return (
-    <svg width={160} height={40} className="overflow-visible">
-      <polyline
-        fill="none"
-        stroke="#22c55e"
-        strokeWidth={2}
-        points={points}
-        className="transition-all duration-200"
-      />
+    <svg width={160} height={height} className="overflow-visible">
+      <polyline fill="none" stroke="#22c55e" strokeWidth={2} points={points} />
       {values.map((v, i) => {
         const x = (i / Math.max(values.length - 1, 1)) * 160;
-        const y = 40 - ((v - min) / range) * 30 - 5;
-        return <circle key={i} cx={x} cy={y} r={2.5} fill="#22c55e" />;
+        const y = height - ((v - min) / range) * (height - 4);
+        return <circle key={i} cx={x} cy={y} r={1.6} fill="#22c55e" />;
       })}
     </svg>
   );
