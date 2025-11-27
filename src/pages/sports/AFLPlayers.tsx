@@ -305,6 +305,7 @@ export default function AFLPlayers() {
   // Shared stat lens
   const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
   const [openRiserId, setOpenRiserId] = useState<number | null>(null);
+  const [openFallerId, setOpenFallerId] = useState<number | null>(null);
 
   // Table state
   const [tableStat, setTableStat] = useState<StatKey>("fantasy");
@@ -332,10 +333,33 @@ export default function AFLPlayers() {
   const hotList = sortedByForm.slice(0, 6);
   const coldList = [...sortedByForm].reverse().slice(0, 6);
 
-  const risers = [...ALL_PLAYERS]
+  const moversBase = [...ALL_PLAYERS]
     .map((p) => {
       const series = getSeriesForStat(p, selectedStat);
       const l5 = lastN(series, 5);
+      if (l5.length < 5) return null;
+      const prev4 = l5.slice(0, 4);
+      const last = l5[4];
+      const prevAvg = average(prev4);
+      const diff = last - prevAvg;
+      return { player: p, diff, last, prevAvg };
+    })
+    .filter(Boolean) as { player: Player; diff: number; last: number; prevAvg: number }[];
+
+  const risers = moversBase
+    .filter((m) => m.diff > 0)
+    .sort((a, b) => b.diff - a.diff)
+    .slice(0, 6);
+
+  const fallers = moversBase
+    .filter((m) => m.diff < 0)
+    .sort((a, b) => a.diff - b.diff)
+    .slice(0, 6);
+
+  const stabilityList = [...ALL_PLAYERS]
+    .map((p) => {
+      const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+      return { play      const l5 = lastN(series, 5);
       if (l5.length < 5) return null;
       const prev4 = l5.slice(0, 4);
       const last = l5[4];
@@ -697,7 +721,7 @@ const renderAISignals = () => (
       {!premiumUser && (
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]"
-          style={{ top: "68%" }}
+          style={{ top: "58%" }}
         >
           <div className="flex h-full items-center justify-center">
             <a
@@ -714,11 +738,11 @@ const renderAISignals = () => (
   </div>
 );
 const renderRisers = () => (
-  <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-950/80 via-neutral-950 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
+  <div className="relative mt-6 overflow-hidden rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-950/50 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.4)]">
     <div className="mb-3 flex items-center justify-between gap-2">
       <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
         <span className="text-xs md:text-sm font-medium text-purple-100">
-          📈 Role &amp; Form Risers
+          📉📈 Role &amp; Form Movers
         </span>
         <span className="text-[10px] text-purple-200/80">
           Last game vs previous four
@@ -729,70 +753,188 @@ const renderRisers = () => (
       </span>
     </div>
 
-    <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
-      {risers.map((entry) => {
-        const { player, diff, last } = entry;
-        const isOpen = openRiserId === player.id;
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* RISERS COLUMN */}
+      <div>
+        <h3 className="mb-1 text-xs font-semibold text-emerald-300 uppercase tracking-[0.16em]">
+          📈 Risers
+        </h3>
+        <ul className="space-y-2">
+          {risers.map(({ player, diff, last }) => {
+            const isOpen = openRiserId === player.id;
+            const changeLabel =
+              diff > 10 ? "Big short-term lift" : diff > 5 ? "Strong lift" : "Mild improvement";
 
-        // Build a simple mock series to feed the sparkline: four points around prev avg, then last
-        const series = getSeriesForStat(player, selectedStat);
-        const l5 = lastN(series, 5);
-        const prev4 = l5.slice(0, 4);
-        const prevAvg = prev4.length ? average(prev4) : last;
-        const mockSeries = [
-          Math.round(prevAvg * 0.94),
-          Math.round(prevAvg * 0.97),
-          Math.round(prevAvg * 1.0),
-          Math.round(prevAvg * 1.03),
-          Math.round(last),
-        ];
+            const mockSeries = [
+              Math.max(0, Math.round(last - diff * 1.6)),
+              Math.max(0, Math.round(last - diff * 1.1)),
+              Math.max(0, Math.round(last - diff * 0.6)),
+              Math.max(0, Math.round(last - diff * 0.2)),
+              Math.round(last),
+            ];
 
-        return (
-          <li
-            key={player.id}
-            className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
-          >
-            <button
-              type="button"
-              onClick={() => setOpenRiserId(isOpen ? null : player.id)}
-              className="flex w-full items-center justify-between gap-2 text-left"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="max-w-[9rem] truncate whitespace-nowrap font-medium">
-                  {player.name}
-                </span>
-                <span className="whitespace-nowrap text-[10px] text-neutral-400">
-                  {player.pos} · {player.team}
-                </span>
-              </div>
-              <div className="flex flex-col items-end gap-0.5">
-                <span className="text-xs text-emerald-300">
-                  Last: {Math.round(last)} ({diff >= 0 ? "+" : ""}
-                  {Math.round(diff)})
-                </span>
-                <span className="text-[10px] text-neutral-500">
-                  Strong short-term lift
-                </span>
-              </div>
-            </button>
-
-            {isOpen && (
-              <div className="mt-2 rounded-2xl border border-purple-400/40 bg-purple-950/40 p-3">
-                <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-300">
-                  <span>Last game vs previous four (mock trend)</span>
-                  <span className="text-neutral-400">
-                    {player.pos} · {player.team}
-                  </span>
+            return (
+              <li
+                key={player.id}
+                className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(16,185,129,0.35)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenRiserId(isOpen ? null : player.id)}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="truncate text-[11px] text-neutral-400">
+                        {player.pos} · {player.team}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className="text-xs font-semibold text-emerald-400">
+                        +{Math.round(diff)}
+                      </div>
+                      <div className="text-[10px] text-neutral-400">vs prev 4</div>
+                    </div>
+                    <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
+                      <TrendSparkline values={mockSeries} />
+                    </div>
+                    <span className="text-xs text-neutral-400">
+                      {isOpen ? "▴" : "▾"}
+                    </span>
+                  </div>
+                </button>
+                <div
+                  className="transition-all duration-300 ease-in-out overflow-hidden"
+                  style={{ maxHeight: isOpen ? "260px" : "0px" }}
+                >
+                  {isOpen && (
+                    <div className="mt-2 rounded-xl border border-purple-500/40 bg-purple-950/70 p-3 shadow-[0_0_18px_rgba(168,85,247,0.4)]">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-xs font-semibold text-purple-100">
+                          {player.name}
+                        </div>
+                        <div className="inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] text-neutral-300">
+                          <span>{player.pos}</span>
+                          <span className="text-neutral-500">·</span>
+                          <span>{player.team}</span>
+                        </div>
+                      </div>
+                      <div className="mb-2 text-[11px] text-neutral-300">
+                        {changeLabel} — last game of {Math.round(last)} compared to a previous
+                        four-game average of{" "}
+                        <span className="font-semibold text-emerald-300">
+                          {Math.round(last - diff)}
+                        </span>
+                        .
+                      </div>
+                      <div className="rounded-xl bg-neutral-950/90 px-3 py-2">
+                        <TrendSparkline values={mockSeries} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="overflow-hidden rounded-xl bg-neutral-950/80 px-3 py-2">
-                  <TrendSparkline values={mockSeries} />
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* FALLERS COLUMN */}
+      <div>
+        <h3 className="mb-1 text-xs font-semibold text-red-300 uppercase tracking-[0.16em]">
+          📉 Falls
+        </h3>
+        <ul className="space-y-2">
+          {fallers.map(({ player, diff, last }) => {
+            const isOpen = openFallerId === player.id;
+            const absDiff = Math.abs(diff);
+            const changeLabel =
+              absDiff > 10 ? "Sharp short-term drop" : absDiff > 5 ? "Noticeable dip" : "Mild pullback";
+
+            const mockSeries = [
+              Math.max(0, Math.round(last + absDiff * 1.6)),
+              Math.max(0, Math.round(last + absDiff * 1.1)),
+              Math.max(0, Math.round(last + absDiff * 0.6)),
+              Math.max(0, Math.round(last + absDiff * 0.2)),
+              Math.round(last),
+            ];
+
+            return (
+              <li
+                key={player.id}
+                className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(248,113,113,0.35)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFallerId(isOpen ? null : player.id)}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="truncate text-[11px] text-neutral-400">
+                        {player.pos} · {player.team}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className="text-xs font-semibold text-red-400">
+                        {Math.round(diff)}
+                      </div>
+                      <div className="text-[10px] text-neutral-400">vs prev 4</div>
+                    </div>
+                    <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
+                      <TrendSparkline values={mockSeries} />
+                    </div>
+                    <span className="text-xs text-neutral-400">
+                      {isOpen ? "▴" : "▾"}
+                    </span>
+                  </div>
+                </button>
+                <div
+                  className="transition-all duration-300 ease-in-out overflow-hidden"
+                  style={{ maxHeight: isOpen ? "260px" : "0px" }}
+                >
+                  {isOpen && (
+                    <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/70 p-3 shadow-[0_0_18px_rgba(248,113,113,0.4)]">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-xs font-semibold text-red-100">
+                          {player.name}
+                        </div>
+                        <div className="inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 text-[10px] text-neutral-300">
+                          <span>{player.pos}</span>
+                          <span className="text-neutral-500">·</span>
+                          <span>{player.team}</span>
+                        </div>
+                      </div>
+                      <div className="mb-2 text-[11px] text-neutral-300">
+                        {changeLabel} — last game of {Math.round(last)} compared to a previous
+                        four-game average of{" "}
+                        <span className="font-semibold text-red-300">
+                          {Math.round(last - diff)}
+                        </span>
+                        .
+                      </div>
+                      <div className="rounded-xl bg-neutral-950/90 px-3 py-2">
+                        <TrendSparkline values={mockSeries} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   </div>
 );
 const renderCompare = () => (
