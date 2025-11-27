@@ -7,8 +7,6 @@
 // - Master Table: heavy blur overlay for locked area; round columns OR, R1–R5
 
 import { useState, useEffect, Fragment } from "react";
-import { Snowflake } from "lucide-react";
-
 
 // -----------------------------------------------------------------------------
 // Minimal UI stubs — swap these to your real component library in your project
@@ -659,22 +657,23 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
   key={p.id}
   className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
 >
-  <div className="flex items-center justify-between gap-2">
-    <div className="flex min-w-0 flex-col">
+  <div className="flex items-center justify-between">
+    <div className="flex min-w-0 flex-col leading-[1.15]">
       <span className="font-medium text-neutral-100 truncate">{p.name}</span>
-      <span className="text-[10px] text-neutral-500 truncate">
+      <span className="text-[10px] text-neutral-500 truncate leading-[1.1]">
         {p.pos} · {p.team}
       </span>
-      <span className="text-[10px] text-neutral-500">
+      <span className="text-[10px] text-neutral-500 leading-[1.1]">
         Season snapshot (mock L5)
       </span>
     </div>
-    <div className="flex flex-col items-end gap-0.5">
-      <span className="flex items-center gap-1 text-xs text-cyan-300">
+
+    <div className="flex flex-col items-end leading-[1.1]">
+      <span className="flex items-center gap-[2px] text-xs text-cyan-300">
         Avg {avg}
-        <Snowflake size={12} className="text-cyan-300" />
+        <Snowflake size={10} className="text-cyan-300" />
       </span>
-      <span className="text-[10px] text-neutral-500">
+      <span className="text-[10px] text-neutral-500 leading-[1.1]">
         Cold / volatile recent scores
       </span>
     </div>
