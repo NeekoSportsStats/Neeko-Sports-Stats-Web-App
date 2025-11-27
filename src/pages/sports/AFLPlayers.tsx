@@ -7,6 +7,8 @@
 // - Master Table: heavy blur overlay for locked area; round columns OR, R1–R5
 
 import { useState, useEffect, Fragment } from "react";
+import { Snowflake } from "lucide-react";
+
 
 // -----------------------------------------------------------------------------
 // Minimal UI stubs — swap these to your real component library in your project
