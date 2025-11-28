@@ -646,22 +646,21 @@ export default function AFLPlayers() {
 
       {/* Position trends — role list, fully free */}
       <div className="relative overflow-hidden rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.28)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
-              <span className="text-xs md:text-sm font-medium text-cyan-100">
-                📊 Position Trends
-              </span>
-            </div>
-            <span className="text-[10px] text-neutral-400">
-              Avg last-5{" "}
-              {selectedStat === "fantasy"
-                ? "fantasy scores"
-                : selectedStat}{" "}
-              by role
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+       <div className="mb-3 flex items-center justify-between gap-2">
+  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
+    <span className="text-xs md:text-sm font-medium text-cyan-100">
+      📊 Position Trends
+    </span>
+    <span className="text-[10px] text-cyan-200/80">
+      Avg last-5 {selectedStat === "fantasy" ? "fantasy scores" : selectedStat} by role
+    </span>
+  </div>
+
+  <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+    All roles free
+  </span>
+</div>
+
             All roles free
           </span>
         </div>
