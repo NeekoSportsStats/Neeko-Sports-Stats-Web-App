@@ -628,66 +628,64 @@ const filteredTable = ALL_PLAYERS.filter((p) => {
         })}
       </ul>
     </div>
-    {/* Risk watchlist — fully free */}
-    <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_22px_rgba(248,113,113,0.28)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/20 px-3 py-1.5 backdrop-blur-md">
-          <span className="text-xs md:text-sm font-medium text-red-100">
-            ⚠️ Risk Watchlist
-          </span>
-          <span className="text-[10px] text-red-200/80">
-            Trending cold or volatile
-          </span>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-          Full list free
-        </span>
-      </div>
-
-      <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
-        {coldList.map((p) => {
-          const series = lastN(getSeriesForStat(p, selectedStat), 5);
-          const avg = Math.round(average(series));
-          const vol = stdDev(series);
-          const veryCold = avg <= 80;
-          const label =
-            vol > 10 ? "High volatility" : veryCold ? "Trending down" : "At risk";
-
-          return (
-            
-<li
-  key={p.id}
-  className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
->
-  <div className="flex items-center justify-between">
-    <div className="flex min-w-0 flex-col leading-tight">
-      <span className="font-medium text-neutral-100 truncate">{p.name}</span>
-      <span className="text-[10px] text-neutral-500 truncate leading-tight">
-        {p.pos} · {p.team}
+   {/* Risk watchlist — now matches Form Leaders layout exactly */}
+<div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_26px_rgba(248,113,113,0.28)]">
+  <div className="mb-3 flex items-center justify-between gap-2">
+    <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/20 px-3 py-1.5 backdrop-blur-md">
+      <span className="text-xs md:text-sm font-medium text-red-100">
+        ⚠️ Risk Watchlist
       </span>
-      <span className="text-[10px] text-neutral-500 leading-tight">
-        Season snapshot (mock L5)
+      <span className="text-[10px] text-red-200/80">
+        Trending cold or volatile
       </span>
     </div>
-
-    <div className="flex flex-col items-end leading-tight">
-      <span className="flex items-center gap-[2px] text-xs text-cyan-300">
-        Avg {avg}
-        <Snowflake size={10} className="text-cyan-300" />
-      </span>
-      <span className="text-[10px] text-neutral-500 leading-tight">
-        Cold / volatile recent scores
-      </span>
-    </div>
+    <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+      Live form preview
+    </span>
   </div>
-</li>
 
-          );
-        })}
-      </ul>
-    </div>
-  </div>
-);
+  <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+    {coldList.map((p) => {
+      const series = lastN(getSeriesForStat(p, selectedStat), 5);
+      const avg = Math.round(average(series));
+      const vol = stdDev(series);
+
+      return (
+        <li
+          key={p.id}
+          className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+        >
+          {/* Left side */}
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="max-w-[10.5rem] truncate whitespace-nowrap font-medium">
+                {p.name}
+              </span>
+              <span className="whitespace-nowrap text-[10px] text-neutral-400">
+                {p.pos} · {p.team}
+              </span>
+            </div>
+            <span className="text-[10px] text-neutral-500">
+              Season snapshot (mock L5)
+            </span>
+          </div>
+
+          {/* Right side */}
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="flex items-center text-xs text-cyan-300">
+              Avg {avg}
+              <Snowflake size={10} className="text-cyan-300 ml-1" />
+            </span>
+            <span className="text-[10px] text-neutral-500">
+              Cold / volatile recent scores
+            </span>
+          </div>
+        </li>
+      );
+    })}
+  </ul>
+</div>
+
 const renderAISignals = () => (
   <div className="relative mt-8 overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
     <div className="mb-3 flex items-center justify-between gap-2">
