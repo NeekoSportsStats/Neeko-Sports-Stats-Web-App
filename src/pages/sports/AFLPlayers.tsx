@@ -129,7 +129,7 @@ const DASH_HOT_FREE = 6;
 const DASH_COLD_FREE = 6;
 const AI_FREE = 3;
 const STABILITY_FREE = 6;
-const TABLE_FREE_ROWS = 25;
+const TABLE_FREE_ROWS = 15;
 
 const FREE_STAT_SET = new Set<StatKey>(["fantasy", "disposals", "goals"]);
 
@@ -706,10 +706,11 @@ export default function AFLPlayers() {
           </p>
         </div>
         <a
-          href="/sports/afl/ai"
-          className="text-[11px] text-yellow-400 underline underline-offset-2 hover:text-yellow-300"
+          href="https://www.neekostats.com.au/sports/afl/ai-analysis"
+          className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-4 py-1.5 text-[11px] font-semibold text-black shadow-[0_0_18px_rgba(250,204,21,0.7)] hover:bg-yellow-300"
         >
-          View full AI analysis →
+          <span>Open full AI Analysis</span>
+          <span>↗</span>
         </a>
       </div>
 
@@ -745,15 +746,14 @@ export default function AFLPlayers() {
         </div>
 
         {!premiumUser && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]">
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
+            style={{ top: "40%" }}
+          >
             <div className="flex h-full items-center justify-center">
-              <a
-                href="/neeko-plus"
-                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.75)]"
-              >
-                <LockIcon />
-                <span>Unlock full AI insights — with Neeko+</span>
-              </a>
+              <span className="text-[11px] text-neutral-400">
+                More AI signals unlock with Neeko+ and on the full AI Analysis page.
+              </span>
             </div>
           </div>
         )}
@@ -770,7 +770,9 @@ export default function AFLPlayers() {
     const [openFallerId, setOpenFallerId] = useState<number | null>(null);
 
     return (
-      <section id="section-risers" className="scroll-mt-20 mt-10 rounded-3xl border border-purple-500/40 bg-neutral-950/95 p-5 shadow-[0_0_32px_rgba(168,85,247,0.35)]"
+      <section
+        id="section-risers"
+        className="mt-10 rounded-3xl border border-purple-500/40 bg-neutral-950/95 p-5 shadow-[0_0_32px_rgba(168,85,247,0.35)]"
       >
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
@@ -1639,7 +1641,7 @@ export default function AFLPlayers() {
     <nav className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
       <a
         href="#section-form"
-        className="rounded-full border border-neutral-700 bg-neutral-900/80 px-3 py-1 hover:border-yellow-400/70 hover:text-yellow-300"
+        className="rounded-full border border-emerald-500/60 bg-emerald-950/50 px-3 py-1 text-emerald-100 hover:border-emerald-300 hover:text-emerald-50"
       >
         Form Leaders &amp; Risk
       </a>
@@ -1651,19 +1653,19 @@ export default function AFLPlayers() {
       </a>
       <a
         href="#section-ai"
-        className="rounded-full border border-neutral-700 bg-neutral-900/80 px-3 py-1 hover:border-yellow-400/70 hover:text-yellow-300"
+        className="rounded-full border border-yellow-400/60 bg-yellow-500/10 px-3 py-1 text-yellow-200 hover:border-yellow-300 hover:text-yellow-50"
       >
         AI Signals
       </a>
       <a
         href="#section-stability"
-        className="rounded-full border border-neutral-700 bg-neutral-900/80 px-3 py-1 hover:border-sky-400/70 hover:text-sky-200"
+        className="rounded-full border border-sky-500/60 bg-sky-950/40 px-3 py-1 text-sky-100 hover:border-sky-300 hover:text-sky-50"
       >
         Stability Meter
       </a>
       <a
         href="#section-table"
-        className="rounded-full border border-neutral-700 bg-neutral-900/80 px-3 py-1 hover:border-yellow-400/70 hover:text-yellow-300"
+        className="rounded-full border border-yellow-400/60 bg-yellow-500/10 px-3 py-1 text-yellow-200 hover:border-yellow-300 hover:text-yellow-50"
       >
         Master Table
       </a>
@@ -1720,12 +1722,20 @@ export default function AFLPlayers() {
 
         {/* Main content */}
         <main>
-          <section id="section-form" className="scroll-mt-20">{renderDashboardRow()}</section>
-          <section id="section-ai" className="scroll-mt-20">{renderAISignals()}</section>
+          <section id="section-form" className="scroll-mt-20">
+            {renderDashboardRow()}
+          </section>
           {renderRisers()}
-          <section id="section-stability" className="scroll-mt-20">{renderStability()}</section>
+          <section id="section-ai" className="scroll-mt-20">
+            {renderAISignals()}
+          </section>
+          <section id="section-stability" className="scroll-mt-20">
+            {renderStability()}
+          </section>
           {renderCompare()}
-          <section id="section-table" className="scroll-mt-20">{renderMasterTable()}</section>
+          <section id="section-table" className="scroll-mt-20">
+            {renderMasterTable()}
+          </section>
         </main>
       </div>
     </div>
