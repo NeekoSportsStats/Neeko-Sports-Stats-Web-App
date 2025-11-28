@@ -648,7 +648,7 @@ export default function AFLPlayers() {
       <div className="relative overflow-hidden rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.28)]">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1 backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
               <span className="text-xs md:text-sm font-medium text-cyan-100">
                 📊 Position Trends
               </span>
