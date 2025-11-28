@@ -736,7 +736,7 @@ export default function AFLPlayers() {
               return (
                 <li
                   key={pos}
-                  className="rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+                  className="rounded-xl bg-neutral-900/55 px-3 py-2.5 transition-colors hover:bg-neutral-900/95"
                 >
                   {/* Header row: role + players + avg / change */}
                   <div className="flex items-start justify-between gap-2">
