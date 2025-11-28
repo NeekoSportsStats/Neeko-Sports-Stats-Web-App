@@ -770,9 +770,7 @@ export default function AFLPlayers() {
     const [openFallerId, setOpenFallerId] = useState<number | null>(null);
 
     return (
-      <section
-        id="section-risers"
-        className="mt-10 rounded-3xl border border-purple-500/40 bg-neutral-950/95 p-5 shadow-[0_0_32px_rgba(168,85,247,0.35)]"
+      <section id="section-risers" className="scroll-mt-20 mt-10 rounded-3xl border border-purple-500/40 bg-neutral-950/95 p-5 shadow-[0_0_32px_rgba(168,85,247,0.35)]"
       >
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
