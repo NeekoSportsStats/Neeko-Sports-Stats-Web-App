@@ -1,13 +1,19 @@
 // src/pages/sports/AFLPlayers.tsx
 // AFL Player Stats — Pro layout with freemium gating
-// v2 patches:
-// - Position Trends: MID + RUC free, FWD/DEF locked for free users
-// - Compare section blur lowered to expose more headers
-// - Stability Meter: 4 free cards, overlay starts higher over rows 3–4
-// - Master Table: heavy blur overlay for locked area; round columns OR, R1–R5
+// Modern "Pro" redesign with shared sections, memoised data and visual polish.
 
-import { useState, useEffect, Fragment } from "react";
-import { Snowflake } from "lucide-react";
+import React, { useState, useMemo, Fragment } from "react";
+import {
+  Snowflake,
+  Flame,
+  TrendingUp,
+  TrendingDown,
+  Brain,
+  AlertTriangle,
+  Shuffle,
+  Activity,
+  Table as TableIcon,
+} from "lucide-react";
 
 // -----------------------------------------------------------------------------
 // Minimal UI stubs — swap these to your real component library in your project
@@ -31,11 +37,13 @@ const Button = ({
     type={type}
     onClick={onClick}
     disabled={disabled}
-    className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-      disabled
-        ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-        : "bg-neutral-800 hover:bg-neutral-700 text-white"
-    } ${className}`}
+    className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs md:text-sm font-medium transition-all 
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black
+      ${
+        disabled
+          ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+          : "bg-neutral-900 hover:bg-neutral-800 text-white hover:shadow-[0_0_14px_rgba(250,204,21,0.35)]"
+      } ${className}`}
   >
     {children}
   </button>
@@ -43,33 +51,15 @@ const Button = ({
 
 const ArrowLeftIcon = () => <span className="mr-1 text-xs">←</span>;
 
-const CrownIcon = () => (
-  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[11px] text-black shadow-sm ml-1">
-    👑
-  </span>
-);
-
 const LockIcon = () => (
-  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-yellow-400/70 bg-black/40 text-[10px] text-yellow-200 mr-1">
+  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-yellow-400/70 bg-black/40 text-[10px] text-yellow-200">
     🔒
   </span>
 );
 
-const FireIcon = () => (
-  <span className="ml-1 text-xs" role="img" aria-label="hot">
-    🔥
-  </span>
-);
-
-const ColdIcon = () => (
-  <span className="ml-1 text-xs" role="img" aria-label="cold">
-    ❄️
-  </span>
-);
-
-const WarningIcon = () => (
-  <span className="ml-1 text-xs" role="img" aria-label="risk">
-    ⚠️
+const CrownIcon = () => (
+  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[11px] text-black shadow-sm">
+    👑
   </span>
 );
 
@@ -127,8 +117,12 @@ const ALL_ROUND_FILTERS = [
 
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
 
-const DASH_HOT_FREE = 6; // fully free in UI now
-// All selectable stat types for Compare Players
+// Number of free items / rows for gating
+const TABLE_FREE_ROWS = 25;
+const STABILITY_FREE = 6;
+
+// All selectable stat types for Compare Players (Neeko+)
+// (The global stat selector on the hero is intentionally limited to 3 core stats)
 const ALL_STATS = [
   { key: "fantasy", label: "Fantasy Points" },
   { key: "disposals", label: "Disposals" },
@@ -139,12 +133,6 @@ const ALL_STATS = [
   { key: "handballs", label: "Handballs" },
   { key: "hitouts", label: "Hitouts" },
 ];
-
-const DASH_COLD_FREE = 6; // fully free in UI now
-const AI_FREE = 3; // first 3 AI insights emphasised as free
-const RISERS_FREE = 6; // risers now visually free; constant kept for future use
-const STABILITY_FREE = 6; // 6 free stability cards (2x3)
-const TABLE_FREE_ROWS = 25; // 25 free rows in master table
 
 const FREE_STAT_SET = new Set<StatKey>(["fantasy", "disposals", "goals"]);
 
@@ -209,60 +197,99 @@ function getSeriesForStat(p: Player, stat: StatKey): number[] {
   return base;
 }
 
-// Sparkline
-const TrendSparkline = ({
-  values,
-  height = 18,
-}: {
+// -----------------------------------------------------------------------------
+// Visual atoms
+// -----------------------------------------------------------------------------
+
+type TrendSparklineProps = {
   values: number[];
+  width?: number;
   height?: number;
+};
+
+const TrendSparkline: React.FC<TrendSparklineProps> = ({
+  values,
+  width = 160,
+  height = 18,
 }) => {
   if (!values.length) return null;
+
   const max = Math.max(...values);
   const min = Math.min(...values);
   const range = max - min || 1;
+
   const points = values
     .map((v, i) => {
-      const x = (i / Math.max(values.length - 1, 1)) * 160;
-      const y = height - ((v - min) / range) * (height - 4);
+      const x = (i / Math.max(values.length - 1, 1)) * (width - 4) + 2;
+      const y = height - ((v - min) / range) * (height - 4) - 2;
       return `${x},${y}`;
     })
     .join(" ");
+
   return (
-    <svg width={160} height={height} className="overflow-visible">
-      <polyline fill="none" stroke="#22c55e" strokeWidth={2} points={points} />
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="overflow-visible"
+    >
+      <defs>
+        <linearGradient id="sparklineStroke" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#22c55e" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#22c55e" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <polyline
+        fill="none"
+        stroke="url(#sparklineStroke)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
       {values.map((v, i) => {
-        const x = (i / Math.max(values.length - 1, 1)) * 160;
-        const y = height - ((v - min) / range) * (height - 4);
-        return <circle key={i} cx={x} cy={y} r={1.6} fill="#22c55e" />;
+        const x = (i / Math.max(values.length - 1, 1)) * (width - 4) + 2;
+        const y = height - ((v - min) / range) * (height - 4) - 2;
+        return (
+          <circle
+            key={i}
+            cx={x}
+            cy={y}
+            r={1.7}
+            className="fill-emerald-400"
+          />
+        );
       })}
     </svg>
   );
 };
 
-// Stability meta
 function stabilityMeta(vol: number) {
   if (vol < 4)
     return {
       label: "Rock solid",
       colour: "text-emerald-400",
+      border: "border-emerald-400/40",
       reason: "Very low game-to-game movement; scores cluster tightly.",
     };
   if (vol < 8)
     return {
       label: "Steady",
       colour: "text-emerald-300",
+      border: "border-emerald-300/40",
       reason: "Small ups and downs; reliable role and usage.",
     };
   if (vol < 12)
     return {
       label: "Swingy",
       colour: "text-amber-300",
+      border: "border-amber-300/40",
       reason: "Meaningful swings in output; matchup and role sensitive.",
     };
   return {
     label: "Rollercoaster",
     colour: "text-red-400",
+    border: "border-red-400/40",
     reason:
       "Huge volatility; slate-breaking upside with real downside risk.",
   };
@@ -313,14 +340,77 @@ const AI_SIGNALS = [
 ];
 
 // -----------------------------------------------------------------------------
+// Shared layout components
+// -----------------------------------------------------------------------------
+
+interface SectionCardProps {
+  children: React.ReactNode;
+  className?: string;
+  accent?: "gold" | "emerald" | "red" | "blue" | "purple";
+}
+
+const SectionCard: React.FC<SectionCardProps> = ({
+  children,
+  className = "",
+  accent = "gold",
+}) => {
+  const accentClasses: Record<string, string> = {
+    gold: "border-yellow-400/40 shadow-[0_0_26px_rgba(250,204,21,0.28)]",
+    emerald: "border-emerald-400/40 shadow-[0_0_26px_rgba(16,185,129,0.28)]",
+    red: "border-red-400/40 shadow-[0_0_24px_rgba(248,113,113,0.30)]",
+    blue: "border-sky-400/40 shadow-[0_0_24px_rgba(56,189,248,0.30)]",
+    purple: "border-purple-400/40 shadow-[0_0_26px_rgba(168,85,247,0.32)]",
+  };
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl border bg-gradient-to-br from-neutral-950 via-neutral-950 to-neutral-900/95 p-4 ${accentClasses[accent]} ${className}`}
+    >
+      {children}
+    </div>
+  );
+};
+
+interface SectionHeaderProps {
+  label: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  rightSlot?: React.ReactNode;
+}
+
+const SectionHeader: React.FC<SectionHeaderProps> = ({
+  label,
+  subtitle,
+  icon,
+  rightSlot,
+}) => (
+  <div className="mb-3 flex items-center justify-between gap-2">
+    <div>
+      <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+        {icon && <span className="inline-flex items-center">{icon}</span>}
+        <span>{label}</span>
+      </p>
+      {subtitle && (
+        <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>
+      )}
+    </div>
+    {rightSlot && (
+      <div className="text-[11px] text-neutral-400">{rightSlot}</div>
+    )}
+  </div>
+);
+
+// -----------------------------------------------------------------------------
 // Main page
 // -----------------------------------------------------------------------------
 export default function AFLPlayers() {
   const { isPremium } = useAuth();
   const premiumUser = !!isPremium;
 
-  // Shared stat lens
+  // Shared stat lens (hero + dashboard)
   const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
+
+  // Movers expand/collapse
   const [openRiserId, setOpenRiserId] = useState<number | null>(null);
   const [openFallerId, setOpenFallerId] = useState<number | null>(null);
 
@@ -345,80 +435,120 @@ export default function AFLPlayers() {
   const [playerBId, setPlayerBId] = useState<number | null>(null);
 
   // Derived data --------------------------------------------------------------
-  const sortedByForm = [...ALL_PLAYERS].sort((a, b) => {
-    const aAvg = average(lastN(getSeriesForStat(a, selectedStat), 5));
-    const bAvg = average(lastN(getSeriesForStat(b, selectedStat), 5));
-    return bAvg - aAvg;
-  });
 
-  const hotList = sortedByForm.slice(0, 6);
-  const coldList = [...sortedByForm].reverse().slice(0, 6);
+  const sortedByForm = useMemo(() => {
+    return [...ALL_PLAYERS].sort((a, b) => {
+      const aAvg = average(lastN(getSeriesForStat(a, selectedStat), 5));
+      const bAvg = average(lastN(getSeriesForStat(b, selectedStat), 5));
+      return bAvg - aAvg;
+    });
+  }, [selectedStat]);
 
-  const moversBase = [...ALL_PLAYERS]
-    .map((p) => {
-      const series = getSeriesForStat(p, selectedStat);
-      const l5 = lastN(series, 5);
-      if (l5.length < 5) return null;
+  const hotList = useMemo(
+    () => sortedByForm.slice(0, 6),
+    [sortedByForm]
+  );
 
-      const prev4 = l5.slice(0, 4);
-      const last = l5[4];
-      const prevAvg = average(prev4);
-      const diff = last - prevAvg;
+  const coldList = useMemo(
+    () => [...sortedByForm].reverse().slice(0, 6),
+    [sortedByForm]
+  );
 
-      return { player: p, diff, last, prevAvg };
-    })
-    .filter(Boolean) as {
-    player: Player;
-    diff: number;
-    last: number;
-    prevAvg: number;
-  }[];
+  const moversBase = useMemo(() => {
+    return [...ALL_PLAYERS]
+      .map((p) => {
+        const series = getSeriesForStat(p, selectedStat);
+        const l5 = lastN(series, 5);
+        if (l5.length < 5) return null;
 
-  const risers = moversBase
-    .filter((m) => m.diff > 0)
-    .sort((a, b) => b.diff - a.diff)
-    .slice(0, 6);
+        const prev4 = l5.slice(0, 4);
+        const last = l5[4];
+        const prevAvg = average(prev4);
+        const diff = last - prevAvg;
 
-  const fallers = moversBase
-    .filter((m) => m.diff < 0)
-    .sort((a, b) => a.diff - b.diff)
-    .slice(0, 6);
+        return { player: p, diff, last, prevAvg };
+      })
+      .filter(Boolean) as {
+      player: Player;
+      diff: number;
+      last: number;
+      prevAvg: number;
+    }[];
+  }, [selectedStat]);
 
-  const stabilityList = [...ALL_PLAYERS]
-    .map((p) => {
-      const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
-      if (l5.length < 5) return null;
-      const vol = stdDev(l5);
-      return { player: p, vol };
-    })
-    .filter(Boolean) as { player: Player; vol: number }[];
+  const risers = useMemo(
+    () =>
+      moversBase
+        .filter((m) => m.diff > 0)
+        .sort((a, b) => b.diff - a.diff)
+        .slice(0, 6),
+    [moversBase]
+  );
 
-  const filteredTable = ALL_PLAYERS.filter((p) => {
-    if (teamFilter !== "All Teams" && p.team !== teamFilter) return false;
-    if (positionFilter !== "All Positions" && p.pos !== positionFilter)
-      return false;
-    return true;
-  });
+  const fallers = useMemo(
+    () =>
+      moversBase
+        .filter((m) => m.diff < 0)
+        .sort((a, b) => a	diff - b.diff)
+        .slice(0, 6),
+    [moversBase]
+  );
 
-  const tableSorted = [...filteredTable].sort((a, b) => {
-    const aSeries = getSeriesForStat(a, tableStat);
-    const bSeries = getSeriesForStat(b, tableStat);
-    const aTotal = aSeries.reduce((s, v) => s + v, 0);
-    const bTotal = bSeries.reduce((s, v) => s + v, 0);
-    return bTotal - aTotal;
-  });
+  const stabilityList = useMemo(() => {
+    return [...ALL_PLAYERS]
+      .map((p) => {
+        const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+        if (l5.length < 5) return null;
+        const vol = stdDev(l5);
+        return { player: p, vol };
+      })
+      .filter(Boolean) as { player: Player; vol: number }[];
+  }, [selectedStat]);
 
-  const tableSlice = tableSorted.slice(0, tableVisibleCount);
+  const filteredTable = useMemo(
+    () =>
+      ALL_PLAYERS.filter((p) => {
+        if (teamFilter !== "All Teams" && p.team !== teamFilter) return false;
+        if (
+          positionFilter !== "All Positions" &&
+          p.pos !== (positionFilter as Position)
+        )
+          return false;
+        // Round filter is future-facing; currently mock data uses all rounds
+        return true;
+      }),
+    [teamFilter, positionFilter]
+  );
+
+  const tableSorted = useMemo(
+    () =>
+      [...filteredTable].sort((a, b) => {
+        const aSeries = getSeriesForStat(a, tableStat);
+        const bSeries = getSeriesForStat(b, tableStat);
+        const aTotal = aSeries.reduce((s, v) => s + v, 0);
+        const bTotal = bSeries.reduce((s, v) => s + v, 0);
+        return bTotal - aTotal;
+      }),
+    [filteredTable, tableStat]
+  );
+
+  const tableSlice = useMemo(
+    () => tableSorted.slice(0, tableVisibleCount),
+    [tableSorted, tableVisibleCount]
+  );
 
   // Compare calculations
-  const playersTeamA = ALL_PLAYERS.filter(
-    (p) => teamA === "All Teams" || p.team === teamA
+  const playersTeamA = useMemo(
+    () => ALL_PLAYERS.filter((p) => teamA === "All Teams" || p.team === teamA),
+    [teamA]
   );
-  const playersTeamB = ALL_PLAYERS.filter(
-    (p) => teamB === "All Teams" || p.team === teamB
+  const playersTeamB = useMemo(
+    () => ALL_PLAYERS.filter((p) => teamB === "All Teams" || p.team === teamB),
+    [teamB]
   );
 
-  const playerA = playersTeamA.find((p) => p.id === playerAId) ?? playersTeamA[0];
+  const playerA =
+    playersTeamA.find((p) => p.id === playerAId) ?? playersTeamA[0];
   const playerB =
     playersTeamB.find((p) => p.id === playerBId) ??
     playersTeamB[1] ??
@@ -433,12 +563,6 @@ export default function AFLPlayers() {
 
   const compareAvgA = average(compareSeriesA);
   const compareAvgB = average(compareSeriesB);
-  const compareTotalA = compareSeriesA.reduce((s, v) => s + v, 0);
-  const compareTotalB = compareSeriesB.reduce((s, v) => s + v, 0);
-  const compareBestA = compareSeriesA.length ? Math.max(...compareSeriesA) : 0;
-  const compareBestB = compareSeriesB.length ? Math.max(...compareSeriesB) : 0;
-  const compareWorstA = compareSeriesA.length ? Math.min(...compareSeriesA) : 0;
-  const compareWorstB = compareSeriesB.length ? Math.min(...compareSeriesB) : 0;
 
   // Handlers ------------------------------------------------------------------
   const handleGlobalStatChange = (value: StatKey) => {
@@ -492,6 +616,7 @@ export default function AFLPlayers() {
   // ---------------------------------------------------------------------------
   // Render helpers
   // ---------------------------------------------------------------------------
+
   const renderStatSelector = () => (
     <div className="flex items-center gap-2 text-xs md:text-sm">
       <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
@@ -501,7 +626,9 @@ export default function AFLPlayers() {
         <select
           className="h-8 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 pr-7 text-xs md:text-sm text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
           value={selectedStat}
-          onChange={(e) => handleGlobalStatChange(e.target.value as StatKey)}
+          onChange={(e) =>
+            handleGlobalStatChange(e.target.value as StatKey)
+          }
         >
           <option value="fantasy">Fantasy</option>
           <option value="disposals">Disposals</option>
@@ -515,24 +642,21 @@ export default function AFLPlayers() {
   );
 
   const renderDashboardRow = () => (
-    <div className="mt-6 grid gap-4 md:grid-cols-3">
-      {/* Hot list — fully free */}
-      <div className="relative overflow-hidden rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/80 via-neutral-950 to-emerald-900/30 p-4 shadow-[0_0_26px_rgba(16,185,129,0.28)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/15 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-xs md:text-sm font-medium text-emerald-100">
-              🔥 Form Leaders
+    <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      {/* Form leaders */}
+      <SectionCard accent="emerald">
+        <SectionHeader
+          label="Form Leaders"
+          subtitle="Top 6 by last-5 average for your selected stat."
+          icon={<Flame className="h-3 w-3 text-emerald-300" />}
+          rightSlot={
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Live form preview
             </span>
-            <span className="text-[10px] text-emerald-200/80">
-              Top 6 by last-5 average
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            Live form preview
-          </span>
-        </div>
-
-        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+          }
+        />
+        <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
+        <ul className="space-y-1.5 text-xs md:text-sm">
           {hotList.map((p) => {
             const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
             const avg = Math.round(average(l5) || 0);
@@ -541,11 +665,11 @@ export default function AFLPlayers() {
             return (
               <li
                 key={p.id}
-                className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+                className="flex items-center justify-between gap-2 rounded-xl bg-neutral-950/80 px-3 py-2 transition-all duration-150 hover:bg-neutral-900/95 hover:shadow-[0_0_14px_rgba(16,185,129,0.25)]"
               >
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="max-w-[10.5rem] truncate whitespace-nowrap font-medium">
+                    <span className="max-w-[10.5rem] md:max-w-[14rem] truncate whitespace-nowrap font-medium">
                       {p.name}
                     </span>
                     <span className="whitespace-nowrap text-[10px] text-neutral-400">
@@ -559,7 +683,9 @@ export default function AFLPlayers() {
                 <div className="flex flex-col items-end gap-0.5">
                   <span className="flex items-center text-xs text-emerald-300">
                     Avg {avg}
-                    {strong && <FireIcon />}
+                    {strong && (
+                      <Flame className="ml-1 h-3 w-3 text-emerald-400" />
+                    )}
                   </span>
                   <span className="text-[10px] text-neutral-500">
                     Stable recent scores
@@ -569,29 +695,22 @@ export default function AFLPlayers() {
             );
           })}
         </ul>
-      </div>
+      </SectionCard>
 
-      {/* Position trends — role list, fully free */}
-      <div className="relative overflow-hidden rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.28)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-xs md:text-sm font-medium text-cyan-100">
-              📊 Position Trends
+      {/* Position trends */}
+      <SectionCard accent="blue">
+        <SectionHeader
+          label="Position Trends"
+          subtitle={`Role-level movement in recent ${selectedStat} output.`}
+          icon={<Activity className="h-3 w-3 text-sky-300" />}
+          rightSlot={
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              All roles free
             </span>
-            <span className="text-[10px] text-cyan-200/80">
-              Avg last-5{" "}
-              {selectedStat === "fantasy"
-                ? "fantasy scores"
-                : selectedStat}{" "}
-              by role
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            All roles free
-          </span>
-        </div>
-
-        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+          }
+        />
+        <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-sky-400/40 to-transparent" />
+        <ul className="space-y-1.5 text-xs md:text-sm">
           {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
             const rolePlayers = ALL_PLAYERS.filter((p) => p.pos === pos);
             const allSeries = rolePlayers.map((p) =>
@@ -608,8 +727,13 @@ export default function AFLPlayers() {
                 ? Math.round(((avgCur - avgPrev) / avgPrev) * 100)
                 : 0;
 
-            const arrow =
-              pctDiff > 3 ? "▲" : pctDiff < -3 ? "▼" : "●";
+            const arrowIcon =
+              pctDiff > 3
+                ? "up"
+                : pctDiff < -3
+                ? "down"
+                : "flat";
+
             const arrowColour =
               pctDiff > 3
                 ? "text-emerald-300"
@@ -617,7 +741,6 @@ export default function AFLPlayers() {
                 ? "text-red-300"
                 : "text-yellow-300";
 
-            // Top 3 players for this role by last-5 average
             const topThree = rolePlayers
               .map((p) => {
                 const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
@@ -629,26 +752,17 @@ export default function AFLPlayers() {
               .sort((a, b) => b.avg - a.avg)
               .slice(0, 3);
 
-            // Role-level mock sparkline based on current average
-            const mockRoleSeries = avgCur
-              ? [
-                  Math.round(avgCur * 0.88),
-                  Math.round(avgCur * 0.94),
-                  Math.round(avgCur),
-                  Math.round(avgCur * 1.06),
-                  Math.round(avgCur * 1.1),
-                ]
-              : [0, 0, 0, 0, 0];
-
             return (
               <li
                 key={pos}
-                className="rounded-xl bg-neutral-900/55 hover:scale-[1.015] hover:shadow-[0_0_18px_rgba(168,85,247,0.45)] transition-transform duration-200 px-3 py-2.5 transition-colors hover:bg-neutral-900/95"
+                className="rounded-xl bg-neutral-950/80 px-3 py-2.5 transition-all duration-200 hover:scale-[1.01] hover:bg-neutral-900/95 hover:shadow-[0_0_14px_rgba(56,189,248,0.25)]"
               >
-                {/* Header row: role + players + avg / change */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-col gap-1">
-                    <span className="font-medium text-neutral-100">
+                    <span className="flex items-center gap-1 font-medium text-neutral-100">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-neutral-800 text-[10px] text-neutral-200">
+                        {pos[0]}
+                      </span>
                       {pos}
                     </span>
                     <span className="text-[10px] text-neutral-500">
@@ -656,62 +770,68 @@ export default function AFLPlayers() {
                     </span>
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
-                    <span className="flex items-center gap-1 text-xs text-cyan-300">
+                    <span className="flex items-center gap-1 text-xs text-sky-300">
                       Avg {Math.round(avgCur || 0)}
-                      <span className={arrowColour}>
-                        {arrow} {Math.abs(pctDiff)}%
+                      <span className={`inline-flex items-center gap-0.5 ${arrowColour}`}>
+                        {arrowIcon === "up" && (
+                          <TrendingUp className="h-3 w-3" />
+                        )}
+                        {arrowIcon === "down" && (
+                          <TrendingDown className="h-3 w-3" />
+                        )}
+                        {arrowIcon === "flat" && (
+                          <span className="text-[10px]">↔</span>
+                        )}
+                        <span>{Math.abs(pctDiff)}%</span>
                       </span>
                     </span>
                     <span className="text-[10px] text-neutral-500">
-                      vs previous block of games (mock)
+                      Vs previous block of games (mock)
                     </span>
                   </div>
                 </div>
-
-                {/* Top 3 by role */}
                 {topThree.length > 0 && (
-                  <p className="mt-1.5 text-[10px] text-neutral-400 truncate">
+                  <p className="mt-1.5 truncate text-[10px] text-neutral-400">
                     Top 3:{" "}
-                    {topThree.map((entry) => entry.player.name).join(", ")}
+                    {topThree
+                      .map((entry) => entry.player.name)
+                      .join(", ")}
                   </p>
                 )}
               </li>
             );
           })}
         </ul>
-      </div>
+      </SectionCard>
 
-      {/* Risk watchlist — now matches Form Leaders layout */}
-      <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_22px_rgba(248,113,113,0.28)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/20 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-xs md:text-sm font-medium text-red-100">
-              ⚠️ Risk Watchlist
+      {/* Risk watchlist */}
+      <SectionCard accent="red">
+        <SectionHeader
+          label="Risk Watchlist"
+          subtitle="Trending cold or volatile — monitor closely."
+          icon={<AlertTriangle className="h-3 w-3 text-red-300" />}
+          rightSlot={
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Live risk preview
             </span>
-            <span className="text-[10px] text-red-200/80">
-              Trending cold or volatile
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            Live form preview
-          </span>
-        </div>
-
-        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+          }
+        />
+        <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-red-400/40 to-transparent" />
+        <ul className="space-y-1.5 text-xs md:text-sm">
           {coldList.map((p) => {
             const series = lastN(getSeriesForStat(p, selectedStat), 5);
             const avg = Math.round(average(series));
             const vol = stdDev(series);
+            const meta = stabilityMeta(vol);
 
             return (
               <li
                 key={p.id}
-                className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+                className="flex items-center justify-between gap-2 rounded-xl bg-neutral-950/85 px-3 py-2 transition-all duration-150 hover:bg-neutral-900/95 hover:shadow-[0_0_14px_rgba(248,113,113,0.25)]"
               >
-                {/* Left side */}
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="max-w-[10.5rem] truncate whitespace-nowrap font-medium">
+                    <span className="max-w-[10.5rem] md:max-w-[14rem] truncate whitespace-nowrap font-medium">
                       {p.name}
                     </span>
                     <span className="whitespace-nowrap text-[10px] text-neutral-400">
@@ -722,122 +842,50 @@ export default function AFLPlayers() {
                     Season snapshot (mock L5)
                   </span>
                 </div>
-
-                {/* Right side */}
                 <div className="flex flex-col items-end gap-0.5">
-                  <span className="flex items-center text-xs text-cyan-300">
+                  <span className="flex items-center gap-1 text-xs text-sky-300">
                     Avg {avg}
-                    <Snowflake
-                      size={10}
-                      className="text-cyan-300 ml-1"
-                    />
+                    <Snowflake className="h-3 w-3 text-sky-300" />
                   </span>
                   <span className="text-[10px] text-neutral-500">
-                    Cold / volatile recent scores
+                    <span className={meta.colour}>{meta.label}</span> recent scores
                   </span>
                 </div>
               </li>
             );
           })}
         </ul>
-      </div>
+      </SectionCard>
     </div>
   );
 
-  const renderAISignals = () => (
-    <div className="relative mt-8 overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <h2 className="flex items-center gap-2 text-base md:text-lg font-semibold">
-            🧠 AI Signals (Preview)
-          </h2>
-          <p className="text-xs text-neutral-500">
-            Quick directional reads. Full breakdown lives on the AI Analysis
-            page.
-          </p>
-        </div>
-        <a
-          href="/sports/afl/ai"
-          className="text-[11px] text-yellow-400 underline underline-offset-2 hover:text-yellow-300"
-        >
-          View full AI analysis →
-        </a>
-      </div>
-
-      <div className="relative">
-        <div className="relative z-10 divide-y divide-neutral-800 text-xs md:text-sm">
-          {AI_SIGNALS.map((sig, idx) => {
-            const positive = sig.delta > 0;
-            const neutral = sig.delta === 0;
-            const colour = neutral
-              ? "text-yellow-300"
-              : positive
-              ? "text-emerald-400"
-              : "text-red-400";
-            const arrow = neutral ? "↔" : positive ? "▲" : "▼";
-
-            return (
-              <div
-                key={sig.id}
-                className="flex items-center justify-between gap-4 py-2"
-              >
-                <p className="max-w-xl text-neutral-200">{sig.text}</p>
-                <div className="flex items-center gap-1 whitespace-nowrap">
-                  <span className={colour}>{arrow}</span>
-                  <span className={colour}>{Math.abs(sig.delta)}%</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Soft lock: only top 3 are clearly visible for free users */}
-        {!premiumUser && (
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
-            style={{ top: "58%" }}
-          >
-            <div className="flex h-full items-center justify-center">
-              <a
-                href="/neeko-plus"
-                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.75)]"
-              >
-                <LockIcon />
-                <span>Unlock full AI insights — with Neeko+</span>
-              </a>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderRisers = () => (
-    <div className="relative mt-6 overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-950/50 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.32)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
-          <span className="text-xs md:text-sm font-medium text-purple-100">
-            📉📈 Role &amp; Form Movers
+  const renderRISMovers = () => (
+    <SectionCard
+      accent="purple"
+      className="mt-8"
+    >
+      <SectionHeader
+        label="Role & Form Movers"
+        subtitle="Last game vs previous four — early movement radar."
+        icon={<Activity className="h-3 w-3 text-purple-300" />}
+        rightSlot={
+          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            Free preview
           </span>
-          <span className="text-[10px] text-purple-200/80">
-            Last game vs previous four
-          </span>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-          Free preview
-        </span>
-      </div>
+        }
+      />
+      <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-purple-400/40 to-transparent" />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* RISERS COLUMN */}
+        {/* Risers */}
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
-            📈 Risers
+          <h3 className="mb-1 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
+            <TrendingUp className="h-3 w-3" />
+            <span>Risers</span>
           </h3>
           <ul className="space-y-2">
             {risers.map(({ player, diff, last }) => {
               const isOpen = openRiserId === player.id;
-
               const mockSeries = [
                 Math.max(0, Math.round(last - diff * 1.6)),
                 Math.max(0, Math.round(last - diff * 1.1)),
@@ -849,7 +897,7 @@ export default function AFLPlayers() {
               return (
                 <li
                   key={player.id}
-                  className="rounded-xl bg-neutral-900/55 hover:scale-[1.015] hover:shadow-[0_0_18px_rgba(168,85,247,0.45)] transition-transform duration-200 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(16,185,129,0.28)]"
+                  className="rounded-xl bg-neutral-950/85 px-3 py-2 transition-all duration-200 hover:scale-[1.01] hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(168,85,247,0.35)]"
                 >
                   <button
                     type="button"
@@ -875,8 +923,8 @@ export default function AFLPlayers() {
                           vs prev 4
                         </div>
                       </div>
-                      <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
-                        <TrendSparkline values={mockSeries} />
+                      <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/90 px-1 py-0.5">
+                        <TrendSparkline values={mockSeries} width={40} />
                       </div>
                       <span className="text-xs text-neutral-400">
                         {isOpen ? "▴" : "▾"}
@@ -890,10 +938,11 @@ export default function AFLPlayers() {
                     }}
                   >
                     {isOpen && (
-                      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+                      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/90 p-3 text-[11px] text-neutral-300">
                         <p className="text-neutral-400">
-                          Detailed movement breakdown will appear here. Connect
-                          this to your AI or deeper analysis later.
+                          Detailed movement breakdown will appear here once you
+                          connect this card to your AI or deeper role analysis
+                          pipeline. Reuse this layout for Neeko+ form stories.
                         </p>
                       </div>
                     )}
@@ -904,16 +953,16 @@ export default function AFLPlayers() {
           </ul>
         </div>
 
-        {/* FALLS COLUMN */}
+        {/* Fallers */}
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-red-300">
-            📉 Falls
+          <h3 className="mb-1 flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-red-300">
+            <TrendingDown className="h-3 w-3" />
+            <span>Falls</span>
           </h3>
           <ul className="space-y-2">
             {fallers.map(({ player, diff, last }) => {
               const isOpen = openFallerId === player.id;
               const absDiff = Math.abs(diff);
-
               const mockSeries = [
                 Math.max(0, Math.round(last + absDiff * 1.6)),
                 Math.max(0, Math.round(last + absDiff * 1.1)),
@@ -925,7 +974,7 @@ export default function AFLPlayers() {
               return (
                 <li
                   key={player.id}
-                  className="rounded-xl bg-neutral-900/55 hover:scale-[1.015] hover:shadow-[0_0_18px_rgba(168,85,247,0.45)] transition-transform duration-200 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(248,113,113,0.28)]"
+                  className="rounded-xl bg-neutral-950/85 px-3 py-2 transition-all duration-200 hover:scale-[1.01] hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(248,113,113,0.35)]"
                 >
                   <button
                     type="button"
@@ -951,8 +1000,8 @@ export default function AFLPlayers() {
                           vs prev 4
                         </div>
                       </div>
-                      <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
-                        <TrendSparkline values={mockSeries} />
+                      <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/90 px-1 py-0.5">
+                        <TrendSparkline values={mockSeries} width={40} />
                       </div>
                       <span className="text-xs text-neutral-400">
                         {isOpen ? "▴" : "▾"}
@@ -966,10 +1015,11 @@ export default function AFLPlayers() {
                     }}
                   >
                     {isOpen && (
-                      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+                      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/90 p-3 text-[11px] text-neutral-300">
                         <p className="text-neutral-400">
-                          Detailed movement breakdown will appear here. Connect
-                          this to your AI or deeper analysis later.
+                          Detailed movement breakdown will appear here once you
+                          plug in deeper trends. Use this for Neeko+ warnings
+                          around role changes or scoring cliffs.
                         </p>
                       </div>
                     )}
@@ -980,25 +1030,91 @@ export default function AFLPlayers() {
           </ul>
         </div>
       </div>
-    </div>
+    </SectionCard>
+  );
+
+  const renderAISignals = () => (
+    <SectionCard accent="gold" className="mt-8">
+      <SectionHeader
+        label="AI Signals (Preview)"
+        subtitle="Quick directional reads. Full breakdown lives on the AI Analysis page."
+        icon={<Brain className="h-3 w-3 text-yellow-300" />}
+        rightSlot={
+          <a
+            href="/sports/afl/ai"
+            className="inline-flex items-center gap-1 text-[11px] text-yellow-400 underline underline-offset-2 hover:text-yellow-300"
+          >
+            <Brain className="h-3 w-3" />
+            <span>Open AI Analysis</span>
+          </a>
+        }
+      />
+      <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent opacity-80" />
+      <div className="space-y-2 text-sm">
+        {AI_SIGNALS.map((sig, idx) => {
+          const positive = sig.delta > 0;
+          const neutral = sig.delta === 0;
+          const colour = neutral
+            ? "text-yellow-300"
+            : positive
+            ? "text-emerald-400"
+            : "text-red-400";
+          const arrow = neutral ? "↔" : positive ? "▲" : "▼";
+          const isSoftLocked = !premiumUser && idx >= 3;
+
+          return (
+            <div
+              key={sig.id}
+              className="flex items-center justify-between gap-4 rounded-lg bg-neutral-950/90 px-3 py-1.5"
+            >
+              <p
+                className={`max-w-xl text-[13px] text-neutral-200 ${
+                  isSoftLocked ? "opacity-70" : ""
+                }`}
+              >
+                {sig.text}
+              </p>
+              <div className="flex items-center gap-1 whitespace-nowrap text-xs">
+                <span className={colour}>{arrow}</span>
+                <span className={colour}>{Math.abs(sig.delta)}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!premiumUser && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/90 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]">
+          <div className="flex h-28 items-end justify-center pb-3">
+            <a
+              href="/neeko-plus"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.75)]"
+            >
+              <LockIcon />
+              <span>Unlock full AI insights — with Neeko+</span>
+            </a>
+          </div>
+        </div>
+      )}
+    </SectionCard>
   );
 
   const renderCompare = () => (
-    <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.3)]">
-      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            Compare Players
-          </p>
-          <p className="text-xs text-neutral-400">
-            Side-by-side form view for your selected stat.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-neutral-400">
-          <LockIcon />
-          <span>Interactive compare is part of Neeko+.</span>
-        </div>
-      </div>
+    <SectionCard
+      accent="gold"
+      className="mt-16 max-w-6xl mx-auto shadow-[0_0_30px_rgba(148,163,184,0.3)]"
+    >
+      <SectionHeader
+        label="Compare Players"
+        subtitle="Side-by-side form view for your selected stat."
+        icon={<Shuffle className="h-3 w-3 text-yellow-300" />}
+        rightSlot={
+          <div className="flex items-center gap-2 text-[11px] text-neutral-400">
+            <LockIcon />
+            <span>Interactive compare is part of Neeko+.</span>
+          </div>
+        }
+      />
+      <div className="mb-4 h-px w-full bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent" />
 
       {/* Headline summary */}
       <div className="mb-5 grid grid-cols-1 gap-4 text-xs md:grid-cols-3 md:text-sm">
@@ -1006,13 +1122,19 @@ export default function AFLPlayers() {
           <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
             Player A
           </span>
-          <span>Select a team &amp; player on Neeko+.</span>
+          <span>Select a team & player on Neeko+.</span>
         </div>
         <div className="text-center text-neutral-400">
           <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
             Stat Lens
           </span>
-          <span>Fantasy points (season view).</span>
+          <span>
+            {selectedStat === "fantasy"
+              ? "Fantasy points (season view)."
+              : selectedStat === "disposals"
+              ? "Disposals (season view)."
+              : "Goals (season view)."}
+          </span>
         </div>
         <div className="text-right text-neutral-400">
           <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
@@ -1022,10 +1144,9 @@ export default function AFLPlayers() {
         </div>
       </div>
 
-      {/* Selectors & metrics — softly locked for free users */}
       <div className={premiumUser ? "" : "opacity-70"}>
         <div className="mb-4 grid grid-cols-1 gap-4 text-xs md:grid-cols-3 md:text-sm">
-          {/* Player A */}
+          {/* Player A selectors */}
           <div className="flex flex-col gap-2">
             <select
               className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
@@ -1057,7 +1178,7 @@ export default function AFLPlayers() {
             </select>
           </div>
 
-          {/* Stat lens */}
+          {/* Stat lens (compare-specific) */}
           <div className="flex flex-col gap-2">
             <select
               className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
@@ -1075,7 +1196,7 @@ export default function AFLPlayers() {
             </select>
           </div>
 
-          {/* Player B */}
+          {/* Player B selectors */}
           <div className="flex flex-col gap-2">
             <select
               className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
@@ -1109,23 +1230,48 @@ export default function AFLPlayers() {
         </div>
 
         {/* Comparison chart stub */}
-        <div className="rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 px-4 py-6">
+        <div className="rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 px-4 py-5">
           <p className="mb-3 text-xs text-neutral-400">
             Once unlocked, this section will show a full side-by-side trend
             graph, last-5 averages and volatility comparison for your selected
-            stat.
+            stat, plus AI commentary for Neeko+ members.
           </p>
-          <div className="h-32 rounded-xl border border-neutral-800 bg-neutral-950/80" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 text-[11px] text-neutral-300 mb-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Player A Avg (mock)
+              </span>
+              <span className="text-neutral-100">
+                {compareSeriesA.length ? Math.round(compareAvgA) : "--"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 text-center">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Edge (mock)
+              </span>
+              <span className="text-neutral-100">
+                {compareSeriesA.length && compareSeriesB.length
+                  ? Math.round(compareAvgA - compareAvgB)
+                  : "--"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 text-right">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Player B Avg (mock)
+              </span>
+              <span className="text-neutral-100">
+                {compareSeriesB.length ? Math.round(compareAvgB) : "--"}
+              </span>
+            </div>
+          </div>
+          <div className="h-32 rounded-xl border border-neutral-800 bg-neutral-950/85" />
         </div>
       </div>
 
       {/* Soft lock overlay */}
       {!premiumUser && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
-          style={{ top: "55%" }}
-        >
-          <div className="flex h-full items-center justify-center">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/96 via-black/94 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]">
+          <div className="flex h-28 items-end justify-center pb-3">
             <a
               href="/neeko-plus"
               className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.8)]"
@@ -1136,38 +1282,35 @@ export default function AFLPlayers() {
           </div>
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 
   const renderStability = () => (
-    <div className="relative mt-8 overflow-hidden rounded-xl border border-sky-500/40 bg-gradient-to-br from-sky-950/80 via-neutral-950 to-sky-900/30 p-4 shadow-[0_0_26px_rgba(56,189,248,0.35)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-            Stability Meter
-          </p>
-          <p className="text-xs text-neutral-300">
-            Measures how swingy a player has been over the last 5 games.
-          </p>
-        </div>
-        <span className="flex items-center gap-1 text-[11px] text-neutral-400">
-          <LockIcon />
-          Neeko+ deep view
-        </span>
-      </div>
-
+    <SectionCard accent="blue" className="mt-8">
+      <SectionHeader
+        label="Stability Meter"
+        subtitle="Measures how swingy a player has been over the last 5 games."
+        icon={<Activity className="h-3 w-3 text-sky-300" />}
+        rightSlot={
+          <span className="flex items-center gap-1 text-[11px] text-neutral-400">
+            <LockIcon />
+            <span>Neeko+ deep view</span>
+          </span>
+        }
+      />
+      <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-sky-400/40 to-transparent" />
       <div className="relative z-10 grid grid-cols-1 gap-2 text-xs md:grid-cols-2 md:text-sm">
         {stabilityList.slice(0, 12).map((entry, idx) => {
           const { player, vol } = entry;
-          const isLocked = !premiumUser && idx >= STABILITY_FREE;
           const meta = stabilityMeta(vol);
+          const isLocked = !premiumUser && idx >= STABILITY_FREE;
 
           return (
             <div
               key={player.id}
-              className={`flex items-center justify-between rounded-xl border border-sky-400/40 bg-neutral-950/90 px-3 py-1.5 ${
-                isLocked ? "opacity-40 blur-sm" : ""
-              }`}
+              className={`flex items-center justify-between rounded-xl border bg-neutral-950/95 px-3 py-1.5 transition-all ${
+                isLocked ? "opacity-40 blur-[1px]" : ""
+              } ${meta.border}`}
             >
               <div className="flex flex-col gap-0.5">
                 <span className="font-medium text-neutral-100">
@@ -1178,7 +1321,9 @@ export default function AFLPlayers() {
                 </span>
               </div>
               <div className="flex max-w-[11rem] flex-col items-end gap-0.5 text-right">
-                <span className={`text-xs ${meta.colour}`}>{meta.label}</span>
+                <span className={`text-xs ${meta.colour}`}>
+                  {meta.label}
+                </span>
                 <span className="text-[10px] text-neutral-400">
                   Volatility: {vol.toFixed(1)}
                 </span>
@@ -1190,12 +1335,8 @@ export default function AFLPlayers() {
           );
         })}
       </div>
-
       {!premiumUser && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
-          style={{ top: "44%" }} // overlay starts above row 3 so 4 cards remain free
-        >
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/96 via-black/94 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]">
           <a
             href="/neeko-plus"
             className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.7)]"
@@ -1205,7 +1346,7 @@ export default function AFLPlayers() {
           </a>
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 
   const calcThresholdPercent = (series: number[], threshold: number) => {
@@ -1225,71 +1366,40 @@ export default function AFLPlayers() {
     const roundLabels = ["OR", "R1", "R2", "R3", "R4", "R5"];
 
     return (
-      <div className="relative mx-auto mt-8 max-w-6xl rounded-3xl border border-yellow-400/45 bg-neutral-950/98 p-5 shadow-[0_0_30px_rgba(250,204,21,0.35)]">
+      <SectionCard
+        accent="gold"
+        className="mt-8 mx-auto max-w-6xl rounded-3xl border-yellow-400/45 shadow-[0_0_30px_rgba(250,204,21,0.35)]"
+      >
         {/* Header */}
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-              Master Player Table
-            </p>
-            <p className="text-xs text-neutral-400">
-              Season summary for the selected year and table stat.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            {/* Compact */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-400">Compact view</span>
-              <button
-                type="button"
-                onClick={() => setCompactMode((prev) => !prev)}
-                className={`flex h-5 w-10 items-center rounded-full border px-0.5 transition-all ${
-                  compactMode
-                    ? "bg-emerald-500/80 border-emerald-300"
-                    : "bg-neutral-900 border-neutral-600"
-                }`}
-              >
-                <span
-                  className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                    compactMode ? "translate-x-5" : "translate-x-0"
+        <SectionHeader
+          label="Master Player Table"
+          subtitle="Season summary for the selected year and table stat."
+          icon={<TableIcon className="h-3 w-3 text-yellow-300" />}
+          rightSlot={
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-400">
+              <div className="flex items-center gap-2">
+                <span>Compact view</span>
+                <button
+                  type="button"
+                  onClick={() => setCompactMode((prev) => !prev)}
+                  className={`flex h-5 w-10 items-center rounded-full border px-0.5 transition-all ${
+                    compactMode
+                      ? "bg-emerald-500/80 border-emerald-300"
+                      : "bg-neutral-900 border-neutral-600"
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      compactMode ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-            {/* Stat */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-400">Table stat</span>
-              <select
-                className="h-8 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-xs text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
-                value={tableStat}
-                onChange={(e) =>
-                  handleTableStatChange(e.target.value as StatKey)
-                }
-              >
-                <option value="fantasy">Fantasy</option>
-                <option value="disposals">Disposals</option>
-                <option value="goals">Goals</option>
-              </select>
-            </div>
-            {/* Year */}
-            <div className="flex items-center gap-2">
-              <span className="text-neutral-400">Year</span>
-              <select
-                className="h-8 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-xs text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
-                value={seasonYear}
-                onChange={(e) => setSeasonYear(Number(e.target.value))}
-              >
-                {YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Filters */}
+        {/* Controls */}
         <div className="mb-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-1">
             <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
@@ -1345,26 +1455,54 @@ export default function AFLPlayers() {
             </select>
           </div>
 
-          <div className="flex flex-col justify-center text-[11px] text-neutral-500">
-            <span>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Stat & Year
+            </span>
+            <div className="flex items-center gap-2">
+              <select
+                className="h-9 flex-1 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+                value={tableStat}
+                onChange={(e) =>
+                  handleTableStatChange(e.target.value as StatKey)
+                }
+              >
+                <option value="fantasy">Fantasy</option>
+                <option value="disposals">Disposals</option>
+                <option value="goals">Goals</option>
+              </select>
+              <select
+                className="h-9 w-24 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+                value={seasonYear}
+                onChange={(e) => setSeasonYear(Number(e.target.value))}
+              >
+                {YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="mt-1 text-[11px] text-neutral-500">
               Showing{" "}
               <span className="text-neutral-200">{tableSlice.length}</span> of{" "}
               <span className="text-neutral-200">{tableSorted.length}</span>{" "}
               players
+              {!premiumUser && (
+                <>
+                  {" · "}
+                  <span>Neeko+ unlocks full table & filters.</span>
+                </>
+              )}
             </span>
-            {!premiumUser && (
-              <span>
-                Neeko+ unlocks full table, filters &amp; AI summaries.
-              </span>
-            )}
           </div>
         </div>
 
         {/* Table */}
-        <div className="relative mt-4 mb-10 overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/95">
+        <div className="relative mt-4 mb-6 overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/95">
           <table className="min-w-[960px] w-full text-left text-[11px] md:text-xs">
-            <thead>
-              <tr className="border-b border-neutral-800 bg-neutral-900/85">
+            <thead className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900/90">
+              <tr>
                 <th className="px-3 py-2">Player</th>
                 <th className="px-3 py-2">Pos</th>
                 <th className="px-3 py-2">Team</th>
@@ -1423,12 +1561,10 @@ export default function AFLPlayers() {
                   !premiumUser && idx >= TABLE_FREE_ROWS;
                 const isExpanded = !!expandedRows[p.id];
 
-                // Threshold series (always computed off their native stat)
                 const disposalsSeries = getSeriesForStat(p, "disposals");
                 const fantasySeries = getSeriesForStat(p, "fantasy");
                 const goalsSeries = getSeriesForStat(p, "goals");
 
-                // Dynamic threshold configuration based on current table stat
                 const thresholdConfig =
                   tableStat === "disposals"
                     ? {
@@ -1454,7 +1590,7 @@ export default function AFLPlayers() {
                     <tr
                       className={`border-b border-neutral-900/80 transition-colors ${
                         lockedRow
-                          ? "opacity-40 blur-sm"
+                          ? "opacity-40 blur-[1px]"
                           : "hover:bg-neutral-900/70"
                       }`}
                       style={{
@@ -1462,7 +1598,7 @@ export default function AFLPlayers() {
                       }}
                     >
                       <td
-                        className={`px-3 ${cellPad} align-middle cursor-pointer text-neutral-100`}
+                        className={`cursor-pointer px-3 ${cellPad} align-middle text-neutral-100`}
                         onClick={() =>
                           !lockedRow && toggleRowExpanded(p.id)
                         }
@@ -1470,8 +1606,12 @@ export default function AFLPlayers() {
                         <span className="mr-1 inline-block text-[10px] text-neutral-500">
                           {isExpanded ? "▼" : "▶"}
                         </span>
-                        {lockedRow && <LockIcon />}
-                        <span className="font-medium whitespace-nowrap truncate">
+                        {lockedRow && (
+                          <span className="mr-1 align-middle">
+                            <LockIcon />
+                          </span>
+                        )}
+                        <span className="max-w-[8rem] md:max-w-[12rem] truncate font-medium">
                           {p.name}
                         </span>
                       </td>
@@ -1485,7 +1625,6 @@ export default function AFLPlayers() {
                       >
                         {p.team}
                       </td>
-
                       {!compactMode &&
                         roundLabels.map((_, i) => (
                           <td
@@ -1495,7 +1634,6 @@ export default function AFLPlayers() {
                             {series[i] ?? "-"}
                           </td>
                         ))}
-
                       <td
                         className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-200`}
                       >
@@ -1561,8 +1699,12 @@ export default function AFLPlayers() {
                                 Season trend (games)
                               </h4>
                               <div className="w-full rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
-                                <TrendSparkline values={series} />
-                                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-neutral-300">
+                                <TrendSparkline
+                                  values={series}
+                                  width={320}
+                                  height={32}
+                                />
+                                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] text-neutral-300">
                                   {series.map((v, i) => (
                                     <span
                                       key={i}
@@ -1585,7 +1727,7 @@ export default function AFLPlayers() {
                                 about this player's seasonal role, usage and
                                 scoring floor for Neeko+ members. Wire this up
                                 to your AI pipeline and reuse this layout for
-                                deeper insights.
+                                deeper insights and matchup notes.
                               </p>
                             </div>
                           </div>
@@ -1599,10 +1741,7 @@ export default function AFLPlayers() {
           </table>
 
           {!premiumUser && (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
-              style={{ top: "58%" }}
-            >
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/96 via-black/94 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]">
               <a
                 href="/neeko-plus"
                 className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.8)]"
@@ -1615,25 +1754,25 @@ export default function AFLPlayers() {
         </div>
 
         {tableVisibleCount < tableSorted.length && (
-          <div className="mt-4 flex justify-center">
+          <div className="mt-2 flex justify-center">
             <Button
               onClick={() =>
                 setTableVisibleCount((prev) =>
                   Math.min(prev + 50, tableSorted.length)
                 )
               }
-              className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-xs text-neutral-100 hover:bg-neutral-800 hover:shadow-[0_0_14px_rgba(255,255,255,0.18)]"
+              className="border border-neutral-700 bg-neutral-900 text-neutral-100 hover:bg-neutral-800 hover:shadow-[0_0_14px_rgba(255,255,255,0.18)]"
             >
               Show more players
             </Button>
           </div>
         )}
-      </div>
+      </SectionCard>
     );
   };
 
   // ---------------------------------------------------------------------------
-  // Shell
+  // Quick nav
   // ---------------------------------------------------------------------------
   const renderQuickNav = () => (
     <div className="fixed right-4 top-1/3 z-40 hidden flex-col gap-3 text-[10px] text-neutral-400 lg:flex">
@@ -1642,21 +1781,10 @@ export default function AFLPlayers() {
         className="group inline-flex flex-col items-center gap-1"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
-          🔥
+          <Flame className="h-3 w-3" />
         </span>
-        <span className="opacity-0 group-hover:opacity-100">
+        <span className="opacity-0 transition-opacity group-hover:opacity-100">
           Form
-        </span>
-      </a>
-      <a
-        href="#section-ai-signals"
-        className="group inline-flex flex-col items-center gap-1"
-      >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
-          🧠
-        </span>
-        <span className="opacity-0 group-hover:opacity-100">
-          AI
         </span>
       </a>
       <a
@@ -1664,10 +1792,21 @@ export default function AFLPlayers() {
         className="group inline-flex flex-col items-center gap-1"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
-          ⬆️
+          <Activity className="h-3 w-3" />
         </span>
-        <span className="opacity-0 group-hover:opacity-100">
-          Risers
+        <span className="opacity-0 transition-opacity group-hover:opacity-100">
+          Movers
+        </span>
+      </a>
+      <a
+        href="#section-ai-signals"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          <Brain className="h-3 w-3" />
+        </span>
+        <span className="opacity-0 transition-opacity group-hover:opacity-100">
+          AI
         </span>
       </a>
       <a
@@ -1675,9 +1814,9 @@ export default function AFLPlayers() {
         className="group inline-flex flex-col items-center gap-1"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
-          🔀
+          <Shuffle className="h-3 w-3" />
         </span>
-        <span className="opacity-0 group-hover:opacity-100">
+        <span className="opacity-0 transition-opacity group-hover:opacity-100">
           Compare
         </span>
       </a>
@@ -1686,9 +1825,9 @@ export default function AFLPlayers() {
         className="group inline-flex flex-col items-center gap-1"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
-          📉
+          <Activity className="h-3 w-3" />
         </span>
-        <span className="opacity-0 group-hover:opacity-100">
+        <span className="opacity-0 transition-opacity group-hover:opacity-100">
           Stability
         </span>
       </a>
@@ -1697,15 +1836,18 @@ export default function AFLPlayers() {
         className="group inline-flex flex-col items-center gap-1"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
-          📑
+          <TableIcon className="h-3 w-3" />
         </span>
-        <span className="opacity-0 group-hover:opacity-100">
+        <span className="opacity-0 transition-opacity group-hover:opacity-100">
           Table
         </span>
       </a>
     </div>
   );
 
+  // ---------------------------------------------------------------------------
+  // Shell
+  // ---------------------------------------------------------------------------
   return (
     <>
       <div className="mx-auto max-w-6xl px-4 py-8 text-white">
@@ -1745,49 +1887,52 @@ export default function AFLPlayers() {
           </div>
         </div>
 
+        {/* Hero separator */}
+        <div className="mb-4 h-px w-full bg-gradient-to-r from-transparent via-neutral-800/80 to-transparent" />
+
         {/* Sticky section tabs (desktop only) */}
-        <div className="sticky top-16 z-30 -mx-4 mb-4 hidden border-b border-neutral-900/70 bg-gradient-to-b from-black/95 via-black/90 to-transparent px-4 py-2 text-[11px] text-neutral-400 md:flex">
+        <div className="sticky top-16 z-30 -mx-4 mb-4 hidden border-b border-neutral-900/70 bg-gradient-to-b from-black/95 via-black/90 to-transparent px-4 py-2 text-[11px] text-neutral-400 backdrop-blur-xl shadow-[0_0_14px_rgba(0,0,0,0.6)] md:flex">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 overflow-x-auto">
             <a
               href="#section-form-leaders"
               className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
             >
-              <span>🔥</span>
+              <Flame className="h-3 w-3" />
               <span>Form &amp; Positions</span>
             </a>
             <a
               href="#section-risers"
               className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
             >
-              <span>📉📈</span>
+              <Activity className="h-3 w-3" />
               <span>Movers</span>
             </a>
             <a
               href="#section-ai-signals"
               className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
             >
-              <span>🧠</span>
+              <Brain className="h-3 w-3" />
               <span>AI Signals</span>
             </a>
             <a
               href="#section-compare"
               className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
             >
-              <span>🔀</span>
+              <Shuffle className="h-3 w-3" />
               <span>Compare</span>
             </a>
             <a
               href="#section-stability"
               className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
             >
-              <span>📉</span>
+              <Activity className="h-3 w-3" />
               <span>Stability</span>
             </a>
             <a
               href="#section-master-table"
               className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
             >
-              <span>📑</span>
+              <TableIcon className="h-3 w-3" />
               <span>Master Table</span>
             </a>
           </div>
@@ -1797,7 +1942,7 @@ export default function AFLPlayers() {
           {renderDashboardRow()}
         </section>
         <section id="section-risers" className="scroll-mt-28">
-          {renderRisers()}
+          {renderRISMovers()}
         </section>
         <section id="section-ai-signals" className="scroll-mt-28">
           {renderAISignals()}
