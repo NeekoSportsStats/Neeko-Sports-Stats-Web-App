@@ -27,7 +27,7 @@ import TermsConditions from "@/pages/policies/TermsConditions";
 import UserConductPolicy from "@/pages/policies/UserConductPolicy";
 
 import AFLHub from "@/pages/sports/AFLHub";
-import AFLPlayers from "@/pages/sports/AFLPlayers";
+import AFLPlayers from "@/pages/sports/afl/AFLPlayers";
 import AFLTeams from "@/pages/sports/AFLTeams";
 import AFLCompleteAIAnalysis from "@/pages/sports/AFLCompleteAIAnalysis";
 import AFLMatchCentre from "@/pages/sports/AFLMatchCentre";
