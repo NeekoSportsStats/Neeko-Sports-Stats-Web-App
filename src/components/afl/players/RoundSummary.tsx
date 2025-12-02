@@ -1,233 +1,162 @@
-// src/components/afl/players/RoundSummary.tsx
-// Entire Round Summary section in ONE component
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { TrendingUp, Flame, Shield, Sparkles } from "lucide-react";
 
-import {
-  ArrowUpRight,
-  ArrowDownRight,
-  AlertTriangle,
-  Zap,
-  Activity,
-} from "lucide-react";
-
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardDescription,
-} from "@/components/ui/card";
-
-import { Badge } from "@/components/ui/badge";
-
-// TODO: Wire this up later to real data
-const roundNumber = 8;
-
-const highlightCards = [
-  {
-    label: "Player of the Round",
-    title: "Nick Daicos",
-    subtitle: "31 disposals • 2 goals • 132 fantasy",
-    statLabel: "Impact Rating",
-    statValue: "92",
-    changeLabel: "vs 3-round avg",
-    changeValue: "+14",
-    icon: Zap,
-    tone: "positive",
-  },
-  {
-    label: "Biggest Riser",
-    title: "Caleb Serong",
-    subtitle: "Form spike on inside mid role",
-    statLabel: "Form Index",
-    statValue: "88",
-    changeLabel: "3-round trend",
-    changeValue: "+21%",
-    icon: ArrowUpRight,
-    tone: "positive",
-  },
-  {
-    label: "Biggest Dropper",
-    title: "Tim Taranto",
-    subtitle: "TOG + CBAs down for second week",
-    statLabel: "Form Index",
-    statValue: "61",
-    changeLabel: "3-round trend",
-    changeValue: "-18%",
-    icon: ArrowDownRight,
-    tone: "negative",
-  },
-  {
-    label: "Risk Alert",
-    title: "Josh Dunkley",
-    subtitle: "Role drift + potential tagging risk",
-    statLabel: "Risk Level",
-    statValue: "High",
-    changeLabel: "AI confidence",
-    changeValue: "78%",
-    icon: AlertTriangle,
-    tone: "warning",
-  },
-];
-
-const pulseCards = [
-  {
-    label: "Rising Momentum",
-    description:
-      "Inside mids and half-backs showing strong 3-round trends in disposals and marks.",
-  },
-  {
-    label: "Dropping Momentum",
-    description:
-      "Premium mids tapering off due to role changes or reduced time-on-ground.",
-  },
-  {
-    label: "Spike Candidates",
-    description:
-      "Under-priced breakouts linked to role upgrades and soft matchups.",
-  },
-  {
-    label: "Regression Alerts",
-    description:
-      "Players overperforming expected stats with tougher games ahead.",
-  },
-];
-
-function toneClasses(tone: string) {
-  switch (tone) {
-    case "positive":
-      return "border-emerald-500/40 bg-emerald-950/40";
-    case "negative":
-      return "border-red-500/40 bg-red-950/40";
-    case "warning":
-      return "border-amber-500/40 bg-amber-950/40";
-    default:
-      return "";
-  }
-}
+const STATS = [
+  "Fantasy",
+  "Disposals",
+  "Kicks",
+  "Marks",
+  "Tackles",
+  "Hitouts",
+  "Goals",
+] as const;
 
 export default function RoundSummary() {
+  const [selected, setSelected] = useState<(typeof STATS)[number]>("Fantasy");
+
   return (
-    <section className="space-y-8 px-4">
+    <section
+      className="
+        rounded-2xl border border-white/10
+        bg-gradient-to-b from-slate-900/70 via-slate-950/80 to-black
+        shadow-xl shadow-black/40 px-6 py-8
+        animate-in fade-in slide-in-from-bottom-4
+      "
+    >
       {/* HEADER */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs uppercase tracking-wide">
-            Round {roundNumber}
-          </Badge>
-
-          <Badge
-            variant="secondary"
-            className="text-[11px] flex items-center gap-1"
-          >
-            <Activity className="h-3 w-3" />
-            AI Round Snapshot
-          </Badge>
-        </div>
-
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-          Round {roundNumber} – AI Summary
-        </h1>
-
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          AI-detected performance signals and role shifts from this week’s
-          matches.
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-emerald-400" />
+          Round Momentum Summary
+        </h2>
+        <p className="text-white/60 text-sm mt-1">
+          AI-detected performance signals, momentum trends & standout players.
         </p>
       </div>
 
-      {/* HIGHLIGHT GRID */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {highlightCards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <Card
-              key={card.label}
-              className={`relative overflow-hidden border backdrop-blur-sm ${toneClasses(
-                card.tone
-              )}`}
-            >
-              <CardHeader className="flex flex-row items-start justify-between pb-3">
-                <div className="space-y-1">
-                  <CardDescription className="text-[11px] uppercase tracking-wide text-slate-300">
-                    {card.label}
-                  </CardDescription>
-
-                  <CardTitle className="text-lg font-semibold text-slate-50">
-                    {card.title}
-                  </CardTitle>
-
-                  <p className="text-xs text-slate-200/80">{card.subtitle}</p>
-                </div>
-
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/30">
-                  <Icon className="h-4 w-4 text-slate-50" />
-                </div>
-              </CardHeader>
-
-              <CardContent className="flex items-end justify-between">
-                <div>
-                  <p className="text-[11px] uppercase text-slate-300">
-                    {card.statLabel}
-                  </p>
-
-                  <p className="text-2xl font-semibold text-slate-50">
-                    {card.statValue}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-[11px] uppercase text-slate-300">
-                    {card.changeLabel}
-                  </p>
-
-                  <p
-                    className={`text-sm font-medium ${
-                      card.tone === "negative"
-                        ? "text-red-300"
-                        : card.tone === "warning"
-                        ? "text-amber-300"
-                        : "text-emerald-300"
-                    }`}
-                  >
-                    {card.changeValue}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* 🔥 SMALL STAT FILTER BAR */}
+      <div
+        className="
+          flex gap-2 overflow-x-auto pb-2
+          scrollbar-thin scrollbar-thumb-slate-700/40
+        "
+      >
+        {STATS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSelected(s)}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-all",
+              selected === s
+                ? "bg-emerald-500 text-black font-semibold shadow-lg"
+                : "bg-white/5 text-white/70 hover:bg-white/10"
+            )}
+          >
+            {s}
+          </button>
+        ))}
       </div>
 
-      {/* MOMENTUM PULSE BOARD */}
-      <Card className="border border-slate-700/60 bg-slate-950/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">
-            Momentum Pulse Board
-          </CardTitle>
+      {/* CONTENT GRID */}
+      <div className="mt-6 grid md:grid-cols-2 gap-6">
 
-          <CardDescription className="text-xs">
-            Short-term shifts in form, role and opportunity across the
-            competition.
-          </CardDescription>
-        </CardHeader>
+        {/* LEFT CARD — Pulse */}
+        <div
+          className="
+            rounded-xl p-5 border border-white/10
+            bg-slate-900/40 backdrop-blur-sm
+            hover:shadow-2xl hover:-translate-y-1 transition
+          "
+        >
+          <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-400" />
+            Round Momentum Pulse
+          </h3>
 
-        <CardContent className="grid gap-4 md:grid-cols-4">
-          {pulseCards.map((pulse) => (
-            <div
-              key={pulse.label}
-              className="flex flex-col gap-1 rounded-md border border-slate-800/80 bg-slate-900/60 p-3"
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-                {pulse.label}
-              </p>
+          <p className="text-sm text-white/70 leading-relaxed">
+            {selected === "Fantasy" &&
+              "Overall fantasy scoring increased 4% vs last week driven by elite mid dominance and strong RUC numbers."}
+            {selected === "Disposals" &&
+              "High-possession midfielders led the round with multiple 35+ disposal performances."}
+            {selected === "Goals" &&
+              "Forward scoring surged with 8 players kicking 3+ goals."}
 
-              <p className="text-xs text-slate-300 leading-snug">
-                {pulse.description}
-              </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            {/* fallback general statement for other stats */}
+            {selected !== "Fantasy" &&
+              selected !== "Disposals" &&
+              selected !== "Goals" &&
+              `Notable shifts detected in ${selected.toLowerCase()} output across the league.`}
+          </p>
+
+          {/* placeholder sparkline */}
+          <div className="mt-4 h-16 w-full rounded-lg bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-transparent" />
+        </div>
+
+        {/* RIGHT CARD — Headlines */}
+        <div
+          className="
+            rounded-xl p-5 border border-white/10
+            bg-slate-900/40 backdrop-blur-sm
+            hover:shadow-2xl hover:-translate-y-1 transition
+          "
+        >
+          <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+            <Flame className="h-5 w-5 text-orange-400" />
+            Key Headlines
+          </h3>
+
+          <ul className="space-y-2 text-sm text-white/80">
+            <li>• Breakout performer: A midfielder surged +24% over last week.</li>
+            <li>• Role shift: Several forwards flagged for increased midfield usage.</li>
+            <li>• Team velocity: Two clubs saw massive jumps in fantasy volume.</li>
+            <li>• Stability watch: Elite trio continues long-term consistency trend.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* MINI CARDS */}
+      <div className="mt-6 grid md:grid-cols-3 gap-5">
+        <MiniCard
+          icon={Flame}
+          label="Top Fantasy Score"
+          value="148 pts"
+        />
+        <MiniCard
+          icon={TrendingUp}
+          label="Biggest Riser"
+          value="+23.7%"
+        />
+        <MiniCard
+          icon={Shield}
+          label="Most Consistent"
+          value="92% stability"
+        />
+      </div>
     </section>
+  );
+}
+
+function MiniCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      className="
+        rounded-xl border border-white/10 p-4
+        bg-slate-900/40 backdrop-blur-sm text-center
+        hover:shadow-xl hover:-translate-y-1 transition
+      "
+    >
+      <Icon className="mx-auto h-5 w-5 text-emerald-400 mb-2" />
+      <p className="text-white/60 text-xs">{label}</p>
+      <p className="text-lg font-semibold">{value}</p>
+    </div>
   );
 }
