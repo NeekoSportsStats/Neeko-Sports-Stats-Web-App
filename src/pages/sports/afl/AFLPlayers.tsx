@@ -3,10 +3,9 @@
 import React, { useState, useMemo } from "react";
 
 import RoundSummary from "@/components/afl/players/RoundSummary";
-import HotColdSixGrid from "@/components/afl/players/HotColdSixGrid";
-import MoversDualColumn from "@/components/afl/players/MoversDualColumn";
-import StabilityMeterGrid from "@/components/afl/players/StabilityMeterGrid";
+
 import MasterPlayerTable from "@/components/afl/players/MasterPlayerTable";
+import MasterTableProShell from "@/components/afl/players/MasterTableProShell";
 
 import {
   useAFLMockPlayers,
@@ -14,11 +13,14 @@ import {
   lastN,
   average,
   stdDev,
-  stabilityMeta,
+  TEAM_OPTIONS,
+  POSITION_OPTIONS,
+  ROUND_OPTIONS,
+  YEARS,
   StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
-// replace with your real auth later
+// Temporary auth stub
 function useAuth() {
   return { isPremium: false };
 }
@@ -27,152 +29,111 @@ export default function AFLPlayersPage() {
   const { isPremium } = useAuth();
   const players = useAFLMockPlayers();
 
-  const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
+  /* ---------------------------------------------------
+     GLOBAL STAT — drives Section 1 + later sections
+  --------------------------------------------------- */
+  const [selectedStat, setSelectedStat] =
+    useState<StatKey>("fantasy");
+
+  /* ---------------------------------------------------
+     FILTERS (team, pos, round)
+  --------------------------------------------------- */
   const [filters, setFilters] = useState({
     team: "All",
     pos: "All",
+    round: "All",
   });
 
-  /* -------------------------------------------------
-     FILTERED PLAYER LIST
-  ------------------------------------------------- */
-  const filteredPlayers = useMemo(
-    () =>
-      players.filter((p) => {
-        if (filters.team !== "All" && p.team !== filters.team) return false;
-        if (filters.pos !== "All" && p.pos !== filters.pos) return false;
-        return true;
-      }),
-    [players, filters]
-  );
+  const [year, setYear] = useState(YEARS[0]);
 
-  /* -------------------------------------------------
-     PER-PLAYER STAT OBJECTS
-  ------------------------------------------------- */
-  const playerStatData = useMemo(
-    () =>
-      players.map((p) => {
-        const series = getSeriesForStat(p, selectedStat);
-        const l5 = lastN(series, 5);
-        const avgL5 = average(l5);
-        const vol = stdDev(l5);
+  /* ---------------------------------------------------
+     FILTERED PLAYERS
+  --------------------------------------------------- */
+  const filteredPlayers = useMemo(() => {
+    return players.filter((p) => {
+      if (filters.team !== "All" && p.team !== filters.team)
+        return false;
+      if (filters.pos !== "All" && p.pos !== filters.pos)
+        return false;
+      // Round filter can hook into real round-by-round data later
+      return true;
+    });
+  }, [players, filters]);
 
-        const baseline = average(series) || 1;
-        const consistency =
-          (series.filter((v) => v >= baseline).length / series.length) * 100;
+  /* ---------------------------------------------------
+     MASTER TABLE STAT CALCS
+  --------------------------------------------------- */
+  const playerStatData = useMemo(() => {
+    return players.map((p) => {
+      const series = getSeriesForStat(p, selectedStat);
+      const l5 = lastN(series, 5);
+      const avgL5 = average(l5);
+      const vol = stdDev(l5);
+      const baseAvg = average(series) || 1;
 
-        return { player: p, series, l5, avgL5, vol, consistency };
-      }),
-    [players, selectedStat]
-  );
+      const consistency =
+        (series.filter((v) => v >= baseAvg).length /
+          series.length) *
+        100;
 
-  /* -------------------------------------------------
-     HOT / COLD
-  ------------------------------------------------- */
-  const hot = [...playerStatData]
-    .sort((a, b) => b.avgL5 - a.avgL5)
-    .slice(0, 6)
-    .map((row) => ({
-      player: row.player,
-      series: row.series,
-      avg: row.avgL5,
-      vol: row.vol,
-      consistency: row.consistency,
-    }));
+      return {
+        player: p,
+        series,
+        l5,
+        avgL5,
+        vol,
+        consistency,
+      };
+    });
+  }, [players, selectedStat]);
 
-  const cold = [...playerStatData]
-    .sort((a, b) => a.avgL5 - b.avgL5)
-    .slice(0, 6)
-    .map((row) => ({
-      player: row.player,
-      series: row.series,
-      avg: row.avgL5,
-      vol: row.vol,
-      consistency: row.consistency,
-    }));
-
-  /* -------------------------------------------------
-     MOVERS
-  ------------------------------------------------- */
-  const moversBase = playerStatData
-    .map((p) => {
-      if (p.series.length < 5) return null;
-      const diff =
-        p.series.at(-1)! - average(p.series.slice(-5, -1));
-      return { ...p, diff };
-    })
-    .filter(Boolean) as (typeof playerStatData[number] & {
-    diff: number;
-  })[];
-
-  const risers = moversBase
-    .filter((m) => m.diff > 0)
-    .sort((a, b) => b.diff - a.diff)
-    .slice(0, 6)
-    .map((row) => ({
-      player: row.player,
-      series: row.series,
-      avg: row.avgL5,
-      vol: row.vol,
-      consistency: row.consistency,
-    }));
-
-  const fallers = moversBase
-    .filter((m) => m.diff < 0)
-    .sort((a, b) => a.diff - b.diff)
-    .slice(0, 6)
-    .map((row) => ({
-      player: row.player,
-      series: row.series,
-      avg: row.avgL5,
-      vol: row.vol,
-      consistency: row.consistency,
-    }));
-
-  /* -------------------------------------------------
-     STABILITY
-  ------------------------------------------------- */
-  const stability = playerStatData
-    .map((p) => ({
-      player: p.player,
-      vol: p.vol,
-      ...stabilityMeta(p.vol),
-    }))
-    .sort((a, b) => a.vol - b.vol)
-    .slice(0, 12);
-
-  /* -------------------------------------------------
+  /* ---------------------------------------------------
      PAGE RENDER
-  ------------------------------------------------- */
+  --------------------------------------------------- */
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 text-white space-y-16">
+    <div className="max-w-6xl mx-auto px-4 py-10 text-white space-y-12">
 
-      {/* SECTION 1 — Round Summary */}
-      <RoundSummary />
+      {/********************************************************************
+       ⭐ SECTION 1 — ROUND SUMMARY (premium glow, animated)
+       *********************************************************************/}
+      <RoundSummary
+        selectedStat={selectedStat}
+        onStatChange={(s) => setSelectedStat(s)}
+      />
 
-      {/* HOT / COLD */}
-      <section className="space-y-2">
-        <HotColdSixGrid hot={hot} cold={cold} />
-      </section>
 
-      {/* MOVERS */}
-      <section className="space-y-2">
-        <MoversDualColumn risers={risers} fallers={fallers} />
-      </section>
+      {/********************************************************************
+       ⭐ FUTURE SECTIONS (Hot/Cold, Movers, Stability, AI Signals…)
+       We will reintroduce these after polishing Section 1.
+       *********************************************************************/}
 
-      {/* STABILITY */}
-      <section className="space-y-2">
-        <StabilityMeterGrid items={stability} isPremium={isPremium} />
-      </section>
 
-      {/* MASTER TABLE */}
-      <section className="space-y-4">
-        <MasterPlayerTable
-          players={filteredPlayers}
-          statKey={selectedStat}
-          isPremium={isPremium}
-        />
-      </section>
+      {/********************************************************************
+       ⭐ SECTION 6 — MASTER TABLE (unchanged)
+       *********************************************************************/}
+      <MasterTableProShell
+        teamList={TEAM_OPTIONS}
+        posList={POSITION_OPTIONS}
+        roundList={ROUND_OPTIONS}
+        values={filters}
+        onFilterChange={(v) =>
+          setFilters((prev) => ({ ...prev, ...v }))
+        }
+        selectedStat={selectedStat}
+        onStatChange={(v) => setSelectedStat(v as StatKey)}
+        selectedYear={year}
+        onYearChange={setYear}
+        totalPlayers={players.length}
+        showingPlayers={filteredPlayers.length}
+        isPremium={isPremium}
+      />
+
+      <MasterPlayerTable
+        players={filteredPlayers}
+        statKey={selectedStat}
+        isPremium={isPremium}
+      />
+
     </div>
   );
 }
