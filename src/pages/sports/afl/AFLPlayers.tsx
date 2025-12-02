@@ -14,14 +14,51 @@ import {
   average,
   stdDev,
   stabilityMeta,
-  TEAM_OPTIONS,
-  POSITION_OPTIONS,
   StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
-// Temporary auth stub
+// Temporary stub – swap for your real auth hook later
 function useAuth() {
   return { isPremium: false };
+}
+
+type SectionShellProps = {
+  title: string;
+  emoji?: string;
+  subtitle?: string;
+  children: React.ReactNode;
+};
+
+function SectionShell({ title, emoji, subtitle, children }: SectionShellProps) {
+  return (
+    <section
+      className="
+        group relative overflow-hidden rounded-2xl border border-white/5
+        bg-gradient-to-b from-slate-900/70 via-slate-950/80 to-black/90
+        p-5 md:p-6 shadow-lg shadow-black/40
+        transition-transform duration-300 ease-out
+        hover:-translate-y-1 hover:shadow-2xl
+        animate-in fade-in slide-in-from-bottom-2
+      "
+    >
+      {/* subtle top highlight bar */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
+
+      <header className="mb-4 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+            {emoji && <span className="text-lg">{emoji}</span>}
+            <span>{title}</span>
+          </h2>
+          {subtitle && (
+            <p className="text-sm text-white/60 max-w-2xl">{subtitle}</p>
+          )}
+        </div>
+      </header>
+
+      <div className="mt-2">{children}</div>
+    </section>
+  );
 }
 
 export default function AFLPlayersPage() {
@@ -60,7 +97,7 @@ export default function AFLPlayersPage() {
     [players, selectedStat]
   );
 
-  // 🔥 Hot (top 6)
+  // 🔥 Hot (top 6 avg last 5)
   const hot = [...playerStatData]
     .sort((a, b) => b.avgL5 - a.avgL5)
     .slice(0, 6)
@@ -84,7 +121,7 @@ export default function AFLPlayersPage() {
       consistency: row.consistency,
     }));
 
-  // 📈 Movers (Risers & Fallers)
+  // 📈 Movers
   const moversBase = playerStatData
     .map((p) => {
       if (p.series.length < 5) return null;
@@ -117,7 +154,7 @@ export default function AFLPlayersPage() {
       consistency: row.consistency,
     }));
 
-  // 🛡 Stability Meter
+  // 🛡 Stability (lowest volatility first)
   const stability = playerStatData
     .map((p) => ({
       player: p.player,
@@ -128,63 +165,58 @@ export default function AFLPlayersPage() {
     .slice(0, 12);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 text-white space-y-16">
+    <div
+      className="
+        max-w-6xl mx-auto px-4 py-10 text-white space-y-16
+        relative
+      "
+    >
+      {/* background glow */}
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-slate-950 via-slate-950 to-black" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-40 bg-gradient-to-b from-emerald-500/15 via-transparent to-transparent blur-3xl" />
 
-      {/* 🟣 ROUND SUMMARY */}
+      {/* 🟣 Round AI Summary – hero stays standalone */}
       <RoundSummary />
 
-      <div className="border-t border-white/10" />
-
       {/* 🔥 HOT & COLD */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">🔥 Form Leaders</h2>
-        <p className="text-sm text-white/60">
-          Players trending hottest and coldest based on recent 5-round performance.
-        </p>
-
+      <SectionShell
+        title="Form Leaders"
+        emoji="🔥"
+        subtitle="Players trending hottest and coldest based on their 5-round form."
+      >
         <HotColdSixGrid hot={hot} cold={cold} />
-      </div>
-
-      <div className="border-t border-white/10" />
+      </SectionShell>
 
       {/* 📈 MOVERS */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">📈 Player Movement</h2>
-        <p className="text-sm text-white/60">
-          Short-term spikers and fallers based on last-round delta.
-        </p>
-
+      <SectionShell
+        title="Player Movement"
+        emoji="📈"
+        subtitle="Short-term risers and fallers based on last-round performance delta."
+      >
         <MoversDualColumn risers={risers} fallers={fallers} />
-      </div>
-
-      <div className="border-t border-white/10" />
+      </SectionShell>
 
       {/* 🛡 STABILITY */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">🛡 Stability Meter</h2>
-        <p className="text-sm text-white/60">
-          Low-volatility, reliable scorers based on statistical consistency.
-        </p>
-
+      <SectionShell
+        title="Stability Meter"
+        emoji="🛡"
+        subtitle="Low-volatility, reliable scorers with strong consistency profiles."
+      >
         <StabilityMeterGrid items={stability} isPremium={isPremium} />
-      </div>
-
-      <div className="border-t border-white/10" />
+      </SectionShell>
 
       {/* 📊 MASTER TABLE */}
-      <div className="space-y-4 pb-10">
-        <h2 className="text-xl font-semibold tracking-tight">📊 Full Player Table</h2>
-        <p className="text-sm text-white/60">
-          All players filtered by position, team and fantasy metrics.
-        </p>
-
+      <SectionShell
+        title="Full Player Table"
+        emoji="📊"
+        subtitle="All players with filters and detailed fantasy metrics."
+      >
         <MasterPlayerTable
           players={filteredPlayers}
           statKey={selectedStat}
           isPremium={isPremium}
         />
-      </div>
-
+      </SectionShell>
     </div>
   );
 }
