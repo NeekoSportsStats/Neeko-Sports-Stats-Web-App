@@ -4,9 +4,6 @@ import React, { useState, useMemo } from "react";
 
 import RoundSummary from "@/components/afl/players/RoundSummary";
 
-import MasterPlayerTable from "@/components/afl/players/MasterPlayerTable";
-import MasterTableProShell from "@/components/afl/players/MasterTableProShell";
-
 import {
   useAFLMockPlayers,
   getSeriesForStat,
@@ -30,13 +27,13 @@ export default function AFLPlayersPage() {
   const players = useAFLMockPlayers();
 
   /* ---------------------------------------------------
-     GLOBAL STAT — drives Section 1 + later sections
+     GLOBAL STAT — drives Section 1 + future sections
   --------------------------------------------------- */
   const [selectedStat, setSelectedStat] =
     useState<StatKey>("fantasy");
 
   /* ---------------------------------------------------
-     FILTERS (team, pos, round)
+     FILTERS (team, pos, round) — unused for now
   --------------------------------------------------- */
   const [filters, setFilters] = useState({
     team: "All",
@@ -47,7 +44,7 @@ export default function AFLPlayersPage() {
   const [year, setYear] = useState(YEARS[0]);
 
   /* ---------------------------------------------------
-     FILTERED PLAYERS
+     FILTERED PLAYERS (kept for future sections)
   --------------------------------------------------- */
   const filteredPlayers = useMemo(() => {
     return players.filter((p) => {
@@ -55,84 +52,45 @@ export default function AFLPlayersPage() {
         return false;
       if (filters.pos !== "All" && p.pos !== filters.pos)
         return false;
-      // Round filter can hook into real round-by-round data later
       return true;
     });
   }, [players, filters]);
 
-  /* ---------------------------------------------------
-     MASTER TABLE STAT CALCS
-  --------------------------------------------------- */
-  const playerStatData = useMemo(() => {
-    return players.map((p) => {
-      const series = getSeriesForStat(p, selectedStat);
-      const l5 = lastN(series, 5);
-      const avgL5 = average(l5);
-      const vol = stdDev(l5);
-      const baseAvg = average(series) || 1;
-
-      const consistency =
-        (series.filter((v) => v >= baseAvg).length /
-          series.length) *
-        100;
-
-      return {
-        player: p,
-        series,
-        l5,
-        avgL5,
-        vol,
-        consistency,
-      };
-    });
-  }, [players, selectedStat]);
-
-  /* ---------------------------------------------------
-     PAGE RENDER
-  --------------------------------------------------- */
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 text-white space-y-12">
 
-      {/********************************************************************
-       ⭐ SECTION 1 — ROUND SUMMARY (premium glow, animated)
-       *********************************************************************/}
+      {/* ============================================================
+         PAGE HEADER (KEPT VERY NEUTRAL)
+         ============================================================ */}
+      <div className="mb-4">
+        <h1 className="text-4xl font-bold mb-2">AFL Player Performance Dashboard</h1>
+        <p className="text-white/60 text-sm">
+          Round momentum, trends, stability insights and player performance patterns.
+        </p>
+      </div>
+
+      {/* ============================================================
+         ⭐ SECTION 1 — ROUND SUMMARY (premium glow, animated)
+         ============================================================ */}
       <RoundSummary
         selectedStat={selectedStat}
         onStatChange={(s) => setSelectedStat(s)}
       />
 
+      {/* ============================================================
+         ⭐ FUTURE SECTIONS GO HERE
+         Hot/Cold • Movers • Stability Meter • Trend Radar • Role Shifts
+         ============================================================ */}
 
-      {/********************************************************************
-       ⭐ FUTURE SECTIONS (Hot/Cold, Movers, Stability, AI Signals…)
-       We will reintroduce these after polishing Section 1.
-       *********************************************************************/}
+      {/* <HotColdSection selectedStat={selectedStat} /> */}
+      {/* <MoversSection selectedStat={selectedStat} /> */}
+      {/* <StabilityMeter players={players} selectedStat={selectedStat} /> */}
+      {/* <TrendRadar players={players} stat={selectedStat} /> */}
 
-
-      {/********************************************************************
-       ⭐ SECTION 6 — MASTER TABLE (unchanged)
-       *********************************************************************/}
-      <MasterTableProShell
-        teamList={TEAM_OPTIONS}
-        posList={POSITION_OPTIONS}
-        roundList={ROUND_OPTIONS}
-        values={filters}
-        onFilterChange={(v) =>
-          setFilters((prev) => ({ ...prev, ...v }))
-        }
-        selectedStat={selectedStat}
-        onStatChange={(v) => setSelectedStat(v as StatKey)}
-        selectedYear={year}
-        onYearChange={setYear}
-        totalPlayers={players.length}
-        showingPlayers={filteredPlayers.length}
-        isPremium={isPremium}
-      />
-
-      <MasterPlayerTable
-        players={filteredPlayers}
-        statKey={selectedStat}
-        isPremium={isPremium}
-      />
+      {/* ============================================================
+         ❌ MASTER TABLE REMOVED FOR NOW
+         (will re-add after we finish the full Round Summary stack)
+         ============================================================ */}
 
     </div>
   );
