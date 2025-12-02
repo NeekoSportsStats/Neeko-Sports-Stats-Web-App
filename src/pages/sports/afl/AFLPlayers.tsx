@@ -56,41 +56,49 @@ export default function AFLPlayersPage() {
     });
   }, [players, filters]);
 
+  /* ---------------------------------------------------
+     FIGURE OUT CURRENT ROUND FROM MOCK DATA
+  --------------------------------------------------- */
+  const firstPlayer = players[0];
+  const currentRound = firstPlayer
+    ? getSeriesForStat(firstPlayer, "fantasy").length
+    : 1;
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 text-white space-y-12">
 
       {/* ============================================================
-         PAGE HEADER (KEPT VERY NEUTRAL)
-         ============================================================ */}
-      <div className="mb-4">
-        <h1 className="text-4xl font-bold mb-2">AFL Player Performance Dashboard</h1>
+         PAGE HEADER WITH ROUND NUMBER
+      ============================================================ */}
+      <div className="mb-6">
+        <h1 className="text-4xl font-bold mb-1">
+          AFL Player Performance Dashboard — Round {currentRound}
+        </h1>
         <p className="text-white/60 text-sm">
           Round momentum, trends, stability insights and player performance patterns.
         </p>
       </div>
 
       {/* ============================================================
-         ⭐ SECTION 1 — ROUND SUMMARY (premium glow, animated)
-         ============================================================ */}
-      <RoundSummary
-        selectedStat={selectedStat}
-        onStatChange={(s) => setSelectedStat(s)}
-      />
+         ⭐ SECTION 1 — ROUND SUMMARY (hero block)
+      ============================================================ */}
+      <div className="-mt-4">
+        <RoundSummary
+          selectedStat={selectedStat}
+          onStatChange={(s) => setSelectedStat(s)}
+        />
+      </div>
 
       {/* ============================================================
-         ⭐ FUTURE SECTIONS GO HERE
-         Hot/Cold • Movers • Stability Meter • Trend Radar • Role Shifts
-         ============================================================ */}
+         ⭐ FUTURE SECTIONS (to be added)
+      ============================================================ */}
 
       {/* <HotColdSection selectedStat={selectedStat} /> */}
       {/* <MoversSection selectedStat={selectedStat} /> */}
       {/* <StabilityMeter players={players} selectedStat={selectedStat} /> */}
       {/* <TrendRadar players={players} stat={selectedStat} /> */}
 
-      {/* ============================================================
-         ❌ MASTER TABLE REMOVED FOR NOW
-         (will re-add after we finish the full Round Summary stack)
-         ============================================================ */}
+      {/* Master table removed for now */}
 
     </div>
   );
