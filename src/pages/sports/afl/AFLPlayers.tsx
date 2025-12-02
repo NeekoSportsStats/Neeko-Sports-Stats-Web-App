@@ -19,7 +19,7 @@ import {
   StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
-// Temporary stub:
+// Temporary auth stub
 function useAuth() {
   return { isPremium: false };
 }
@@ -29,10 +29,7 @@ export default function AFLPlayersPage() {
   const players = useAFLMockPlayers();
 
   const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
-  const [filters, setFilters] = useState({
-    team: "All",
-    pos: "All",
-  });
+  const [filters, setFilters] = useState({ team: "All", pos: "All" });
 
   // 🔵 Filter players
   const filteredPlayers = useMemo(
@@ -63,7 +60,7 @@ export default function AFLPlayersPage() {
     [players, selectedStat]
   );
 
-  // 🔥 Hot (top 6 avg last 5)
+  // 🔥 Hot (top 6)
   const hot = [...playerStatData]
     .sort((a, b) => b.avgL5 - a.avgL5)
     .slice(0, 6)
@@ -87,7 +84,7 @@ export default function AFLPlayersPage() {
       consistency: row.consistency,
     }));
 
-  // 🔼🔽 Movers logic
+  // 📈 Movers (Risers & Fallers)
   const moversBase = playerStatData
     .map((p) => {
       if (p.series.length < 5) return null;
@@ -120,7 +117,7 @@ export default function AFLPlayersPage() {
       consistency: row.consistency,
     }));
 
-  // 🛡 Stability (lowest volatility first)
+  // 🛡 Stability Meter
   const stability = playerStatData
     .map((p) => ({
       player: p.player,
@@ -131,26 +128,62 @@ export default function AFLPlayersPage() {
     .slice(0, 12);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 text-white space-y-12">
+    <div className="max-w-6xl mx-auto px-4 py-10 text-white space-y-16">
 
-      {/* 🟣 Section: Round AI Summary */}
+      {/* 🟣 ROUND SUMMARY */}
       <RoundSummary />
 
-      {/* 🔥 Hot vs Cold */}
-      <HotColdSixGrid hot={hot} cold={cold} />
+      <div className="border-t border-white/10" />
 
-      {/* 📈 Movers (Risers & Fallers) */}
-      <MoversDualColumn risers={risers} fallers={fallers} />
+      {/* 🔥 HOT & COLD */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight">🔥 Form Leaders</h2>
+        <p className="text-sm text-white/60">
+          Players trending hottest and coldest based on recent 5-round performance.
+        </p>
 
-      {/* 🛡 Stability Meter */}
-      <StabilityMeterGrid items={stability} isPremium={isPremium} />
+        <HotColdSixGrid hot={hot} cold={cold} />
+      </div>
 
-      {/* 📊 Master Table */}
-      <MasterPlayerTable
-        players={filteredPlayers}
-        statKey={selectedStat}
-        isPremium={isPremium}
-      />
+      <div className="border-t border-white/10" />
+
+      {/* 📈 MOVERS */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight">📈 Player Movement</h2>
+        <p className="text-sm text-white/60">
+          Short-term spikers and fallers based on last-round delta.
+        </p>
+
+        <MoversDualColumn risers={risers} fallers={fallers} />
+      </div>
+
+      <div className="border-t border-white/10" />
+
+      {/* 🛡 STABILITY */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight">🛡 Stability Meter</h2>
+        <p className="text-sm text-white/60">
+          Low-volatility, reliable scorers based on statistical consistency.
+        </p>
+
+        <StabilityMeterGrid items={stability} isPremium={isPremium} />
+      </div>
+
+      <div className="border-t border-white/10" />
+
+      {/* 📊 MASTER TABLE */}
+      <div className="space-y-4 pb-10">
+        <h2 className="text-xl font-semibold tracking-tight">📊 Full Player Table</h2>
+        <p className="text-sm text-white/60">
+          All players filtered by position, team and fantasy metrics.
+        </p>
+
+        <MasterPlayerTable
+          players={filteredPlayers}
+          statKey={selectedStat}
+          isPremium={isPremium}
+        />
+      </div>
 
     </div>
   );
