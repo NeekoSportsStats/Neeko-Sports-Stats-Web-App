@@ -14,13 +14,13 @@ import {
   useAFLMockPlayers,
   getSeriesForStat,
   average,
-  lastN,
   StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
 /* ---------------------------------------------------------
-   Stat Options
+   Stat config
 --------------------------------------------------------- */
+
 const STATS: StatKey[] = [
   "fantasy",
   "disposals",
@@ -31,9 +31,30 @@ const STATS: StatKey[] = [
   "goals",
 ];
 
+const STAT_LABEL: Record<StatKey, string> = {
+  fantasy: "Fantasy",
+  disposals: "Disposals",
+  kicks: "Kicks",
+  marks: "Marks",
+  tackles: "Tackles",
+  hitouts: "Hitouts",
+  goals: "Goals",
+};
+
+const STAT_UNIT: Record<StatKey, string> = {
+  fantasy: "pts",
+  disposals: "",
+  kicks: "",
+  marks: "",
+  tackles: "",
+  hitouts: "",
+  goals: "goals",
+};
+
 /* ---------------------------------------------------------
-   SPARKLINE
+   Sparkline (neon gold)
 --------------------------------------------------------- */
+
 function Sparkline({ data }: { data: number[] }) {
   if (!data.length) return null;
 
@@ -46,6 +67,7 @@ function Sparkline({ data }: { data: number[] }) {
 
   return (
     <div className="relative h-20 w-full">
+      {/* glow line */}
       <svg
         className="absolute inset-0 w-full h-full"
         viewBox={`0 0 ${normalized.length * 20} 100`}
@@ -55,12 +77,13 @@ function Sparkline({ data }: { data: number[] }) {
             .map((v, i) => `${i * 20},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgb(52 211 153 / 0.5)"
+          stroke="rgb(250 204 21 / 0.45)" // yellow-400 glow
           strokeWidth="4"
-          className="drop-shadow-[0_0_8px_rgba(52,211,153,0.5)] animate-[pulse_1.8s_ease-in-out_infinite]"
+          className="drop-shadow-[0_0_14px_rgba(250,204,21,0.75)] animate-[pulse_1.8s_ease-in-out_infinite]"
         />
       </svg>
 
+      {/* bright foreground line */}
       <svg
         className="absolute inset-0 w-full h-full"
         viewBox={`0 0 ${normalized.length * 20} 100`}
@@ -70,7 +93,7 @@ function Sparkline({ data }: { data: number[] }) {
             .map((v, i) => `${i * 20},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgb(16 185 129)"
+          stroke="rgb(252 211 77)" // yellow-300
           strokeWidth="3"
           className="animate-[fade-in_0.8s_ease-out]"
         />
@@ -80,8 +103,9 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   MINI CARD
+   Mini card
 --------------------------------------------------------- */
+
 function MiniCard({
   icon: Icon,
   label,
@@ -98,24 +122,27 @@ function MiniCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/10 p-4 bg-slate-900/40 backdrop-blur-sm text-center",
+        "rounded-xl border border-yellow-500/40 p-4",
+        "bg-gradient-to-br from-slate-900/70 via-slate-950/80 to-black",
+        "backdrop-blur-sm text-center",
         "transition-transform duration-300",
-        "hover:-translate-y-1 hover:shadow-2xl",
+        "hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(250,204,21,0.45)]",
         "animate-in fade-in slide-in-from-bottom-4"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <Icon className="mx-auto h-5 w-5 text-emerald-400 mb-2" />
+      <Icon className="mx-auto h-5 w-5 text-yellow-400 mb-2" />
       <p className="text-white/60 text-xs">{label}</p>
       <p className="text-lg font-semibold">{value}</p>
-      <p className="text-xs text-white/50 mt-1">{player}</p>
+      <p className="text-xs text-white/45 mt-1 truncate">{player}</p>
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   MAIN COMPONENT (NOW CONTROLLED)
+   Main component (controlled)
 --------------------------------------------------------- */
+
 export default function RoundSummary({
   selectedStat,
   onStatChange,
@@ -125,83 +152,138 @@ export default function RoundSummary({
 }) {
   const players = useAFLMockPlayers();
 
+  const statLabel = STAT_LABEL[selectedStat];
+  const statUnit = STAT_UNIT[selectedStat];
+
   /* -----------------------------------------
-     ROUND SPARKLINE (avg per round)
+     League sparkline (avg per round)
   ----------------------------------------- */
   const avgRounds = useMemo(() => {
-    const p0 = players[0];
-    if (!p0) return [];
+    const first = players[0];
+    if (!first) return [];
 
-    const len = getSeriesForStat(p0, selectedStat).length;
+    const len = getSeriesForStat(first, selectedStat).length;
     const totals = Array.from({ length: len }, () => 0);
 
     players.forEach((p) => {
       const series = getSeriesForStat(p, selectedStat);
-      series.forEach((val, i) => (totals[i] += val));
+      series.forEach((v, i) => (totals[i] += v));
     });
 
     return totals.map((t) => Math.round(t / players.length));
   }, [players, selectedStat]);
 
   /* -----------------------------------------
-     LEADERS (ALWAYS USE FANTASY FOR HEADLINES)
+     Leaders for current stat
   ----------------------------------------- */
+
   const topScorer = useMemo(() => {
+    if (!players.length) return null;
     return players
       .map((p) => {
-        const s = getSeriesForStat(p, "fantasy");
-        return { name: p.name, last: s.at(-1) || 0 };
+        const s = getSeriesForStat(p, selectedStat);
+        const last = s.at(-1) ?? 0;
+        return { name: p.name, value: last };
       })
-      .sort((a, b) => b.last - a.last)[0];
-  }, [players]);
+      .sort((a, b) => b.value - a.value)[0];
+  }, [players, selectedStat]);
 
   const biggestRiser = useMemo(() => {
+    if (!players.length) return null;
     return players
       .map((p) => {
-        const s = getSeriesForStat(p, "fantasy");
+        const s = getSeriesForStat(p, selectedStat);
         if (s.length < 2) return null;
-        const diff = s.at(-1)! - s.at(-2)!;
+        const diff = (s.at(-1) ?? 0) - (s.at(-2) ?? 0);
         return { name: p.name, diff };
       })
       .filter(Boolean)
-      .sort((a, b) => b!.diff - a!.diff)[0];
-  }, [players]);
+      .sort((a, b) => (b!.diff ?? 0) - (a!.diff ?? 0))[0] as
+      | { name: string; diff: number }
+      | null;
+  }, [players, selectedStat]);
 
   const mostConsistent = useMemo(() => {
+    if (!players.length) return null;
     return players
       .map((p) => {
-        const s = getSeriesForStat(p, "fantasy");
+        const s = getSeriesForStat(p, selectedStat);
+        if (!s.length) return null;
         const base = average(s) || 1;
         const consistency =
           (s.filter((v) => v >= base).length / s.length) * 100;
         return { name: p.name, consistency };
       })
-      .sort((a, b) => b.consistency - a.consistency)[0];
-  }, [players]);
+      .filter(Boolean)
+      .sort(
+        (a, b) =>
+          (b?.consistency ?? 0) - (a?.consistency ?? 0)
+      )[0] as { name: string; consistency: number } | null;
+  }, [players, selectedStat]);
+
+  /* -----------------------------------------
+     Dynamic pulse copy
+  ----------------------------------------- */
+  const pulseText = useMemo(() => {
+    switch (selectedStat) {
+      case "fantasy":
+        return "League-wide fantasy trends indicate shifting round momentum driven by matchup edges, role changes and team strategy.";
+      case "disposals":
+        return "High-disposal midfielders controlled this round, with multiple 30+ possession games lifting overall ball use.";
+      case "kicks":
+        return "Kicking volume surged off half-back and wing, with aggressive ball movement boosting kick counts.";
+      case "marks":
+        return "Marking targets dominated the air, with intercept and lead-up forwards posting strong marking numbers.";
+      case "tackles":
+        return "Pressure acts spiked as tackling intensity lifted around the contest and inside forward 50.";
+      case "hitouts":
+        return "Rucks dictated stoppages, with clear hitout dominance from the top-tier big men this round.";
+      case "goals":
+        return "Forward efficiency was elite, with multiple players kicking bags and conversion rates climbing.";
+      default:
+        return "Round momentum shows meaningful shifts in key performance indicators across the league.";
+    }
+  }, [selectedStat]);
+
+  /* -----------------------------------------
+     Render
+  ----------------------------------------- */
+
+  const topValue =
+    topScorer?.value ?? 0;
+  const riserValue =
+    biggestRiser?.diff ?? 0;
+  const consistentValue =
+    mostConsistent?.consistency ?? 0;
 
   return (
     <section
       className="
-        relative rounded-2xl border border-white/10 px-6 py-10
-        bg-gradient-to-br from-slate-900/70 via-slate-950/80 to-black
-        shadow-2xl shadow-black/40 overflow-hidden
-        animate-in fade-in slide-in-from-bottom-6
+        relative rounded-2xl px-6 py-10
+        border border-yellow-500/30
+        bg-gradient-to-br from-slate-950 via-black to-slate-950
+        shadow-[0_0_40px_rgba(250,204,21,0.35)]
+        overflow-hidden animate-in fade-in slide-in-from-bottom-6
       "
     >
-      {/* PRETTY GLOW */}
-      <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-[400px] h-[260px] bg-emerald-500/20 blur-3xl rounded-full" />
+      {/* neon gold glows */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[460px] h-[260px] bg-yellow-400/20 blur-3xl rounded-full" />
+      <div className="pointer-events-none absolute bottom-[-80px] right-[-40px] w-[260px] h-[260px] bg-amber-500/25 blur-3xl rounded-full" />
 
-      {/* HEADER */}
-      <h2 className="text-3xl font-bold flex items-center gap-2 mb-2">
-        <Sparkles className="h-6 w-6 text-emerald-400" />
-        Round Momentum Summary
-      </h2>
-      <p className="text-white/60 text-sm max-w-xl mb-6">
-        AI-detected performance signals, round impact trends & player momentum.
-      </p>
+      {/* header */}
+      <div className="relative mb-6">
+        <h2 className="text-3xl font-bold flex items-center gap-2 mb-2">
+          <Sparkles className="h-6 w-6 text-yellow-400" />
+          Round Momentum Summary
+        </h2>
+        <p className="text-white/60 text-sm max-w-xl">
+          AI-styled performance snapshot for this round — track {statLabel.toLowerCase()} trends,
+          standout players and stability in one glance.
+        </p>
+      </div>
 
-      {/* FILTER BAR — now fully controlled */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-thin scrollbar-thumb-slate-700/40">
+      {/* stat filter bar */}
+      <div className="relative flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-thin scrollbar-thumb-slate-700/40">
         {STATS.map((s) => (
           <button
             key={s}
@@ -209,48 +291,51 @@ export default function RoundSummary({
             className={cn(
               "px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-all",
               selectedStat === s
-                ? "bg-emerald-500 text-black font-semibold shadow-lg"
+                ? "bg-yellow-400 text-black font-semibold shadow-[0_0_20px_rgba(250,204,21,0.65)]"
                 : "bg-white/5 text-white/70 hover:bg-white/10"
             )}
           >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
+            {STAT_LABEL[s]}
           </button>
         ))}
       </div>
 
-      {/* GRID */}
-      <div className="grid md:grid-cols-2 gap-6">
-
-        {/* LEFT — Pulse */}
+      {/* main grid */}
+      <div className="relative grid md:grid-cols-2 gap-6">
+        {/* left: pulse */}
         <div
           className="
-            rounded-xl p-5 border border-white/10
-            bg-slate-900/40 backdrop-blur-sm
-            hover:-translate-y-1 hover:shadow-2xl transition
+            rounded-xl p-5
+            border border-white/10
+            bg-slate-950/60 backdrop-blur-sm
+            hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(15,23,42,0.8)]
+            transition
             animate-in fade-in slide-in-from-bottom-4
           "
         >
           <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-emerald-300" />
+            <Activity className="h-5 w-5 text-yellow-300" />
             Round Momentum Pulse
           </h3>
 
           <p className="text-sm text-white/70 leading-relaxed mb-4">
-            League-wide <strong>{selectedStat}</strong> trends indicate shifting
-            round momentum driven by matchup edges, role changes and team strategy.
+            {pulseText}
           </p>
 
           <Sparkline data={avgRounds} />
         </div>
 
-        {/* RIGHT — Headlines */}
+        {/* right: headlines */}
         <div
           className="
-            rounded-xl p-5 border border-white/10
-            bg-slate-900/40 backdrop-blur-sm
-            hover:-translate-y-1 hover:shadow-2xl transition
+            rounded-xl p-5
+            border border-white/10
+            bg-slate-950/60 backdrop-blur-sm
+            hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(15,23,42,0.8)]
+            transition
             animate-in fade-in slide-in-from-bottom-4
           "
+          style={{ animationDelay: "80ms" }}
         >
           <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
             <Flame className="h-5 w-5 text-orange-400" />
@@ -259,46 +344,49 @@ export default function RoundSummary({
 
           <ul className="space-y-2 text-sm text-white/80">
             <li>
-              • <strong>{topScorer?.name}</strong> delivered the round’s top
-              fantasy score ({topScorer?.last} pts).
+              • <strong>{topScorer?.name ?? "—"}</strong>{" "}
+              leads {statLabel.toLowerCase()} for the round{" "}
+              ({topValue.toFixed(1)} {statUnit.trim()}).
             </li>
             <li>
-              • <strong>{biggestRiser?.name}</strong> rose{" "}
-              {biggestRiser?.diff.toFixed(1)} pts vs last week.
+              • Biggest rise:{" "}
+              <strong>{biggestRiser?.name ?? "—"}</strong>{" "}
+              up {riserValue.toFixed(1)} {statUnit.trim()} vs last week.
             </li>
             <li>
-              • <strong>{mostConsistent?.name}</strong> leads stability (
-              {mostConsistent?.consistency.toFixed(0)}%).
+              • Most consistent:{" "}
+              <strong>{mostConsistent?.name ?? "—"}</strong>{" "}
+              at {consistentValue.toFixed(0)}% stability.
             </li>
             <li>
-              • League-wide {selectedStat} volume shows strong round momentum.
+              • League-wide {statLabel.toLowerCase()} trends
+              highlight evolving role usage & matchup edges.
             </li>
           </ul>
         </div>
-
       </div>
 
-      {/* MINI CARDS */}
-      <div className="mt-8 grid md:grid-cols-3 gap-5">
+      {/* mini cards */}
+      <div className="relative mt-8 grid md:grid-cols-3 gap-5">
         <MiniCard
           icon={Flame}
-          label="Top Fantasy Score"
-          value={`${topScorer?.last || 0} pts`}
-          player={topScorer?.name || ""}
+          label={`Top ${statLabel} Score`}
+          value={`${topValue.toFixed(1)} ${statUnit}`.trim()}
+          player={topScorer?.name ?? "—"}
           delay={150}
         />
         <MiniCard
           icon={TrendingUp}
           label="Biggest Riser"
-          value={`${biggestRiser?.diff.toFixed(1) || 0} pts`}
-          player={biggestRiser?.name || ""}
+          value={`${riserValue.toFixed(1)} ${statUnit}`.trim()}
+          player={biggestRiser?.name ?? "—"}
           delay={250}
         />
         <MiniCard
           icon={Shield}
           label="Most Consistent"
-          value={`${mostConsistent?.consistency.toFixed(0) || 0}%`}
-          player={mostConsistent?.name || ""}
+          value={`${consistentValue.toFixed(0)}%`}
+          player={mostConsistent?.name ?? "—"}
           delay={350}
         />
       </div>
