@@ -70,7 +70,7 @@ const PULSE_COPY: Record<StatKey, string> = {
 };
 
 /* ---------------------------------------------------------
-   Sparkline (with mobile-aware height)
+   Sparkline
 --------------------------------------------------------- */
 
 function Sparkline({ data }: { data: number[] }) {
@@ -84,7 +84,6 @@ function Sparkline({ data }: { data: number[] }) {
 
   return (
     <div className="relative h-16 md:h-24 w-full">
-      {/* soft glow line */}
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${width} 100`}
@@ -92,16 +91,15 @@ function Sparkline({ data }: { data: number[] }) {
       >
         <polyline
           points={normalized
-            .map((v, i) => `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`)
+            .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgba(250, 204, 21, 0.4)" // gold glow
+          stroke="rgba(250, 204, 21, 0.4)"
           strokeWidth={4}
           className="drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] animate-[pulse_1.8s_ease-in-out_infinite]"
         />
       </svg>
 
-      {/* sharp front line */}
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${width} 100`}
@@ -109,7 +107,7 @@ function Sparkline({ data }: { data: number[] }) {
       >
         <polyline
           points={normalized
-            .map((v, i) => `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`)
+            .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
             .join(" ")}
           fill="none"
           stroke="rgb(250, 204, 21)"
@@ -122,7 +120,7 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   Mini Card (tight mobile layout)
+   Mini Card
 --------------------------------------------------------- */
 
 interface MiniCardProps {
@@ -145,7 +143,6 @@ function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      {/* subtle inner glow */}
       <div className="pointer-events-none absolute inset-x-0 -bottom-12 h-24 bg-gradient-to-t from-yellow-500/15 to-transparent" />
       <div className="relative flex flex-col gap-2 text-left">
         <div className="flex items-center justify-between">
@@ -166,7 +163,7 @@ function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
 }
 
 /* ---------------------------------------------------------
-   MAIN SECTION — Hybrid Premium Gold
+   MAIN SECTION — Option B (Premium Gold Glass Pills Only)
 --------------------------------------------------------- */
 
 export default function RoundSummary() {
@@ -177,35 +174,26 @@ export default function RoundSummary() {
   const unit = STAT_UNITS[selected];
   const labelLower = selectedLabel.toLowerCase();
 
-  /* -----------------------------------------
-     League-wide averages for sparkline
-  ----------------------------------------- */
+  /* sparkline data */
   const avgRounds = useMemo(() => {
     const sample = players[0];
     if (!sample) return [];
-    const sampleSeries = getSeriesForStat(sample, selected);
-    const length = sampleSeries.length;
-    const totals = Array.from({ length }, () => 0);
+    const series = getSeriesForStat(sample, selected);
+    const totals = Array.from({ length: series.length }, () => 0);
 
     players.forEach((p) => {
-      const series = getSeriesForStat(p, selected);
-      series.forEach((val, i) => {
-        if (i < length) totals[i] += val;
+      getSeriesForStat(p, selected).forEach((v, i) => {
+        totals[i] += v;
       });
     });
 
-    return totals.map((t) => Math.round(t / Math.max(players.length, 1)));
+    return totals.map((t) => Math.round(t / players.length));
   }, [players, selected]);
 
-  /* -----------------------------------------
-     Dynamic Stat Leaders (top / riser / consistent)
-  ----------------------------------------- */
+  /* stat calcs */
   const topScorer = useMemo(() => {
     return players
-      .map((p) => {
-        const s = getSeriesForStat(p, selected);
-        return { name: p.name, last: s.at(-1) ?? 0 };
-      })
+      .map((p) => ({ name: p.name, last: getSeriesForStat(p, selected).at(-1) ?? 0 }))
       .sort((a, b) => b.last - a.last)[0];
   }, [players, selected]);
 
@@ -214,11 +202,10 @@ export default function RoundSummary() {
       .map((p) => {
         const s = getSeriesForStat(p, selected);
         if (s.length < 2) return null;
-        const diff = (s.at(-1) ?? 0) - (s.at(-2) ?? 0);
-        return { name: p.name, diff };
+        return { name: p.name, diff: (s.at(-1) ?? 0) - (s.at(-2) ?? 0) };
       })
-      .filter((x): x is { name: string; diff: number } => !!x)
-      .sort((a, b) => b.diff - a.diff)[0];
+      .filter(Boolean)
+      .sort((a, b) => (b as any).diff - (a as any).diff)[0] as any;
   }, [players, selected]);
 
   const mostConsistent = useMemo(() => {
@@ -226,16 +213,13 @@ export default function RoundSummary() {
       .map((p) => {
         const s = getSeriesForStat(p, selected);
         const base = average(s) || 1;
-        const consistency =
-          (s.filter((v) => v >= base).length / Math.max(s.length, 1)) * 100;
-        return { name: p.name, consistency };
+        return {
+          name: p.name,
+          consistency: (s.filter((v) => v >= base).length / s.length) * 100,
+        };
       })
       .sort((a, b) => b.consistency - a.consistency)[0];
   }, [players, selected]);
-
-  const topValue = topScorer?.last ?? 0;
-  const riserValue = biggestRiser?.diff ?? 0;
-  const consistencyValue = mostConsistent?.consistency ?? 0;
 
   return (
     <section
@@ -247,9 +231,8 @@ export default function RoundSummary() {
         "animate-in fade-in slide-in-from-bottom-6"
       )}
     >
-      {/* radial gold glow */}
+      {/* gold glow */}
       <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[480px] -translate-x-1/2 bg-yellow-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-40 w-40 translate-x-6 translate-y-6 bg-yellow-400/15 blur-2xl" />
 
       <div className="relative">
         {/* HEADER */}
@@ -266,12 +249,12 @@ export default function RoundSummary() {
           </p>
 
           <p className="mt-3 text-sm md:text-[15px] text-white/70 max-w-2xl">
-            Live round snapshot — track {labelLower} trends, standout players
-            and role/stability shifts as this stat moves week to week.
+            Live round snapshot — track {labelLower} trends, standout players and role/stability shifts
+            as this stat moves week to week.
           </p>
         </div>
 
-        {/* FILTER BAR — mobile scrollable chips */}
+        {/* FILTER PILLS — Option B */}
         <div className="-mx-2 mb-4 mt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
           <div className="flex min-w-max gap-2 px-2 pb-1">
             {STATS.map((s) => (
@@ -279,11 +262,11 @@ export default function RoundSummary() {
                 key={s}
                 onClick={() => setSelected(s)}
                 className={cn(
-                  "snap-start rounded-full px-4 py-1.5 text-sm whitespace-nowrap transition-all",
-                  "border border-transparent",
+                  "snap-start whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all",
+                  "backdrop-blur-md border",
                   selected === s
-                    ? "bg-yellow-400 text-black font-semibold shadow-[0_0_24px_rgba(250,204,21,0.55)]"
-                    : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border-white/5"
+                    ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_22px_rgba(250,204,21,0.65)]"
+                    : "bg-black/30 text-white/70 border-white/10 hover:bg-black/40 hover:text-white"
                 )}
               >
                 {STAT_LABELS[s]}
@@ -292,70 +275,48 @@ export default function RoundSummary() {
           </div>
         </div>
 
-        {/* GRID: Pulse + Headlines */}
+        {/* GRID */}
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-          {/* Pulse card */}
+          {/* PULSE */}
           <div
-            className={cn(
-              "rounded-2xl border border-yellow-500/20 bg-black/70",
-              "px-4 py-4 md:px-6 md:py-5",
-              "backdrop-blur-sm transition-transform duration-300",
-              "hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)]",
-              "animate-in fade-in slide-in-from-bottom-4"
-            )}
-            style={{ animationDelay: "80ms" }}
+            className="rounded-2xl border border-yellow-500/20 bg-black/70 px-4 py-4 md:px-6 md:py-5 backdrop-blur-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] animate-in fade-in slide-in-from-bottom-4"
           >
             <h3 className="mb-2 flex items-center gap-2 text-base md:text-lg font-semibold">
               <Activity className="h-5 w-5 text-yellow-300" />
               <span>Round Momentum Pulse</span>
             </h3>
-            <p className="mb-4 text-sm leading-relaxed text-white/70">
+
+            <p className="mb-4 text-sm text-white/70 leading-relaxed">
               {PULSE_COPY[selected]}
             </p>
 
             <Sparkline data={avgRounds} />
           </div>
 
-          {/* Headlines card */}
+          {/* HEADLINES */}
           <div
-            className={cn(
-              "rounded-2xl border border-yellow-500/20 bg-black/70",
-              "px-4 py-4 md:px-6 md:py-5",
-              "backdrop-blur-sm transition-transform duration-300",
-              "hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)]",
-              "animate-in fade-in slide-in-from-bottom-4"
-            )}
-            style={{ animationDelay: "140ms" }}
+            className="rounded-2xl border border-yellow-500/20 bg-black/70 px-4 py-4 md:px-6 md:py-5 backdrop-blur-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] animate-in fade-in slide-in-from-bottom-4"
           >
             <h3 className="mb-2 flex items-center gap-2 text-base md:text-lg font-semibold">
               <Flame className="h-5 w-5 text-orange-400" />
               <span>Key Headlines</span>
             </h3>
-            <ul className="space-y-1.5 md:space-y-2 text-sm text-white/80">
+
+            <ul className="space-y-2 text-sm text-white/80">
               <li>
-                • <strong>{topScorer?.name ?? "–"}</strong> led this round with{" "}
-                <strong>
-                  {topValue} {unit}
-                </strong>
-                .
+                • <strong>{topScorer?.name}</strong> led this round with{" "}
+                <strong>{topScorer?.last} {unit}</strong>.
               </li>
               <li>
-                •{" "}
-                <strong>{biggestRiser?.name ?? "–"}</strong> climbed{" "}
-                <strong>
-                  {riserValue.toFixed(1)} {unit}
-                </strong>{" "}
-                on last week.
+                • <strong>{biggestRiser?.name}</strong> climbed{" "}
+                <strong>{biggestRiser?.diff.toFixed(1)} {unit}</strong> on last week.
               </li>
               <li>
-                •{" "}
-                <strong>{mostConsistent?.name ?? "–"}</strong> holds{" "}
-                <strong>{consistencyValue.toFixed(0)}%</strong> above-average
-                games.
+                • <strong>{mostConsistent?.name}</strong> holds{" "}
+                <strong>{mostConsistent?.consistency.toFixed(0)}%</strong> above-average games.
               </li>
               <li>
-                • League-wide {labelLower} output continues to show meaningful
-                stability and role changes.
+                • League-wide {labelLower} output continues to show meaningful stability and role changes.
               </li>
             </ul>
           </div>
@@ -366,21 +327,21 @@ export default function RoundSummary() {
           <MiniCard
             icon={Flame}
             label="Top Score"
-            value={`${topValue} ${unit}`}
+            value={`${topScorer?.last ?? 0} ${unit}`}
             player={topScorer?.name ?? "—"}
             delay={160}
           />
           <MiniCard
             icon={TrendingUp}
             label="Biggest Riser"
-            value={`${riserValue.toFixed(1)} ${unit}`}
+            value={`${biggestRiser?.diff.toFixed(1)} ${unit}`}
             player={biggestRiser?.name ?? "—"}
             delay={220}
           />
           <MiniCard
             icon={Shield}
             label="Most Consistent"
-            value={`${consistencyValue.toFixed(0)}%`}
+            value={`${mostConsistent?.consistency.toFixed(0)}%`}
             player={mostConsistent?.name ?? "—"}
             delay={280}
           />
