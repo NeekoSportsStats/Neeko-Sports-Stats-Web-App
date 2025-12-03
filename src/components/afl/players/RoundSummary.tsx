@@ -1,20 +1,26 @@
 // src/components/afl/players/RoundSummary.tsx
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { TrendingUp, Flame, Shield, Sparkles, Activity } from "lucide-react";
+import {
+  Flame,
+  Zap,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  Sparkles,
+} from "lucide-react";
 
 import {
   useAFLMockPlayers,
   getSeriesForStat,
+  lastN,
   average,
   StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
-/* ---------------------------------------------------------
-   Constants / Stat Metadata
---------------------------------------------------------- */
-
-const CURRENT_ROUND = 6;
+/* -------------------------------------------------------
+   STAT CONFIG
+------------------------------------------------------- */
 
 const STATS: StatKey[] = [
   "fantasy",
@@ -26,7 +32,7 @@ const STATS: StatKey[] = [
   "goals",
 ];
 
-const STAT_LABELS: Record<StatKey, string> = {
+const LABELS: Record<StatKey, string> = {
   fantasy: "Fantasy",
   disposals: "Disposals",
   kicks: "Kicks",
@@ -36,304 +42,291 @@ const STAT_LABELS: Record<StatKey, string> = {
   goals: "Goals",
 };
 
-const STAT_UNITS: Record<StatKey, string> = {
-  fantasy: "pts",
-  disposals: "disposals",
-  kicks: "kicks",
-  marks: "marks",
-  tackles: "tackles",
-  hitouts: "hitouts",
-  goals: "goals",
-};
-
-const PULSE_COPY: Record<StatKey, string> = {
-  fantasy:
-    "League-wide Fantasy trends reflect shifts driven by usage rates, matchup edges and evolving roles.",
-  disposals:
-    "High-volume ball winners dominated disposals, with many midfielders posting standout numbers.",
-  kicks:
-    "Kick-to-handball ratios trended upward as teams pushed more territory-based transition.",
-  marks:
-    "Intercept and link-up marks surged, highlighting defenders & wings dictating chains.",
-  tackles:
-    "Pressure numbers climbed as contested phases dictated scoring opportunities.",
-  hitouts:
-    "Ruck contests shaped territory as top rucks separated in hitouts to advantage.",
-  goals:
-    "Forward efficiency spiked with multiple players capitalising on inside-50 supply.",
-};
-
-/* ---------------------------------------------------------
-   Sparkline
---------------------------------------------------------- */
-
-function Sparkline({ data }: { data: number[] }) {
+/* -------------------------------------------------------
+   MINI SPARKLINE (Section 1 only)
+------------------------------------------------------- */
+function MiniSparkline({ data }: { data: number[] }) {
   if (!data.length) return null;
 
   const max = Math.max(...data);
   const min = Math.min(...data);
-  const normalized = data.map((v) => ((v - min) / (max - min || 1)) * 100);
-
-  const width = Math.max(normalized.length * 20, 80);
+  const norm = data.map((v) => ((v - min) / (max - min || 1)) * 100);
+  const width = Math.max(norm.length * 20, 60);
 
   return (
-    <div className="relative h-16 w-full md:h-24">
+    <div className="relative h-10 w-full mt-2">
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${width} 100`}
         preserveAspectRatio="none"
       >
-        {/* glow */}
         <polyline
-          points={normalized
-            .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
+          points={norm
+            .map((v, i) => `${(i / (norm.length - 1)) * width},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgba(250, 204, 21, 0.35)"
-          strokeWidth={4}
-          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]"
+          stroke="rgba(250,204,21,0.35)"
+          strokeWidth={3}
         />
-
-        {/* main line */}
+      </svg>
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${width} 100`}
+        preserveAspectRatio="none"
+      >
         <polyline
-          points={normalized
-            .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
+          points={norm
+            .map((v, i) => `${(i / (norm.length - 1)) * width},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgba(250,204,21,0.9)"
-          strokeWidth={2.5}
+          stroke="rgb(250,204,21)"
+          strokeWidth={2}
         />
       </svg>
     </div>
   );
 }
 
-/* ---------------------------------------------------------
-   Mini Card
---------------------------------------------------------- */
-
-function MiniCard({ icon: Icon, label, value, player, delay }) {
-  return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-yellow-500/18 bg-black/70",
-        "px-4 py-4 md:px-5 md:py-5",
-        "backdrop-blur-sm",
-        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_36px_rgba(250,204,21,0.45)]",
-        "animate-in fade-in slide-in-from-bottom-4"
-      )}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="pointer-events-none absolute inset-x-0 -bottom-12 h-24 bg-gradient-to-t from-yellow-500/12 to-transparent" />
-      <div className="relative flex flex-col gap-2 text-left">
-        <div className="flex items-center justify-between">
-          <Icon className="h-5 w-5 text-yellow-400" />
-          <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
-            {label}
-          </span>
-        </div>
-        <div>
-          <p className="text-xl font-semibold text-yellow-300 md:text-2xl">
-            {value}
-          </p>
-          <p className="mt-0.5 text-xs text-white/55">{player}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------
-   MAIN SECTION — FIXED VERSION
---------------------------------------------------------- */
+/* -------------------------------------------------------
+   ROUND SUMMARY MAIN
+------------------------------------------------------- */
 
 export default function RoundSummary() {
-  const [selected, setSelected] = useState<StatKey>("fantasy");
   const players = useAFLMockPlayers();
+  const [stat, setStat] = useState<StatKey>("fantasy");
 
-  const selectedLabel = STAT_LABELS[selected];
-  const unit = STAT_UNITS[selected];
-  const labelLower = selectedLabel.toLowerCase();
+  const statLabel = LABELS[stat];
 
-  /* sparkline average of all players */
-  const avgRounds = useMemo(() => {
-    const sample = players[0];
-    if (!sample) return [];
-    const series = getSeriesForStat(sample, selected);
+  /* ---------------------- METRICS ---------------------- */
+  const metrics = useMemo(() => {
+    const all: {
+      topScore: number;
+      topPlayer: string;
+      biggestRise: number;
+      biggestRiser: string;
+      mostConsistent: number;
+      consistencyPlayer: string;
+      sparkline: number[];
+    } = {
+      topScore: 0,
+      topPlayer: "—",
+      biggestRise: 0,
+      biggestRiser: "—",
+      mostConsistent: 0,
+      consistencyPlayer: "—",
+      sparkline: [],
+    };
 
-    const totals = Array.from({ length: series.length }, () => 0);
+    // mock scoring
     players.forEach((p) => {
-      getSeriesForStat(p, selected).forEach((v, i) => (totals[i] += v));
+      const series = getSeriesForStat(p, stat);
+      const last = series[series.length - 1] || 0;
+      const prev = series[series.length - 2] || 0;
+
+      // top score
+      if (last > all.topScore) {
+        all.topScore = last;
+        all.topPlayer = p.name;
+      }
+
+      // biggest riser
+      const diff = last - prev;
+      if (diff > all.biggestRise) {
+        all.biggestRise = diff;
+        all.biggestRiser = p.name;
+      }
+
+      // consistency
+      const base = average(series);
+      const consistency =
+        (series.filter((v) => v >= base).length / series.length) * 100;
+
+      if (consistency > all.mostConsistent) {
+        all.mostConsistent = consistency;
+        all.consistencyPlayer = p.name;
+      }
     });
-    return totals.map((t) => Math.round(t / players.length));
-  }, [players, selected]);
 
-  /* top scorer */
-  const topScorer = useMemo(() => {
-    return players
-      .map((p) => {
-        const s = getSeriesForStat(p, selected);
-        return { name: p.name, last: s[s.length - 1] ?? 0 };
-      })
-      .sort((a, b) => b.last - a.last)[0];
-  }, [players, selected]);
+    // league sparkline = average of all players for each round
+    const spark: number[] = [];
+    const roundsCount = players[0][stat].length;
 
-  /* biggest riser */
-  const biggestRiser = useMemo(() => {
-    return players
-      .map((p) => {
-        const s = getSeriesForStat(p, selected);
-        if (s.length < 2) return null;
-        return { name: p.name, diff: (s.at(-1) ?? 0) - (s.at(-2) ?? 0) };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.diff - a.diff)[0];
-  }, [players, selected]);
+    for (let r = 0; r < roundsCount; r++) {
+      const avgRound =
+        players.reduce((sum, p) => sum + p[stat][r], 0) / players.length;
+      spark.push(avgRound);
+    }
 
-  /* most consistent */
-  const mostConsistent = useMemo(() => {
-    return players
-      .map((p) => {
-        const s = getSeriesForStat(p, selected);
-        const base = average(s) || 1;
-        return {
-          name: p.name,
-          consistency:
-            (s.filter((v) => v >= base).length / Math.max(s.length, 1)) * 100,
-        };
-      })
-      .sort((a, b) => b.consistency - a.consistency)[0];
-  }, [players, selected]);
+    all.sparkline = spark;
+
+    return all;
+  }, [players, stat]);
+
+  /* -------------------------------------------------------
+     UI RENDER
+  ------------------------------------------------------- */
 
   return (
     <section
       id="round-summary"
       className={cn(
-        "relative overflow-hidden rounded-3xl border border-yellow-500/18",
-        "bg-gradient-to-br from-black via-[#050507] to-[#14100a]",
-        "px-4 py-6 md:px-8 md:py-8",
-        "shadow-[0_0_120px_rgba(0,0,0,0.7)]"
+        "rounded-3xl border border-white/10",
+        "bg-gradient-to-br from-[#080808] via-black to-[#111010]",
+        "p-5 md:p-7 lg:p-8",
+        "shadow-[0_0_60px_rgba(0,0,0,0.6)]"
       )}
     >
-      {/* glow */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[480px] -translate-x-1/2 bg-yellow-500/16 blur-3xl" />
+      {/* HEADER ROW (pill + title + description) */}
+      <div className="space-y-1.5 mb-6 md:mb-8">
+        {/* New pill — consistent with Form Stability Grid */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/70 px-3 py-1 text-xs text-yellow-200/90">
+          <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+          <span className="uppercase tracking-[0.18em]">
+            Round Momentum
+          </span>
+        </div>
 
-      <div className="relative">
-        {/* --- NEW HEADER MATCHING FORM STABILITY GRID --- */}
-        <div className="mb-6 md:mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/70 px-3 py-1 text-xs text-yellow-200/90">
-            <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-            <span className="uppercase tracking-[0.18em]">Round Momentum</span>
+        <h2 className="text-xl md:text-2xl font-semibold">
+          Round Momentum Summary
+        </h2>
+
+        <p className="text-xs md:text-sm text-white/70">
+          Round 6 • <span className="text-yellow-300">Fantasy Snapshot</span>
+        </p>
+
+        <p className="max-w-xl text-xs md:text-sm text-white/60">
+          Live round snapshot — track fantasy trends, standout players and
+          role/stability shifts as this stat moves week to week.
+        </p>
+      </div>
+
+      {/* FILTERS */}
+      <div className="flex flex-wrap items-center gap-2 mb-6 md:mb-7">
+        {STATS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setStat(s)}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs border backdrop-blur-sm transition-all",
+              stat === s
+                ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_18px_rgba(250,204,21,0.6)]"
+                : "bg-white/5 text-white/70 border-white/15 hover:bg-white/10"
+            )}
+          >
+            {LABELS[s]}
+          </button>
+        ))}
+      </div>
+
+      {/* GRID: Pulse + Headlines */}
+      <div className="grid md:grid-cols-2 gap-4 md:gap-5 mb-6 md:mb-8">
+        {/* PULSE */}
+        <div
+          className={cn(
+            "rounded-2xl border border-white/15 bg-black/40 p-4 md:p-5",
+            "shadow-[0_0_25px_rgba(255,255,255,0.06)]"
+          )}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="h-4 w-4 text-yellow-300" />
+            <h3 className="text-sm font-semibold">Round Momentum Pulse</h3>
           </div>
 
-          <h2 className="mt-3 text-xl font-semibold md:text-2xl">
-            Round Momentum Summary
-          </h2>
-
-          <p className="mt-1 text-[11px] font-medium text-yellow-300/80 md:text-xs">
-            Round {CURRENT_ROUND} • {selectedLabel} Snapshot
+          <p className="text-xs text-white/60 mb-3">
+            League-wide {statLabel} trends reflect shifts driven by usage
+            rates, matchup edges and evolving roles.
           </p>
 
-          <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-[15px]">
-            Live round snapshot — track {labelLower} trends, standout players
-            and role/stability shifts as this stat moves week to week.
+          <MiniSparkline data={metrics.sparkline} />
+        </div>
+
+        {/* HEADLINES */}
+        <div
+          className={cn(
+            "rounded-2xl border border-white/15 bg-black/40 p-4 md:p-5",
+            "shadow-[0_0_25px_rgba(255,255,255,0.06)]"
+          )}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Flame className="h-4 w-4 text-orange-300" />
+            <h3 className="text-sm font-semibold">Key Headlines</h3>
+          </div>
+
+          <ul className="text-xs text-white/70 space-y-1.5">
+            <li>
+              • <span className="font-semibold">{metrics.topPlayer}</span> led
+              this round with{" "}
+              <span className="font-semibold">{metrics.topScore}</span>{" "}
+              {statLabel.toLowerCase()}.
+            </li>
+            <li>
+              • <span className="font-semibold">{metrics.biggestRiser}</span>{" "}
+              climbed{" "}
+              <span className="font-semibold">
+                {metrics.biggestRise.toFixed(1)}
+              </span>{" "}
+              on last week.
+            </li>
+            <li>
+              • <span className="font-semibold">{metrics.consistencyPlayer}</span>{" "}
+              holds{" "}
+              <span className="font-semibold">
+                {metrics.mostConsistent.toFixed(0)}%
+              </span>{" "}
+              consistent games.
+            </li>
+            <li>
+              • League-wide {statLabel.toLowerCase()} output shows meaningful
+              stability + role changes.
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      {/* 3 MINI CARDS */}
+      <div className="grid md:grid-cols-3 gap-4 md:gap-5">
+        {/* Top Score */}
+        <div className="rounded-xl border border-white/10 bg-black/30 p-4 shadow-[0_0_22px_rgba(255,255,255,0.05)]">
+          <div className="flex items-center gap-2 mb-1">
+            <Flame className="h-4 w-4 text-yellow-300" />
+            <span className="uppercase text-[11px] text-white/45 tracking-wide">
+              Top Score
+            </span>
+          </div>
+          <p className="text-lg font-semibold text-yellow-300">
+            {metrics.topScore} {statLabel.toLowerCase()}
           </p>
+          <p className="text-[11px] text-white/60">{metrics.topPlayer}</p>
         </div>
 
-        {/* --- FILTER PILLS --- */}
-        <div className="-mx-2 mb-5 mt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
-          <div className="flex min-w-max gap-2 px-2 pb-1">
-            {STATS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSelected(s)}
-                className={cn(
-                  "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all border backdrop-blur-md",
-                  selected === s
-                    ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_22px_rgba(250,204,21,0.6)]"
-                    : "bg-black/30 text-white/70 border-white/10 hover:bg-black/40 hover:text-white"
-                )}
-              >
-                {STAT_LABELS[s]}
-              </button>
-            ))}
+        {/* Biggest Riser */}
+        <div className="rounded-xl border border-white/10 bg-black/30 p-4 shadow-[0_0_22px_rgba(255,255,255,0.05)]">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp className="h-4 w-4 text-yellow-300" />
+            <span className="uppercase text-[11px] text-white/45 tracking-wide">
+              Biggest Riser
+            </span>
           </div>
+          <p className="text-lg font-semibold text-yellow-300">
+            {metrics.biggestRise.toFixed(1)} {statLabel.toLowerCase()}
+          </p>
+          <p className="text-[11px] text-white/60">{metrics.biggestRiser}</p>
         </div>
 
-        {/* --- GRID --- */}
-        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-          {/* PULSE */}
-          <div className="rounded-2xl border border-yellow-500/18 bg-black/70 px-4 py-4 backdrop-blur-sm hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] transition-transform duration-300 md:px-6 md:py-5">
-            <h3 className="mb-2 flex items-center gap-2 text-base font-semibold md:text-lg">
-              <Activity className="h-5 w-5 text-yellow-300" />
-              <span>Round Momentum Pulse</span>
-            </h3>
-
-            <p className="mb-4 text-sm leading-relaxed text-white/70">
-              {PULSE_COPY[selected]}
-            </p>
-
-            <Sparkline data={avgRounds} />
+        {/* Most Consistent */}
+        <div className="rounded-xl border border-white/10 bg-black/30 p-4 shadow-[0_0_22px_rgba(255,255,255,0.05)]">
+          <div className="flex items-center gap-2 mb-1">
+            <BarChart3 className="h-4 w-4 text-yellow-300" />
+            <span className="uppercase text-[11px] text-white/45 tracking-wide">
+              Most Consistent
+            </span>
           </div>
-
-          {/* HEADLINES */}
-          <div className="rounded-2xl border border-yellow-500/18 bg-black/70 px-4 py-4 backdrop-blur-sm hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] transition-transform duration-300 md:px-6 md:py-5">
-            <h3 className="mb-2 flex items-center gap-2 text-base font-semibold md:text-lg">
-              <Flame className="h-5 w-5 text-orange-400" />
-              <span>Key Headlines</span>
-            </h3>
-
-            <ul className="space-y-2 text-sm text-white/80">
-              <li>
-                • <strong>{topScorer?.name}</strong> led this round with{" "}
-                <strong>
-                  {topScorer?.last} {unit}
-                </strong>
-                .
-              </li>
-              <li>
-                • <strong>{biggestRiser?.name}</strong> climbed{" "}
-                <strong>
-                  {biggestRiser?.diff.toFixed(1)} {unit}
-                </strong>{" "}
-                on last week.
-              </li>
-              <li>
-                • <strong>{mostConsistent?.name}</strong> holds{" "}
-                <strong>{mostConsistent?.consistency.toFixed(0)}%</strong>{" "}
-                above-average games.
-              </li>
-              <li>
-                • League-wide {labelLower} output continues to show meaningful
-                stability and role changes.
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* MINI CARDS */}
-        <div className="mt-6 grid gap-4 md:mt-7 md:grid-cols-3">
-          <MiniCard
-            icon={Flame}
-            label="Top Score"
-            value={`${topScorer?.last ?? 0} ${unit}`}
-            player={topScorer?.name ?? "—"}
-            delay={160}
-          />
-          <MiniCard
-            icon={TrendingUp}
-            label="Biggest Riser"
-            value={`${biggestRiser?.diff.toFixed(1)} ${unit}`}
-            player={biggestRiser?.name ?? "—"}
-            delay={220}
-          />
-          <MiniCard
-            icon={Shield}
-            label="Most Consistent"
-            value={`${mostConsistent?.consistency.toFixed(0)}%`}
-            player={mostConsistent?.name ?? "—"}
-            delay={280}
-          />
+          <p className="text-lg font-semibold text-yellow-300">
+            {metrics.mostConsistent.toFixed(0)}%
+          </p>
+          <p className="text-[11px] text-white/60">
+            {metrics.consistencyPlayer}
+          </p>
         </div>
       </div>
     </section>
