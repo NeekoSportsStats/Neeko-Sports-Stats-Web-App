@@ -1,315 +1,255 @@
 // src/components/afl/players/FormStabilityGrid.tsx
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Flame, Shield, Snowflake, ChevronDown } from "lucide-react";
+import {
+  Flame,
+  Shield,
+  Snowflake,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+
 import {
   useAFLMockPlayers,
   getSeriesForStat,
   average,
   StatKey,
-  Player,
 } from "@/components/afl/players/useAFLMockData";
 
 /* ---------------------------------------------------------
-   CONFIG
+   CONSTANTS
 --------------------------------------------------------- */
 
-const STATS: StatKey[] = [
-  "fantasy",
-  "disposals",
-  "kicks",
-  "marks",
-  "tackles",
-  "hitouts",
-  "goals",
-];
+const CATEGORY_LIMIT = 5;
 
 const STAT_LABELS: Record<StatKey, string> = {
-  fantasy: "Fantasy",
-  disposals: "Disposals",
-  kicks: "Kicks",
-  marks: "Marks",
-  tackles: "Tackles",
-  hitouts: "Hitouts",
-  goals: "Goals",
+  fantasy: "fantasy",
+  disposals: "disposals",
+  kicks: "kicks",
+  marks: "marks",
+  tackles: "tackles",
+  hitouts: "hitouts",
+  goals: "goals",
+};
+
+const CATEGORY_COLORS = {
+  hot: "from-red-600/30 to-red-900/20 border-red-500/30",
+  stable: "from-yellow-600/25 to-yellow-900/20 border-yellow-500/25",
+  cool: "from-cyan-600/25 to-cyan-900/20 border-cyan-500/25",
 };
 
 /* ---------------------------------------------------------
-   AI Summaries — Player-specific
+   GENERATE PLAYER-SPECIFIC AI COMMENTARY
 --------------------------------------------------------- */
 
-function aiSummaryHot(player: Player, series: number[]) {
-  const last = series.at(-1) ?? 0;
-  const avg = average(series);
-  const delta = last - avg;
+function generatePlayerCommentary(player: any, stat: StatKey, delta: number) {
+  const direction =
+    delta > 0 ? "surging above" : delta < 0 ? "slipping below" : "aligning with";
 
-  return `${player.name} is showing a strong surge with recent output sitting ${
-    delta > 0 ? "+" + delta.toFixed(1) : delta.toFixed(1)
-  } vs their L5 baseline — highlighting increased opportunity, role usage and strong form momentum.`;
-}
+  const abs = Math.abs(delta).toFixed(1);
 
-function aiSummaryStable(player: Player, series: number[]) {
-  const avg = average(series) || 1;
-  const consistency =
-    (series.filter((v) => v >= avg).length / Math.max(series.length, 1)) * 100;
+  const trend =
+    delta > 0
+      ? "showing upward momentum driven by increased opportunity and stronger involvement."
+      : delta < 0
+      ? "indicating cooling form due to reduced impact or role variability."
+      : "reflecting stable role expectation with minimal volatility.";
 
-  return `${player.name} is delivering one of the most predictable scoring profiles this season, holding a steady ${consistency.toFixed(
-    0
-  )}% consistency vs their L5 baseline — signalling a reliable, low-volatility role.`;
-}
-
-function aiSummaryCooling(player: Player, series: number[]) {
-  const last = series.at(-1) ?? 0;
-  const avg = average(series);
-  const delta = last - avg;
-
-  return `${player.name} is trending ${
-    delta < 0 ? "below" : "near"
-  } expectations with a ${delta.toFixed(
-    1
-  )} shift vs their L5 baseline — suggesting reduced opportunity, matchup difficulty or emerging role instability.`;
+  return `${player.name} is ${direction} their L5 baseline (${abs} ${STAT_LABELS[stat]}), ${trend}`;
 }
 
 /* ---------------------------------------------------------
-   Sparkline
+   PLAYER CARD
 --------------------------------------------------------- */
 
-function Sparkline({ data }: { data: number[] }) {
-  if (!data.length) return null;
-
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const normalized = data.map((v) => ((v - min) / (max - min || 1)) * 100);
-  const width = Math.max(normalized.length * 22, 90);
-
-  return (
-    <svg viewBox={`0 0 ${width} 100`} preserveAspectRatio="none" className="w-full h-16">
-      <polyline
-        points={normalized
-          .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
-          .join(" ")}
-        fill="none"
-        stroke="rgb(250,204,21)"
-        strokeWidth={3}
-      />
-    </svg>
-  );
-}
-
-/* ---------------------------------------------------------
-   FSCard
---------------------------------------------------------- */
-
-interface FSCardProps {
-  title: string;
-  color: string;
-  player: Player;
-  statLabel: string;
-  series: number[];
-  aiSummary: string;
-}
-
-function FSCard({ title, color, player, statLabel, series, aiSummary }: FSCardProps) {
+function PlayerCard({
+  player,
+  stat,
+  category,
+}: {
+  player: any;
+  stat: StatKey;
+  category: "hot" | "stable" | "cool";
+}) {
   const [open, setOpen] = useState(false);
 
-  const last5 = series.at(-1) ?? 0;
-  const avg = average(series);
-  const diff = last5 - avg;
+  const series = getSeriesForStat(player, stat);
+  const last = series.at(-1) ?? 0;
+  const baseline = average(series);
+  const delta = last - baseline;
 
   return (
     <div
       className={cn(
-        "rounded-2xl border p-4 md:p-5 bg-black/60 backdrop-blur-sm",
-        "transition hover:-translate-y-1",
-        color
+        "rounded-2xl border p-4 cursor-pointer transition-all",
+        "hover:-translate-y-1 hover:shadow-xl backdrop-blur-sm",
+        "bg-gradient-to-br",
+        CATEGORY_COLORS[category]
       )}
+      onClick={() => setOpen((p) => !p)}
     >
-      <h3 className="flex items-center gap-2 mb-2 text-sm font-semibold">
-        {title}
-      </h3>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[13px] font-medium opacity-80">
+          {category === "hot"
+            ? "Hot form"
+            : category === "stable"
+            ? "Stability"
+            : "Cooling"}
+        </p>
 
-      <div className="text-xs text-white/60 mb-1">
-        {player.team} • {player.pos}
-      </div>
-
-      <div className="flex items-baseline justify-between mb-2">
-        <p className="text-2xl font-bold text-white">{last5} {statLabel}</p>
-        <span
-          className={cn(
-            "text-sm font-medium",
-            diff >= 0 ? "text-green-400" : "text-red-400"
-          )}
-        >
-          {diff >= 0 ? "+" : ""}
-          {diff.toFixed(1)} vs avg
-        </span>
-      </div>
-
-      {/* Collapse Trigger */}
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-xs text-white/70 hover:text-white transition"
-      >
-        {open ? "Hide trend" : "Show trend"}
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 transition-transform",
-            open && "rotate-180"
-          )}
-        />
-      </button>
-
-      {/* Collapsible Content */}
-      <div
-        className={cn(
-          "overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
-          open ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
+        {open ? (
+          <ChevronUp className="w-4 h-4 opacity-70" />
+        ) : (
+          <ChevronDown className="w-4 h-4 opacity-70" />
         )}
-      >
-        <Sparkline data={series} />
+      </div>
 
-        <p className="mt-3 text-xs text-white/65 leading-relaxed">
-          {aiSummary}
+      {/* Player */}
+      <div className="text-left">
+        <p className="text-lg font-semibold">{last} {STAT_LABELS[stat]}</p>
+        <p className={cn("text-sm mt-1", delta >= 0 ? "text-green-400" : "text-red-400")}>
+          {delta >= 0 ? "+" : ""}
+          {delta.toFixed(1)} vs avg
         </p>
       </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="mt-3 border-t border-white/10 pt-3 animate-in fade-in slide-in-from-top-1">
+          <p className="text-sm text-white/70 leading-relaxed">
+            {generatePlayerCommentary(player, stat, delta)}
+          </p>
+
+          {/* Sparkline */}
+          <div className="h-16 w-full mt-3 relative">
+            <svg viewBox="0 0 100 40" className="absolute inset-0 w-full h-full">
+              <polyline
+                fill="none"
+                stroke="rgba(250,204,21,0.3)"
+                strokeWidth={3}
+                points={series
+                  .map((v, i) => `${(i / (series.length - 1)) * 100},${40 - (v / Math.max(...series)) * 40}`)
+                  .join(" ")}
+              />
+              <polyline
+                fill="none"
+                stroke="rgba(250,204,21,1)"
+                strokeWidth={2}
+                points={series
+                  .map((v, i) => `${(i / (series.length - 1)) * 100},${40 - (v / Math.max(...series)) * 40}`)
+                  .join(" ")}
+              />
+            </svg>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   Main Component
+   MAIN SECTION
 --------------------------------------------------------- */
 
 export default function FormStabilityGrid() {
-  const [selected, setSelected] = useState<StatKey>("fantasy");
   const players = useAFLMockPlayers();
+  const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
 
-  const statLabel = STAT_LABELS[selected];
-
-  /* compute groups */
-  const groups = useMemo(() => {
-    const hot: Player[] = [];
-    const stable: Player[] = [];
-    const cool: Player[] = [];
-
-    players.forEach((p) => {
-      const s = getSeriesForStat(p, selected);
+  /* Compute L5 metrics for each category */
+  const categories = useMemo(() => {
+    const list = players.map((p) => {
+      const s = getSeriesForStat(p, selectedStat);
       const last = s.at(-1) ?? 0;
-      const avg = average(s);
-      const diff = last - avg;
-
-      if (diff >= 3) hot.push(p);
-      else if (Math.abs(diff) < 1.5) stable.push(p);
-      else cool.push(p);
+      const baseline = average(s);
+      const diff = last - baseline;
+      return { ...p, last, diff };
     });
 
-    return { hot, stable, cool };
-  }, [players, selected]);
+    return {
+      hot: [...list].sort((a, b) => b.diff - a.diff).slice(0, CATEGORY_LIMIT),
+      stable: [...list]
+        .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))
+        .slice(0, CATEGORY_LIMIT),
+      cool: [...list].sort((a, b) => a.diff - b.diff).slice(0, CATEGORY_LIMIT),
+    };
+  }, [players, selectedStat]);
 
   return (
-    <section
-      className="rounded-3xl border border-white/10 bg-black/20 px-4 py-8 md:px-8 md:py-10 backdrop-blur-xl shadow-2xl"
-      id="form-stability"
-    >
-      {/* Header Pill */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs uppercase tracking-widest font-semibold px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-300">
-          Form Stability Grid
-        </span>
+    <section className="rounded-3xl border border-white/10 bg-black/40 p-6 md:p-8 backdrop-blur-sm mt-12">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="inline-flex px-4 py-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 text-xs font-semibold tracking-wide">
+          ★ FORM STABILITY GRID
+        </div>
+
+        <h2 className="mt-4 text-2xl md:text-3xl font-bold">
+          Hot risers, rock-solid anchors & form slumps
+        </h2>
+
+        <p className="mt-2 text-sm text-white/70 max-w-2xl">
+          Last 5 rounds of <span className="text-yellow-300">{STAT_LABELS[selectedStat]}</span> —
+          split into surges, stability leaders, and cooling risks.
+        </p>
+
+        {/* Filters */}
+        <div className="mt-4 flex gap-2 flex-wrap">
+          {Object.keys(STAT_LABELS).map((key) => (
+            <button
+              key={key}
+              onClick={() => setSelectedStat(key as StatKey)}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-sm border transition-all",
+                selectedStat === key
+                  ? "bg-yellow-300 text-black border-yellow-300 shadow-[0_0_22px_rgba(250,204,21,0.6)]"
+                  : "bg-black/30 text-white/70 border-white/10 hover:bg-black/50"
+              )}
+            >
+              {STAT_LABELS[key as StatKey]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <h2 className="text-2xl md:text-3xl font-bold mb-2">
-        Hot risers, rock-solid anchors & form slumps
-      </h2>
-
-      <p className="text-sm text-white/70 mb-5 max-w-2xl">
-        Last 5 rounds of <span className="text-yellow-300">{statLabel.toLowerCase()}</span> — split into surges, stability leaders, and cooling risks.
-      </p>
-
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {STATS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setSelected(s)}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-sm border backdrop-blur-md transition",
-              selected === s
-                ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_20px_rgba(250,204,21,0.4)]"
-                : "bg-black/30 text-white/70 border-white/10 hover:bg-black/40"
-            )}
-          >
-            {STAT_LABELS[s]}
-          </button>
-        ))}
-      </div>
-
-      {/* 3 Columns */}
+      {/* Columns */}
       <div className="grid md:grid-cols-3 gap-6">
-        {/* HOT */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 font-semibold text-red-400">
-            <Flame className="h-4 w-4" /> Hot form surge
-          </h3>
-
-          {groups.hot.map((p) => {
-            const series = getSeriesForStat(p, selected);
-            return (
-              <FSCard
-                key={p.id}
-                title="Hot form"
-                color="border-red-500/25"
-                player={p}
-                statLabel={statLabel.toLowerCase()}
-                series={series}
-                aiSummary={aiSummaryHot(p, series)}
-              />
-            );
-          })}
+        {/* Hot */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Flame className="w-5 h-5 text-red-400" />
+            <h3 className="font-semibold">Hot form surge</h3>
+          </div>
+          <div className="space-y-4">
+            {categories.hot.map((p) => (
+              <PlayerCard key={p.name} player={p} stat={selectedStat} category="hot" />
+            ))}
+          </div>
         </div>
 
-        {/* STABLE */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 font-semibold text-yellow-400">
-            <Shield className="h-4 w-4" /> Stability leaders
-          </h3>
-
-          {groups.stable.map((p) => {
-            const series = getSeriesForStat(p, selected);
-            return (
-              <FSCard
-                key={p.id}
-                title="Stability"
-                color="border-yellow-500/25"
-                player={p}
-                statLabel={statLabel.toLowerCase()}
-                series={series}
-                aiSummary={aiSummaryStable(p, series)}
-              />
-            );
-          })}
+        {/* Stability */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="w-5 h-5 text-yellow-300" />
+            <h3 className="font-semibold">Stability leaders</h3>
+          </div>
+          <div className="space-y-4">
+            {categories.stable.map((p) => (
+              <PlayerCard key={p.name} player={p} stat={selectedStat} category="stable" />
+            ))}
+          </div>
         </div>
 
-        {/* COOLING */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 font-semibold text-cyan-300">
-            <Snowflake className="h-4 w-4" /> Cooling risks
-          </h3>
-
-          {groups.cool.map((p) => {
-            const series = getSeriesForStat(p, selected);
-            return (
-              <FSCard
-                key={p.id}
-                title="Cooling"
-                color="border-cyan-400/25"
-                player={p}
-                statLabel={statLabel.toLowerCase()}
-                series={series}
-                aiSummary={aiSummaryCooling(p, series)}
-              />
-            );
-          })}
+        {/* Cooling */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Snowflake className="w-5 h-5 text-cyan-300" />
+            <h3 className="font-semibold">Cooling risks</h3>
+          </div>
+          <div className="space-y-4">
+            {categories.cool.map((p) => (
+              <PlayerCard key={p.name} player={p} stat={selectedStat} category="cool" />
+            ))}
+          </div>
         </div>
       </div>
     </section>
