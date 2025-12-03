@@ -29,14 +29,13 @@ const STATS: StatKey[] = [
 ];
 
 /* ---------------------------------------------------------
-   Sparkline
+   Sparkline — tuned glow
 --------------------------------------------------------- */
 function Sparkline({ data }: { data: number[] }) {
   if (!data.length) return null;
 
   const max = Math.max(...data);
   const min = Math.min(...data);
-
   const normalized = data.map(
     (v) => ((v - min) / (max - min || 1)) * 100
   );
@@ -48,9 +47,7 @@ function Sparkline({ data }: { data: number[] }) {
         viewBox={`0 0 ${normalized.length * 20} 100`}
       >
         <polyline
-          points={normalized
-            .map((v, i) => `${i * 20},${100 - v}`)
-            .join(" ")}
+          points={normalized.map((v, i) => `${i * 20},${100 - v}`).join(" ")}
           fill="none"
           stroke="rgba(234,179,8,0.20)"
           strokeWidth="4"
@@ -63,9 +60,7 @@ function Sparkline({ data }: { data: number[] }) {
         viewBox={`0 0 ${normalized.length * 20} 100`}
       >
         <polyline
-          points={normalized
-            .map((v, i) => `${i * 20},${100 - v}`)
-            .join(" ")}
+          points={normalized.map((v, i) => `${i * 20},${100 - v}`).join(" ")}
           fill="none"
           stroke="rgb(234,179,8)"
           strokeWidth="3"
@@ -76,7 +71,7 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   MiniCard — gold outline version
+   Mini Card — refined padding + text contrast
 --------------------------------------------------------- */
 function MiniCard({
   icon: Icon,
@@ -105,7 +100,7 @@ function MiniCard({
     >
       <div className="flex items-center justify-between gap-2 mb-0.5">
         <Icon className="h-4 w-4 text-yellow-400" />
-        <p className="text-[11px] uppercase tracking-wide text-white/45">
+        <p className="text-[11px] uppercase tracking-wide text-white/50">
           {label}
         </p>
       </div>
@@ -114,7 +109,7 @@ function MiniCard({
         {value}
       </p>
 
-      <p className="text-[11px] text-white/55 mt-0.5">{player}</p>
+      <p className="text-[11px] text-white/60 mt-0.5">{player}</p>
     </div>
   );
 }
@@ -139,7 +134,6 @@ export default function RoundSummary({
 
   const avgRounds = useMemo(() => {
     if (!players.length) return [];
-
     const len = getSeriesForStat(players[0], selectedStat).length;
     const totals = Array(len).fill(0);
 
@@ -195,11 +189,12 @@ export default function RoundSummary({
         border border-yellow-400/30
         bg-gradient-to-br from-black/75 via-black/80 to-black/95
         px-4 py-6 md:px-6 md:py-7
-        shadow-[0_0_18px_rgba(234,179,8,0.15)]
+        shadow-[0_0_22px_rgba(234,179,8,0.18)]
+        mt-4 md:mt-6
       "
     >
-      {/* Glow (balanced top/bottom) */}
-      <div className="pointer-events-none absolute -top-16 left-1/2 h-[200px] w-[440px] -translate-x-1/2 rounded-full bg-yellow-500/6 blur-3xl md:bg-yellow-500/8" />
+      {/* Balanced Gold Glow */}
+      <div className="pointer-events-none absolute -top-14 left-1/2 h-[200px] w-[460px] -translate-x-1/2 rounded-full bg-yellow-500/10 blur-3xl md:bg-yellow-500/12" />
 
       {/* HEADER */}
       <div className="relative mb-6">
@@ -208,7 +203,7 @@ export default function RoundSummary({
           Round Momentum Summary —
         </h2>
 
-        <p className="mt-1.5 text-xs md:text-sm text-white/50">
+        <p className="mt-1.5 text-xs md:text-sm text-white/55">
           Round {roundNumber} • {statLabel} Snapshot
         </p>
 
@@ -220,7 +215,7 @@ export default function RoundSummary({
       </div>
 
       {/* FILTER ROW */}
-      <div className="relative mb-5">
+      <div className="relative mb-5 backdrop-saturate-100">
         <div
           className="
             flex gap-2 overflow-x-auto pr-14 pb-1
@@ -228,8 +223,7 @@ export default function RoundSummary({
           "
         >
           {STATS.map((s) => {
-            const label =
-              s.charAt(0).toUpperCase() + s.slice(1);
+            const label = s.charAt(0).toUpperCase() + s.slice(1);
             const active = selectedStat === s;
 
             return (
@@ -237,7 +231,7 @@ export default function RoundSummary({
                 key={s}
                 onClick={() => onStatChange(s)}
                 className={cn(
-                  "snap-start whitespace-nowrap rounded-full px-4 py-1.5 text-xs md:text-sm transition-all",
+                  "snap-start whitespace-nowrap rounded-full px-4 py-[7px] text-xs md:text-sm transition-all",
                   active
                     ? "bg-yellow-400 text-black font-semibold shadow-[0_0_10px_rgba(234,179,8,0.5)]"
                     : "bg-white/5 text-white/70 hover:bg-white/10"
@@ -249,18 +243,19 @@ export default function RoundSummary({
           })}
         </div>
 
-        {/* smoother fade */}
+        {/* fade */}
         <div className="pointer-events-none absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-black via-black/0" />
       </div>
 
       {/* GRID */}
       <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-        {/* Pulse Card */}
+        {/* Pulse */}
         <div
           className="
             rounded-xl border border-white/10 bg-black/30
             p-4 md:p-5
             min-h-[235px] md:min-h-[250px]
+            pb-3 md:pb-5
             backdrop-blur-sm
           "
         >
@@ -277,7 +272,7 @@ export default function RoundSummary({
           <Sparkline data={avgRounds} />
         </div>
 
-        {/* Headlines Card */}
+        {/* Headlines */}
         <div
           className="
             rounded-xl border border-white/10 bg-black/30
@@ -317,9 +312,8 @@ export default function RoundSummary({
               above-average games.
             </li>
             <li>
-              • League-wide{" "}
-              {statLabel.toLowerCase()} output continues to show meaningful
-              stability and role changes.
+              • League-wide {statLabel.toLowerCase()} output continues to
+              show meaningful stability and role changes.
             </li>
           </ul>
         </div>
