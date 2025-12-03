@@ -1,40 +1,28 @@
+// src/pages/sports/afl/AFLPlayers.tsx
 import React from "react";
 import RoundSummary from "@/components/afl/players/RoundSummary";
 
 export default function AFLPlayersPage() {
   return (
-    <div className="w-full flex flex-col items-center">
-      {/* PAGE CONTAINER */}
-      <div className="w-full max-w-6xl px-4 md:px-6 py-10 space-y-12">
+    <div className="max-w-6xl mx-auto px-4 py-8 text-white">
+      {/* Page Header */}
+      <header className="mb-7 md:mb-9">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+          AFL Player Performance Dashboard
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm md:text-[15px] text-white/70">
+          League-wide momentum, fantasy analytics, player trends, stability
+          insights and performance signals — all in one intelligent dashboard.
+        </p>
+      </header>
 
-        {/* PAGE HEADER */}
-        <header className="space-y-3">
-          <h1 className="text-4xl md:text-5xl font-bold">
-            AFL Player Performance Dashboard
-          </h1>
-
-          <p className="text-white/60 max-w-3xl leading-relaxed text-base md:text-lg">
-            League-wide momentum, fantasy analytics, player trends,
-            stability insights and performance signals — all combined
-            into one intelligent dashboard for AFL analysis.
-          </p>
-        </header>
-
-        {/* SECTION 1 — ROUND SUMMARY (Premium Gold Hybrid) */}
+      {/* Page Sections */}
+      <div className="space-y-8 md:space-y-10">
+        {/* Section 1 — Round Summary */}
         <RoundSummary />
 
-        {/* ------------------------------------------------------------
-            FUTURE SECTIONS GO HERE (when you approve next patches):
-            ------------------------------------------------------------
-            - Form Leaders (Hot List)
-            - Risk Watchlist (Cold List)
-            - Movers (Risers/Fallers)
-            - Stability Meter
-            - Position Trends
-            - AI Insights
-            - Master Table
-          ------------------------------------------------------------ */}
-        
+        {/* Future sections can be added below */}
+        {/* <YourNextSection /> */}
       </div>
     </div>
   );
