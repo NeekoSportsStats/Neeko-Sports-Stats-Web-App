@@ -97,7 +97,7 @@ export default function AIInsights() {
   const predictedHigh = pred.predicted + pred.range;
 
   // FREE VS PREMIUM
-  const isPremium = false; // <- replace with your auth hook
+  const isPremium = true; // <- replace with your auth hook
 
   return (
     <section
