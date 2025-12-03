@@ -2,7 +2,8 @@
 import React from "react";
 import RoundSummary from "@/components/afl/players/RoundSummary";
 import FormStabilityGrid from "@/components/afl/players/FormStabilityGrid";
-import PositionTrends from "@/components/afl/players/PositionTrends"; // NEW
+import PositionTrends from "@/components/afl/players/PositionTrends";
+import AIInsights from "@/components/afl/players/AIInsights"; // 🔥 NEW
 
 export default function AFLPlayersPage() {
   return (
@@ -37,11 +38,9 @@ export default function AFLPlayersPage() {
             <a
               href="#round-momentum"
               className="
-                rounded-full border border-white/15
-                bg-white/5 px-3.5 py-1.5
-                text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                rounded-full border border-white/15 bg-white/5
+                px-3.5 py-1.5 text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Round Momentum
@@ -50,11 +49,9 @@ export default function AFLPlayersPage() {
             <a
               href="#form-stability"
               className="
-                rounded-full border border-white/15
-                bg-white/5 px-3.5 py-1.5
-                text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                rounded-full border border-white/15 bg-white/5 
+                px-3.5 py-1.5 text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Form Stability Grid
@@ -63,25 +60,20 @@ export default function AFLPlayersPage() {
             <a
               href="#position-trends"
               className="
-                rounded-full border border-white/15
-                bg-white/5 px-3.5 py-1.5
-                text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                rounded-full border border-white/15 bg-white/5 
+                px-3.5 py-1.5 text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Position Trends
             </a>
 
-            {/* These links are placeholders for the upcoming sections */}
             <a
               href="#ai-insights"
               className="
-                rounded-full border border-white/15
-                bg-white/5 px-3.5 py-1.5
-                text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                rounded-full border border-white/15 bg-white/5 
+                px-3.5 py-1.5 text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               AI Insights
@@ -90,11 +82,9 @@ export default function AFLPlayersPage() {
             <a
               href="#master-table"
               className="
-                rounded-full border border-white/15
-                bg-white/5 px-3.5 py-1.5
-                text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                rounded-full border border-white/15 bg-white/5 
+                px-3.5 py-1.5 text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Master Table
@@ -115,22 +105,18 @@ export default function AFLPlayersPage() {
           <FormStabilityGrid />
         </section>
 
-        {/* Section 3 — Position Trends (NEW) */}
+        {/* Section 3 — Position Trends */}
         <section id="position-trends" className="scroll-mt-24">
           <PositionTrends />
         </section>
 
-        {/* Section 4 — AI Insights — placeholder (to be built next) */}
+        {/* Section 4 — AI Insights */}
         <section id="ai-insights" className="scroll-mt-24">
-          {/* <AIInsights />  ← This will be added after we build it */}
-          <div className="text-center text-white/40 text-sm py-10 italic">
-            AI Insights section coming next.
-          </div>
+          <AIInsights /> {/* 🔥 FULL PREMIUM MODULE */}
         </section>
 
-        {/* Section 5 — Master Table — placeholder */}
+        {/* Section 5 — Master Table (placeholder for now) */}
         <section id="master-table" className="scroll-mt-24">
-          {/* <MasterTable />  ← This will be added later */}
           <div className="text-center text-white/40 text-sm py-10 italic">
             Master Table section coming soon.
           </div>
