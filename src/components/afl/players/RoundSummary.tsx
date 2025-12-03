@@ -79,7 +79,6 @@ function Sparkline({ data }: { data: number[] }) {
   const max = Math.max(...data);
   const min = Math.min(...data);
   const normalized = data.map((v) => ((v - min) / (max - min || 1)) * 100);
-
   const width = Math.max(normalized.length * 20, 80);
 
   return (
@@ -163,7 +162,7 @@ function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
 }
 
 /* ---------------------------------------------------------
-   MAIN SECTION — Option B (Premium Gold Glass Pills Only)
+   MAIN SECTION — (Header pill only)
 --------------------------------------------------------- */
 
 export default function RoundSummary() {
@@ -235,10 +234,18 @@ export default function RoundSummary() {
       <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[480px] -translate-x-1/2 bg-yellow-500/20 blur-3xl" />
 
       <div className="relative">
-        {/* HEADER */}
+        {/* HEADER (updated pill only) */}
         <div className="mb-5 md:mb-7">
+
+          {/* NEW PILL — MATCHES SECTION 2 */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/70 px-3 py-1 text-xs text-yellow-200/90 mb-2">
+            <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+            <span className="uppercase tracking-[0.18em]">
+              Round Momentum
+            </span>
+          </div>
+
           <div className="flex flex-row items-center gap-2">
-            <Sparkles className="h-6 w-6 text-yellow-400" />
             <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
               Round Momentum Summary
             </h2>
@@ -252,9 +259,10 @@ export default function RoundSummary() {
             Live round snapshot — track {labelLower} trends, standout players and role/stability shifts
             as this stat moves week to week.
           </p>
+
         </div>
 
-        {/* FILTER PILLS — Option B */}
+        {/* FILTER PILLS — (unchanged) */}
         <div className="-mx-2 mb-4 mt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
           <div className="flex min-w-max gap-2 px-2 pb-1">
             {STATS.map((s) => (
@@ -275,7 +283,7 @@ export default function RoundSummary() {
           </div>
         </div>
 
-        {/* GRID */}
+        {/* GRID (unchanged) */}
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           {/* PULSE */}
           <div
@@ -322,7 +330,7 @@ export default function RoundSummary() {
           </div>
         </div>
 
-        {/* MINI CARDS */}
+        {/* MINI CARDS (unchanged) */}
         <div className="mt-6 grid gap-4 md:mt-7 md:grid-cols-3">
           <MiniCard
             icon={Flame}
@@ -346,6 +354,7 @@ export default function RoundSummary() {
             delay={280}
           />
         </div>
+
       </div>
     </section>
   );
