@@ -12,7 +12,7 @@ import {
 /* ---------------------------------------------------------
    CONFIG — Mock premium flag for visual testing
 --------------------------------------------------------- */
-const IS_PREMIUM = false; // set true for full section, false for blur preview
+const IS_PREMIUM = true; // set true for full section, false for blur preview
 
 /* ---------------------------------------------------------
    MOCK INSIGHTS (6 total)
