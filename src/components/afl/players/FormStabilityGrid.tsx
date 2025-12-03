@@ -7,7 +7,6 @@ import {
   Snowflake,
   Sparkles,
   ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 
 import {
@@ -15,15 +14,12 @@ import {
   getSeriesForStat,
   lastN,
   average,
-  type StatKey,
-  type Player,
+  StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
 /* ---------------------------------------------------------
-   CONFIG
+   Stat config (keep in sync with your data)
 --------------------------------------------------------- */
-
-const CATEGORY_LIMIT = 5;
 
 const STATS: StatKey[] = [
   "fantasy",
@@ -46,7 +42,7 @@ const STAT_LABELS: Record<StatKey, string> = {
 };
 
 const STAT_UNITS: Record<StatKey, string> = {
-  fantasy: "fantasy",
+  fantasy: "pts",
   disposals: "disposals",
   kicks: "kicks",
   marks: "marks",
@@ -55,147 +51,102 @@ const STAT_UNITS: Record<StatKey, string> = {
   goals: "goals",
 };
 
-type Category = "hot" | "stable" | "cool";
-
-const CATEGORY_TITLE: Record<Category, string> = {
-  hot: "Hot form surge",
-  stable: "Stability leaders",
-  cool: "Cooling risks",
-};
-
-const CATEGORY_ICON: Record<Category, React.ElementType> = {
-  hot: Flame,
-  stable: Shield,
-  cool: Snowflake,
-};
-
-const CATEGORY_ICON_COLOUR: Record<Category, string> = {
-  hot: "text-red-400",
-  stable: "text-yellow-300",
-  cool: "text-sky-400",
-};
-
-const ROW_LEFT_BORDER: Record<Category, string> = {
-  hot: "border-l-2 border-l-red-500/80",
-  stable: "border-l-2 border-l-yellow-400/80",
-  cool: "border-l-2 border-l-sky-400/80",
-};
-
-const ROW_HOVER_ACCENT: Record<Category, string> = {
-  hot: "hover:bg-red-500/5",
-  stable: "hover:bg-yellow-400/5",
-  cool: "hover:bg-sky-500/5",
-};
-
 /* ---------------------------------------------------------
-   TYPES & HELPERS
+   Types & helpers
 --------------------------------------------------------- */
 
-type PlayerMetric = {
-  player: Player;
+type PlayerMetrics = {
+  id: number;
+  name: string;
+  team: string;
+  pos: string;
   series: number[];
-  last5Avg: number;
+  avgL5: number;
   seasonAvg: number;
-  diff: number; // L5 avg - season avg
+  deltaVsSeason: number;
+  consistency: number;
+  deltaLast: number;
 };
 
-function getTrendLabel(diff: number): string {
-  if (diff > 5) return "Strong surge vs recent average.";
-  if (diff > 2) return "Trending up in recent output.";
-  if (diff > 0.5) return "Slight rise vs recent baseline.";
-  if (diff > -0.5) return "Tracking close to recent average.";
-  if (diff > -2) return "Softening vs recent baseline.";
-  return "Meaningful drop-off vs recent average.";
+function formatPrimaryValue(metric: PlayerMetrics, stat: StatKey): string {
+  const value = metric.avgL5;
+  const label = STAT_LABELS[stat].toLowerCase();
+
+  if (stat === "fantasy") {
+    return `${Math.round(value)} ${label}`;
+  }
+  if (stat === "goals") {
+    return `${value.toFixed(1)} ${label}`;
+  }
+  return `${value.toFixed(1)} ${label}`;
 }
 
-function getTrendColour(diff: number, category: Category): string {
-  if (category === "hot") {
-    if (diff > 2) return "text-red-400";
-    if (diff > 0.5) return "text-orange-300";
-    return "text-zinc-300";
-  }
-  if (category === "stable") {
-    if (Math.abs(diff) < 1) return "text-emerald-400";
-    if (Math.abs(diff) < 2) return "text-amber-300";
-    return "text-zinc-300";
-  }
-  // cooling
-  if (diff < -2) return "text-sky-400";
-  if (diff < -0.5) return "text-cyan-300";
-  return "text-zinc-300";
-}
-
-function generatePlayerCommentary(
-  metric: PlayerMetric,
-  stat: StatKey,
-  category: Category
-): string {
-  const { player, diff } = metric;
+function formatDelta(value: number, stat: StatKey): string {
   const unit = STAT_UNITS[stat];
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "±";
+  const abs = Math.abs(value);
 
-  const abs = Math.abs(diff).toFixed(1);
-  const direction =
-    diff > 0.75 ? "well above" : diff < -0.75 ? "noticeably below" : "close to";
-
-  let categoryLine: string;
-  if (category === "hot") {
-    categoryLine =
-      "Recent rounds point to a genuine form surge, likely driven by elevated involvement and favourable roles.";
-  } else if (category === "stable") {
-    categoryLine =
-      "They continue to offer a reliable scoring floor with limited week-to-week volatility.";
-  } else {
-    categoryLine =
-      "Recent games suggest softening output, which may reflect role tweaks, tougher match-ups or form regression.";
+  if (stat === "fantasy") {
+    return `${sign}${abs.toFixed(1)} ${unit}`;
   }
 
-  return `${player.name} (${player.team} • ${player.pos}) is tracking ${direction} their recent average (${abs} ${unit} difference), placing them firmly in the ${category === "hot"
-    ? "hot risers"
-    : category === "stable"
-    ? "stability leaders"
-    : "cooling risks"
-  } cohort. ${categoryLine}`;
+  if (stat === "goals") {
+    return `${sign}${abs.toFixed(2)} ${unit}`;
+  }
+
+  return `${sign}${abs.toFixed(1)} ${unit}`;
 }
 
 /* ---------------------------------------------------------
-   SPARKLINE
+   Sparkline (only in dropdown)
 --------------------------------------------------------- */
 
-function Sparkline({ data }: { data: number[] }) {
+function MiniSparkline({ data }: { data: number[] }) {
   if (!data.length) return null;
 
   const max = Math.max(...data);
   const min = Math.min(...data);
-  const safeRange = max === min ? 1 : max - min;
-  const normalized = data.map((v) => (v - min) / safeRange);
+  const normalized = data.map((v) => ((v - min) / (max - min || 1)) * 100);
+  const width = Math.max(normalized.length * 20, 80);
+
+  const lastIndex = normalized.length - 1;
+  const denom = Math.max(lastIndex, 1);
+  const lastX = (lastIndex / denom) * width;
+  const lastY = 100 - normalized[lastIndex];
 
   return (
-    <div className="relative h-14 w-full">
-      <svg viewBox="0 0 100 40" className="absolute inset-0 h-full w-full">
-        {/* glow */}
+    <div className="relative h-16 w-full">
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${width} 100`}
+        preserveAspectRatio="none"
+      >
+        <defs>
+          <linearGradient id="sparkline-stroke" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="rgba(250,204,21,0.25)" />
+            <stop offset="100%" stopColor="rgba(250,204,21,0.9)" />
+          </linearGradient>
+        </defs>
         <polyline
-          fill="none"
-          stroke="rgba(250,204,21,0.4)"
-          strokeWidth={4}
           points={normalized
             .map(
               (v, i) =>
-                `${(i / Math.max(normalized.length - 1, 1)) * 100},${35 - v * 26}`
+                `${(i / denom) * width},${100 - v}`
             )
             .join(" ")}
-          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.7)]"
+          fill="none"
+          stroke="url(#sparkline-stroke)"
+          strokeWidth={3}
+          className="drop-shadow-[0_0_12px_rgba(250,204,21,0.7)]"
         />
-        {/* main line */}
-        <polyline
-          fill="none"
-          stroke="rgb(250,204,21)"
-          strokeWidth={2}
-          points={normalized
-            .map(
-              (v, i) =>
-                `${(i / Math.max(normalized.length - 1, 1)) * 100},${35 - v * 26}`
-            )
-            .join(" ")}
+        {/* terminal point */}
+        <circle
+          cx={lastX}
+          cy={lastY}
+          r={3.5}
+          fill="rgb(250,204,21)"
+          stroke="rgba(15,23,42,0.95)"
+          strokeWidth={1.5}
         />
       </svg>
     </div>
@@ -203,187 +154,363 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   ROW CARD (AFL CLEAN LIST STYLE)
+   Player-level AI-style insight
 --------------------------------------------------------- */
 
-interface RowCardProps {
-  metric: PlayerMetric;
+type Tone = "hot" | "stable" | "cold";
+
+function buildPlayerInsight(
+  metric: PlayerMetrics,
+  tone: Tone,
+  stat: StatKey
+): string {
+  const label = STAT_LABELS[stat].toLowerCase();
+  const unit = STAT_UNITS[stat];
+  const deltaSeason = metric.deltaVsSeason;
+  const deltaLast = metric.deltaLast;
+  const directionSeason = deltaSeason >= 0 ? "above" : "below";
+  const absSeason = Math.abs(deltaSeason);
+  const absLast = Math.abs(deltaLast);
+
+  if (tone === "hot") {
+    return `${
+      metric.name
+    } is running hot with their recent ${label} output sitting ${absSeason.toFixed(
+      1
+    )} ${unit} ${directionSeason} their season baseline, pointing to elevated opportunity and stronger involvement in key passages of play.`;
+  }
+
+  if (tone === "stable") {
+    return `${
+      metric.name
+    } is delivering a reliable scoring floor, hitting or beating their usual ${label} baseline in ${metric.consistency.toFixed(
+      0
+    )}% of recent games and showing controlled week-to-week movement.`;
+  }
+
+  // cold / cooling
+  if (deltaLast < 0) {
+    return `${
+      metric.name
+    } has softened in their latest outing, dropping ${absLast.toFixed(
+      1
+    )} ${unit} on last week with recent output now trending below their usual ${label} range.`;
+  }
+
+  return `${
+    metric.name
+  } is showing a flatter patch of form with recent ${label} output tracking close to, but slightly under, their season baseline.`;
+}
+
+/* ---------------------------------------------------------
+   Row component (screenshot-style list)
+--------------------------------------------------------- */
+
+interface FormRowProps {
+  metric: PlayerMetrics;
+  tone: Tone;
   stat: StatKey;
-  category: Category;
+  selectedLabel: string;
+  isExpanded: boolean;
+  onToggle: () => void;
   index: number;
 }
 
-function RowCard({ metric, stat, category, index }: RowCardProps) {
-  const [open, setOpen] = useState(false);
-  const unit = STAT_UNITS[stat];
-  const statLabelLower = STAT_LABELS[stat].toLowerCase();
-  const trendLabel = getTrendLabel(metric.diff);
-  const trendColour = getTrendColour(metric.diff, category);
-  const Icon = CATEGORY_ICON[category];
+function FormRow({
+  metric,
+  tone,
+  stat,
+  selectedLabel,
+  isExpanded,
+  onToggle,
+  index,
+}: FormRowProps) {
+  const accent =
+    tone === "hot"
+      ? "border-red-500/50 text-red-50"
+      : tone === "stable"
+      ? "border-yellow-400/60 text-yellow-50"
+      : "border-cyan-400/60 text-cyan-50";
 
-  const mainValue = `${metric.last5Avg.toFixed(0)} ${unit}`;
-  const diffValue = `${metric.diff >= 0 ? "+" : ""}${metric.diff.toFixed(
-    1
-  )} vs avg`;
+  const accentPill =
+    tone === "hot"
+      ? "text-red-400"
+      : tone === "stable"
+      ? "text-yellow-300"
+      : "text-cyan-300";
+
+  const shortTrend =
+    tone === "hot"
+      ? `Trending up in recent ${selectedLabel.toLowerCase()} output.`
+      : tone === "stable"
+      ? `Steady ${selectedLabel.toLowerCase()} with low volatility.`
+      : `Softening impact vs usual ${selectedLabel.toLowerCase()} baseline.`;
+
+  const deltaLabel = `${formatDelta(metric.deltaVsSeason, stat)} vs avg`;
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onToggle}
       className={cn(
-        "group rounded-xl border border-white/10 bg-black/75 px-3.5 py-3 md:px-4 md:py-3",
-        "transition-all duration-200 cursor-pointer",
-        ROW_LEFT_BORDER[category],
-        ROW_HOVER_ACCENT[category],
-        "hover:border-white/25 hover:shadow-[0_0_26px_rgba(0,0,0,0.8)]",
-        "animate-in fade-in slide-in-from-bottom-2"
+        "group relative w-full rounded-2xl border bg-black/40 px-4 py-3.5 text-left",
+        "backdrop-blur-sm transition-all duration-200",
+        "hover:-translate-y-0.5 hover:bg-black/55",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/70",
+        accent,
+        isExpanded && "bg-black/75"
       )}
-      style={{ animationDelay: `${100 + index * 40}ms` }}
-      onClick={() => setOpen((prev) => !prev)}
+      style={{ animationDelay: `${80 + index * 25}ms` }}
     >
-      {/* Top row: player + value */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <Icon className={cn("h-3.5 w-3.5", CATEGORY_ICON_COLOUR[category])} />
-            <p className="truncate text-sm font-semibold text-white">
-              {metric.player.name}
+      {/* subtle row glow */}
+      <div className="pointer-events-none absolute inset-x-0 -bottom-6 h-10 bg-gradient-to-t from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs">
+            <span className={cn("inline-flex items-center gap-1.5", accentPill)}>
+              {tone === "hot" && <Flame className="h-3.5 w-3.5" />}
+              {tone === "stable" && <Shield className="h-3.5 w-3.5" />}
+              {tone === "cold" && <Snowflake className="h-3.5 w-3.5" />}
+              <span className="font-medium">
+                {tone === "hot"
+                  ? "Hot form"
+                  : tone === "stable"
+                  ? "Stability"
+                  : "Cooling"}
+              </span>
+            </span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {metric.name}
+            </p>
+            <p className="text-[11px] text-white/55">
+              {metric.team} · {metric.pos}
             </p>
           </div>
-          <p className="mt-0.5 text-[11px] text-white/55">
-            {metric.player.team} • {metric.player.pos}
-          </p>
         </div>
 
-        <div className="shrink-0 text-right">
-          <p className="text-sm font-semibold text-white">{mainValue}</p>
-          <p className={cn("mt-0.5 text-[11px] font-medium", trendColour)}>
-            {diffValue}
+        <div className="flex flex-col items-end gap-1">
+          <p className="text-sm font-semibold text-white">
+            {formatPrimaryValue(metric, stat)}
           </p>
+          <p
+            className={cn(
+              "text-[11px] font-medium",
+              metric.deltaVsSeason > 0
+                ? "text-emerald-400"
+                : metric.deltaVsSeason < 0
+                ? "text-red-400"
+                : "text-slate-300"
+            )}
+          >
+            {deltaLabel}
+          </p>
+          <div className="inline-flex items-center gap-1 text-[11px] text-white/60">
+            <span>{isExpanded ? "Hide trend" : "Show trend"}</span>
+            <ChevronDown
+              className={cn(
+                "h-3 w-3 transition-transform",
+                isExpanded && "rotate-180"
+              )}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Second row: short trend + chevron */}
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-white/60 truncate">
-          {trendLabel.replace("recent output", `recent ${statLabelLower} output`)}
-        </p>
-        <div className="flex items-center gap-1 text-[11px] text-white/65">
-          <span>{open ? "Hide trend" : "Show trend"}</span>
-          {open ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </div>
-      </div>
+      <p className="mt-2 text-[11px] text-white/65">{shortTrend}</p>
 
-      {/* Expanded detail */}
-      {open && (
-        <div className="mt-3 space-y-2.5 border-t border-white/10 pt-3 animate-in fade-in slide-in-from-top-1">
-          <Sparkline data={metric.series} />
-          <p className="text-[12px] leading-relaxed text-white/75">
-            {generatePlayerCommentary(metric, stat, category)}
+      {isExpanded && (
+        <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
+          <MiniSparkline data={metric.series} />
+          <p className="text-xs leading-relaxed text-white/70">
+            {buildPlayerInsight(metric, tone, stat)}
           </p>
         </div>
       )}
+    </button>
+  );
+}
+
+/* ---------------------------------------------------------
+   Column shell with glow
+--------------------------------------------------------- */
+
+interface ColumnProps {
+  title: string;
+  tone: Tone;
+  children: React.ReactNode;
+}
+
+function FormColumn({ title, tone, children }: ColumnProps) {
+  const headingColor =
+    tone === "hot"
+      ? "text-red-300"
+      : tone === "stable"
+      ? "text-yellow-200"
+      : "text-cyan-200";
+
+  const glow =
+    tone === "hot"
+      ? "from-red-500/25"
+      : tone === "stable"
+      ? "from-yellow-500/25"
+      : "from-cyan-400/25";
+
+  const border =
+    tone === "hot"
+      ? "border-red-500/25"
+      : tone === "stable"
+      ? "border-yellow-500/25"
+      : "border-cyan-400/25";
+
+  return (
+    <div className={cn("relative rounded-3xl border bg-black/60 p-3 md:p-4", border)}>
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-6 -top-10 h-16 blur-3xl",
+          "bg-gradient-to-b to-transparent",
+          glow
+        )}
+      />
+      <div className="relative space-y-2">
+        <h3 className={cn("text-sm font-semibold tracking-tight", headingColor)}>
+          {title}
+        </h3>
+        <div className="space-y-2.5 md:space-y-3">{children}</div>
+      </div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   MAIN SECTION
+   MAIN SECTION: FormStabilityGrid
 --------------------------------------------------------- */
 
 export default function FormStabilityGrid() {
   const players = useAFLMockPlayers();
   const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const metrics: PlayerMetric[] = useMemo(() => {
+  const selectedLabel = STAT_LABELS[selectedStat];
+
+  const metrics: PlayerMetrics[] = useMemo(() => {
     return players.map((p) => {
       const series = getSeriesForStat(p, selectedStat);
-      const last5 = lastN(series, 5);
-      const last5Avg = average(last5);
+      const l5 = lastN(series, 5);
+      const avgL5 = average(l5);
       const seasonAvg = average(series);
-      const diff = last5Avg - seasonAvg;
+      const base = seasonAvg || 1;
+      const consistency =
+        (series.filter((v) => v >= base).length / Math.max(series.length, 1)) *
+        100;
+
+      const last = series[series.length - 1] ?? seasonAvg ?? 0;
+      const prev = series[series.length - 2] ?? last;
+      const deltaLast = last - prev;
+      const deltaVsSeason = avgL5 - seasonAvg;
 
       return {
-        player: p,
+        id: p.id,
+        name: p.name,
+        team: p.team,
+        pos: p.pos,
         series,
-        last5Avg,
+        avgL5,
         seasonAvg,
-        diff,
+        deltaVsSeason,
+        consistency,
+        deltaLast,
       };
     });
   }, [players, selectedStat]);
 
+  // top 5 in each bucket
   const hot = useMemo(
     () =>
-      [...metrics].sort((a, b) => b.diff - a.diff).slice(0, CATEGORY_LIMIT),
+      [...metrics]
+        .sort((a, b) => b.deltaVsSeason - a.deltaVsSeason)
+        .slice(0, 5),
     [metrics]
   );
 
   const stable = useMemo(
     () =>
       [...metrics]
-        .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))
-        .slice(0, CATEGORY_LIMIT),
+        .sort((a, b) => b.consistency - a.consistency)
+        .slice(0, 5),
     [metrics]
   );
 
-  const cool = useMemo(
+  const cold = useMemo(
     () =>
-      [...metrics].sort((a, b) => a.diff - b.diff).slice(0, CATEGORY_LIMIT),
+      [...metrics]
+        .sort((a, b) => a.deltaVsSeason - b.deltaVsSeason)
+        .slice(0, 5),
     [metrics]
   );
 
-  const selectedLabel = STAT_LABELS[selectedStat].toLowerCase();
+  const handleToggleRow = (id: number) => {
+    setExpandedId((current) => (current === id ? null : id));
+  };
 
   return (
     <section
-      id="form-stability"
       className={cn(
-        "relative mt-10 rounded-3xl border border-white/12",
-        "bg-gradient-to-b from-black via-[#050507] to-[#050507]",
-        "px-4 py-6 md:px-8 md:py-8",
-        "shadow-[0_0_80px_rgba(0,0,0,0.85)] overflow-hidden"
+        "relative rounded-3xl border border-white/10",
+        "bg-gradient-to-br from-[#050507] via-black to-[#111010]",
+        "px-4 py-6 md:px-6 md:py-8",
+        "shadow-[0_0_80px_rgba(0,0,0,0.75)] overflow-hidden"
       )}
     >
-      {/* soft background bloom */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-48 w-[420px] -translate-x-1/2 bg-yellow-500/15 blur-3xl" />
+      {/* soft background sparkle */}
+      <div className="pointer-events-none absolute -top-24 left-12 h-40 w-40 rounded-full bg-yellow-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-60px] right-10 h-40 w-40 rounded-full bg-sky-500/20 blur-3xl" />
 
-      <div className="relative space-y-5 md:space-y-6">
-        {/* Header */}
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-black/80 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-            <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-            <span>Form Stability Grid</span>
-          </div>
-
-          <div>
-            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
+      <div className="relative space-y-4 md:space-y-5">
+        {/* Header row */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/70 px-3 py-1 text-xs text-yellow-200/90">
+              <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+              <span className="uppercase tracking-[0.18em]">
+                Form Stability Grid
+              </span>
+            </div>
+            <h2 className="text-xl font-semibold md:text-2xl">
               Hot risers, rock-solid anchors &amp; form slumps
             </h2>
-            <p className="mt-2 max-w-2xl text-xs md:text-sm text-white/70">
+            <p className="max-w-xl text-xs text-white/65 md:text-sm">
               Last 5 rounds of{" "}
-              <span className="font-semibold text-yellow-300">
-                {selectedLabel}
+              <span className="font-semibold text-yellow-200">
+                {selectedLabel.toLowerCase()}
               </span>{" "}
               — split into recent surges, stability leaders and cooling risks
               against each player&apos;s season baseline.
             </p>
           </div>
 
-          {/* Stat filter pills */}
-          <div className="mt-1 -mx-2 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
-            <div className="flex min-w-max gap-2 px-2 pb-1">
+          {/* Stat lens */}
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-white/40">
+              Stat lens
+            </span>
+            <div className="flex flex-wrap gap-1.5">
               {STATS.map((s) => (
                 <button
                   key={s}
-                  onClick={() => setSelectedStat(s)}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStat(s);
+                    setExpandedId(null);
+                  }}
                   className={cn(
-                    "rounded-full px-4 py-1.5 text-xs md:text-[13px] font-medium border backdrop-blur-md transition-all",
+                    "rounded-full px-3 py-1 text-xs md:text-[13px] transition-all border",
+                    "backdrop-blur-sm",
                     selectedStat === s
-                      ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_18px_rgba(250,204,21,0.7)]"
-                      : "bg-black/40 text-white/70 border-white/14 hover:bg-black/60 hover:text-white"
+                      ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_18px_rgba(250,204,21,0.6)]"
+                      : "bg-white/5 text-white/70 border-white/15 hover:bg-white/10"
                   )}
                 >
                   {STAT_LABELS[s]}
@@ -393,70 +520,55 @@ export default function FormStabilityGrid() {
           </div>
         </div>
 
-        {/* Columns */}
-        <div className="grid gap-4 md:grid-cols-3 md:gap-6">
+        {/* 3-column grid with subtle glow per column */}
+        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
           {/* HOT */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-red-400" />
-              <h3 className="text-sm font-semibold text-white">
-                {CATEGORY_TITLE.hot}
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {hot.map((m, idx) => (
-                <RowCard
-                  key={m.player.id}
-                  metric={m}
-                  stat={selectedStat}
-                  category="hot"
-                  index={idx}
-                />
-              ))}
-            </div>
-          </div>
+          <FormColumn title="Hot form surge" tone="hot">
+            {hot.map((m, index) => (
+              <FormRow
+                key={m.id}
+                metric={m}
+                tone="hot"
+                stat={selectedStat}
+                selectedLabel={selectedLabel}
+                isExpanded={expandedId === m.id}
+                onToggle={() => handleToggleRow(m.id)}
+                index={index}
+              />
+            ))}
+          </FormColumn>
 
           {/* STABLE */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-yellow-300" />
-              <h3 className="text-sm font-semibold text-white">
-                {CATEGORY_TITLE.stable}
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {stable.map((m, idx) => (
-                <RowCard
-                  key={m.player.id}
-                  metric={m}
-                  stat={selectedStat}
-                  category="stable"
-                  index={idx}
-                />
-              ))}
-            </div>
-          </div>
+          <FormColumn title="Stability leaders" tone="stable">
+            {stable.map((m, index) => (
+              <FormRow
+                key={m.id}
+                metric={m}
+                tone="stable"
+                stat={selectedStat}
+                selectedLabel={selectedLabel}
+                isExpanded={expandedId === m.id}
+                onToggle={() => handleToggleRow(m.id)}
+                index={index}
+              />
+            ))}
+          </FormColumn>
 
-          {/* COOL */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Snowflake className="h-4 w-4 text-sky-400" />
-              <h3 className="text-sm font-semibold text-white">
-                {CATEGORY_TITLE.cool}
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {cool.map((m, idx) => (
-                <RowCard
-                  key={m.player.id}
-                  metric={m}
-                  stat={selectedStat}
-                  category="cool"
-                  index={idx}
-                />
-              ))}
-            </div>
-          </div>
+          {/* COLD */}
+          <FormColumn title="Cooling risks" tone="cold">
+            {cold.map((m, index) => (
+              <FormRow
+                key={m.id}
+                metric={m}
+                tone="cold"
+                stat={selectedStat}
+                selectedLabel={selectedLabel}
+                isExpanded={expandedId === m.id}
+                onToggle={() => handleToggleRow(m.id)}
+                index={index}
+              />
+            ))}
+          </FormColumn>
         </div>
       </div>
     </section>
