@@ -1,7 +1,7 @@
 // src/components/afl/players/FormStabilityGrid.tsx
 import React, { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Flame, Shield, Snowflake, Sparkles, ChevronDown } from "lucide-react";
+import { Sparkles, ChevronDown } from "lucide-react";
 
 import {
   useAFLMockPlayers,
@@ -37,7 +37,7 @@ const STAT_LABELS: Record<StatKey, string> = {
 };
 
 /* ---------------------------------------------------------
-   Types & helpers
+   Types / helpers
 --------------------------------------------------------- */
 
 type Tone = "hot" | "stable" | "cold";
@@ -53,7 +53,7 @@ type PlayerMetrics = {
   avgSeason: number;
   deltaVsSeason: number;
   volatility: number;
-  consistency: number; // 0–100
+  consistency: number;
 };
 
 function formatMainValue(value: number, stat: StatKey): string {
@@ -70,15 +70,14 @@ function formatDelta(delta: number, stat: StatKey): string {
 
   const sign = delta > 0 ? "+" : "−";
   const abs = Math.abs(delta);
-  const rounded =
-    stat === "goals" ? abs.toFixed(1) : abs.toFixed(1);
+  const rounded = stat === "goals" ? abs.toFixed(1) : abs.toFixed(1);
 
   return `${sign}${rounded} ${label} vs avg`;
 }
 
 function deltaTone(delta: number): string {
-  if (delta > 0.1) return "text-emerald-400";
-  if (delta < -0.1) return "text-red-400";
+  if (delta > 0.1) return "text-emerald-300";
+  if (delta < -0.1) return "text-red-300";
   return "text-zinc-400";
 }
 
@@ -87,7 +86,7 @@ function clamp01(v: number) {
 }
 
 /* ---------------------------------------------------------
-   Sparkline (only for expanded rows)
+   Sparkline
 --------------------------------------------------------- */
 
 function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
@@ -107,10 +106,10 @@ function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
 
   return (
     <div className="relative mt-3 h-16 w-full">
+      {/* Glow line */}
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${width} 100`}
-        preserveAspectRatio="none"
       >
         <polyline
           points={normalized
@@ -122,16 +121,16 @@ function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
             )
             .join(" ")}
           fill="none"
-          stroke={`${strokeBase},0.45)`}
-          strokeWidth={3.5}
-          className="drop-shadow-[0_0_12px_rgba(0,0,0,0.6)]"
+          stroke={`${strokeBase},0.35)`}
+          strokeWidth={4}
+          className="drop-shadow-[0_0_14px_rgba(0,0,0,0.8)]"
         />
       </svg>
 
+      {/* Main line */}
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${width} 100`}
-        preserveAspectRatio="none"
       >
         <polyline
           points={normalized
@@ -144,7 +143,7 @@ function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
             .join(" ")}
           fill="none"
           stroke={`${strokeBase},1)`}
-          strokeWidth={2.2}
+          strokeWidth={2.4}
         />
       </svg>
     </div>
@@ -152,45 +151,32 @@ function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
 }
 
 /* ---------------------------------------------------------
-   AI-style summaries
+   Summaries
 --------------------------------------------------------- */
 
-function buildHotSummary(m: PlayerMetrics, stat: StatKey) {
+const buildHotSummary = (m: PlayerMetrics, stat: StatKey) => {
   const label = STAT_LABELS[stat].toLowerCase();
-  const delta = m.deltaVsSeason;
-  const direction = delta > 0 ? "above" : "below";
-  const abs = Math.abs(delta).toFixed(1);
+  const direction = m.deltaVsSeason > 0 ? "above" : "below";
+  const abs = Math.abs(m.deltaVsSeason).toFixed(1);
+  return `${m.name} is running hot with recent ${label} output sitting ${abs} ${label} ${direction} their season baseline.`;
+};
 
-  return `${m.name} is running hot with recent ${label} output sitting ${abs} ${label} ${direction} their season baseline, signalling increased opportunity and stronger involvement.`;
-}
-
-function buildStableSummary(m: PlayerMetrics, stat: StatKey) {
+const buildStableSummary = (m: PlayerMetrics, stat: StatKey) => {
   const label = STAT_LABELS[stat].toLowerCase();
-  const consistency = m.consistency.toFixed(0);
-  return `${m.name} is tracking as a rock-solid ${label} option, holding a ${consistency}% consistency score with minimal week-to-week swings.`;
-}
+  return `${m.name} is a rock-solid ${label} option, tracking a ${m.consistency.toFixed(
+    0
+  )}% consistency score with minimal swings.`;
+};
 
-function buildCoolingSummary(m: PlayerMetrics, stat: StatKey) {
+const buildCoolingSummary = (m: PlayerMetrics, stat: StatKey) => {
   const label = STAT_LABELS[stat].toLowerCase();
-  const delta = m.deltaVsSeason;
-  const abs = Math.abs(delta).toFixed(1);
-  return `${m.name} has cooled off, sitting ${abs} ${label} below their usual baseline across the last five rounds, hinting at softening impact or role headwinds.`;
-}
+  const abs = Math.abs(m.deltaVsSeason).toFixed(1);
+  return `${m.name} has cooled off, sitting ${abs} ${label} below their usual baseline across the last five rounds.`;
+};
 
 /* ---------------------------------------------------------
    Row Card
 --------------------------------------------------------- */
-
-interface PlayerRowCardProps {
-  tone: Tone;
-  title: string;
-  metric: PlayerMetrics;
-  stat: StatKey;
-  isOpen: boolean;
-  onToggle: () => void;
-  summaryBuilder: (m: PlayerMetrics, stat: StatKey) => string;
-  showConsistency?: boolean;
-}
 
 function PlayerRowCard({
   tone,
@@ -201,67 +187,78 @@ function PlayerRowCard({
   onToggle,
   summaryBuilder,
   showConsistency,
-}: PlayerRowCardProps) {
-  const statLabel = STAT_LABELS[stat];
+}: {
+  tone: Tone;
+  title: string;
+  metric: PlayerMetrics;
+  stat: StatKey;
+  isOpen: boolean;
+  onToggle: () => void;
+  summaryBuilder: (m: PlayerMetrics, stat: StatKey) => string;
+  showConsistency?: boolean;
+}) {
   const mainValue = formatMainValue(metric.avgL5, stat);
   const deltaLabel = formatDelta(metric.deltaVsSeason, stat);
-  const deltaClass = deltaTone(metric.deltaVsSeason);
 
-  const toneBorder =
+  const badgeBg =
     tone === "hot"
-      ? "border-red-500/40"
+      ? "bg-red-500/25 text-red-200"
       : tone === "stable"
-      ? "border-yellow-400/40"
-      : "border-cyan-400/40";
+      ? "bg-yellow-400/25 text-yellow-100"
+      : "bg-cyan-400/25 text-cyan-100";
 
-  const toneBadgeBg =
+  const cardGlow =
     tone === "hot"
-      ? "bg-red-500/20 text-red-200"
+      ? "shadow-[0_0_20px_rgba(239,68,68,0.45)]"
       : tone === "stable"
-      ? "bg-yellow-500/15 text-yellow-100"
-      : "bg-cyan-500/20 text-cyan-100";
+      ? "shadow-[0_0_20px_rgba(250,204,21,0.45)]"
+      : "shadow-[0_0_20px_rgba(56,189,248,0.45)]";
+
+  const cardBorder =
+    tone === "hot"
+      ? "border-red-500/35"
+      : tone === "stable"
+      ? "border-yellow-400/35"
+      : "border-cyan-400/35";
 
   return (
     <button
-      type="button"
       onClick={onToggle}
       className={cn(
-        "group relative w-full text-left",
-        "rounded-xl border px-4 py-3 md:px-5 md:py-4",
-        "bg-black/60 backdrop-blur-md",
-        toneBorder,
-        "transition-transform duration-200 hover:-translate-y-[2px]",
-        "hover:shadow-[0_0_26px_rgba(0,0,0,0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+        "group relative w-full text-left rounded-xl border px-4 py-3 md:px-5 md:py-4",
+        "bg-black/55 backdrop-blur-xl transition-all duration-200 hover:-translate-y-[2px]",
+        cardGlow,
+        cardBorder
       )}
     >
-      {/* subtle inner glow */}
+      {/* Inner gradient glow */}
       <div
         className={cn(
-          "pointer-events-none absolute inset-0 rounded-xl opacity-70",
-          tone === "hot"
-            ? "bg-gradient-to-br from-red-500/15 via-transparent to-red-500/8"
-            : tone === "stable"
-            ? "bg-gradient-to-br from-yellow-400/16 via-transparent to-yellow-500/8"
-            : "bg-gradient-to-br from-sky-400/18 via-transparent to-sky-500/10"
+          "pointer-events-none absolute inset-0 rounded-xl opacity-60",
+          tone === "hot" &&
+            "bg-gradient-to-br from-red-600/20 via-transparent to-red-400/10",
+          tone === "stable" &&
+            "bg-gradient-to-br from-yellow-400/25 via-transparent to-yellow-300/10",
+          tone === "cold" &&
+            "bg-gradient-to-br from-sky-400/25 via-transparent to-sky-300/10"
         )}
       />
 
       <div className="relative space-y-2">
-        {/* Top row */}
+        {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em]",
-                toneBadgeBg
+                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.15em]",
+                badgeBg
               )}
             >
               {title}
             </span>
+
             <div>
-              <p className="text-sm font-semibold text-white">
-                {metric.name}
-              </p>
+              <p className="text-sm font-semibold text-white">{metric.name}</p>
               <p className="text-[11px] text-white/55">
                 {metric.team} • {metric.pos}
               </p>
@@ -269,14 +266,12 @@ function PlayerRowCard({
           </div>
 
           <div className="text-right space-y-1">
-            <p className="text-sm font-semibold text-white">
-              {mainValue}
-            </p>
-            <p className={cn("text-[11px] font-medium", deltaClass)}>
+            <p className="text-sm font-semibold text-white">{mainValue}</p>
+            <p className={cn("text-[11px] font-medium", deltaTone(metric.deltaVsSeason))}>
               {deltaLabel}
             </p>
             {showConsistency && (
-              <p className="text-[11px] text-white/55">
+              <p className="text-[11px] text-white/60">
                 Consistency{" "}
                 <span className="font-semibold text-yellow-300">
                   {metric.consistency.toFixed(0)}%
@@ -286,28 +281,23 @@ function PlayerRowCard({
           </div>
         </div>
 
-        {/* Middle tagline + chevron */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Tagline + chevron */}
+        <div className="flex items-center justify-between">
           <p className="text-[11px] text-white/65 md:text-xs">
-            {tone === "hot" &&
-              `Trending up in recent ${statLabel.toLowerCase()} output.`}
-            {tone === "stable" &&
-              `Steady ${statLabel.toLowerCase()} with controlled volatility.`}
-            {tone === "cold" &&
-              `Softening ${statLabel.toLowerCase()} vs usual baseline.`}
+            {tone === "hot" && "Trending up in recent output."}
+            {tone === "stable" && "Steady output with controlled volatility."}
+            {tone === "cold" && "Softening output vs usual baseline."}
           </p>
+
           <div className="flex items-center gap-1 text-[11px] text-white/60">
             <span>{isOpen ? "Hide trend" : "Show trend"}</span>
             <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 transition-transform duration-200",
-                isOpen && "rotate-180"
-              )}
+              className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
             />
           </div>
         </div>
 
-        {/* Expanded content */}
+        {/* Expanded */}
         {isOpen && (
           <div className="mt-3 border-t border-white/10 pt-3 animate-in fade-in slide-in-from-top-1">
             <TrendSparkline data={metric.l5} tone={tone} />
@@ -322,33 +312,34 @@ function PlayerRowCard({
 }
 
 /* ---------------------------------------------------------
-   Column shell
+   Column Shell
 --------------------------------------------------------- */
 
-interface ColumnProps {
+function ColumnShell({
+  tone,
+  title,
+  subtitle,
+  children,
+}: {
   tone: Tone;
   title: string;
   subtitle: string;
   children: React.ReactNode;
-}
-
-function ColumnShell({ tone, title, subtitle, children }: ColumnProps) {
+}) {
   const headingColor =
     tone === "hot"
       ? "text-red-200"
       : tone === "stable"
-      ? "text-yellow-100"
-      : "text-cyan-100";
+      ? "text-yellow-200"
+      : "text-cyan-200";
 
   return (
-    <div className="relative space-y-3 md:space-y-4">
-      <div className="space-y-1">
-        <p className={cn("text-xs font-semibold uppercase tracking-[0.18em]", headingColor)}>
+    <div className="relative space-y-4">
+      <div>
+        <p className={cn("text-xs font-semibold uppercase tracking-[0.17em]", headingColor)}>
           {title}
         </p>
-        <p className="text-[11px] text-white/65 md:text-xs">
-          {subtitle}
-        </p>
+        <p className="text-[11px] text-white/65 md:text-xs">{subtitle}</p>
       </div>
       <div className="space-y-3">{children}</div>
     </div>
@@ -356,7 +347,7 @@ function ColumnShell({ tone, title, subtitle, children }: ColumnProps) {
 }
 
 /* ---------------------------------------------------------
-   MAIN SECTION
+   Main
 --------------------------------------------------------- */
 
 export default function FormStabilityGrid() {
@@ -395,26 +386,17 @@ export default function FormStabilityGrid() {
   }, [players, selectedStat]);
 
   const hot = useMemo(
-    () =>
-      [...metrics]
-        .sort((a, b) => b.deltaVsSeason - a.deltaVsSeason)
-        .slice(0, 5),
+    () => [...metrics].sort((a, b) => b.deltaVsSeason - a.deltaVsSeason).slice(0, 5),
     [metrics]
   );
 
   const stable = useMemo(
-    () =>
-      [...metrics]
-        .sort((a, b) => b.consistency - a.consistency)
-        .slice(0, 5),
+    () => [...metrics].sort((a, b) => b.consistency - a.consistency).slice(0, 5),
     [metrics]
   );
 
   const cooling = useMemo(
-    () =>
-      [...metrics]
-        .sort((a, b) => a.deltaVsSeason - b.deltaVsSeason)
-        .slice(0, 5),
+    () => [...metrics].sort((a, b) => a.deltaVsSeason - b.deltaVsSeason).slice(0, 5),
     [metrics]
   );
 
@@ -423,75 +405,75 @@ export default function FormStabilityGrid() {
   return (
     <section
       className={cn(
-        "relative rounded-3xl border border-white/10",
+        "relative rounded-3xl border border-white/10 px-4 py-6 md:px-6 md:py-8",
         "bg-gradient-to-br from-[#050507] via-black to-[#111010]",
-        "px-4 py-6 md:px-6 md:py-8",
         "shadow-[0_0_80px_rgba(0,0,0,0.75)] overflow-hidden"
       )}
     >
-      {/* horizontal colour wash behind columns */}
-      <div className="pointer-events-none absolute inset-x-[-80px] top-28 md:top-32 bottom-[-80px] bg-gradient-to-r from-red-500/10 via-yellow-400/10 to-sky-400/10 blur-3xl" />
+      {/* Column glow wash */}
+      <div className="pointer-events-none absolute inset-x-[-90px] top-28 bottom-[-90px] bg-gradient-to-r from-red-500/25 via-yellow-400/25 to-sky-400/25 blur-3xl opacity-70" />
 
-      {/* soft top glow */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-48 w-[420px] -translate-x-1/2 rounded-full bg-yellow-500/15 blur-3xl" />
+      {/* Top glow */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-48 w-[420px] -translate-x-1/2 rounded-full bg-yellow-500/20 blur-3xl" />
 
-      <div className="relative space-y-4 md:space-y-5">
+      <div className="relative space-y-5">
         {/* Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
               <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-              <span className="uppercase tracking-[0.18em]">
-                Form Stability Grid
-              </span>
+              <span className="uppercase tracking-[0.18em]">Form Stability Grid</span>
             </div>
+
             <h2 className="text-xl font-semibold md:text-2xl">
               Hot risers, rock-solid anchors &amp; form slumps
             </h2>
+
             <p className="max-w-xl text-xs text-white/70 md:text-sm">
               Last 5 rounds of{" "}
-              <span className="font-semibold text-yellow-200">
-                {statLabel.toLowerCase()}
-              </span>{" "}
-              — split into recent surges, stability leaders and cooling
-              risks against each player's season baseline.
+              <span className="font-semibold text-yellow-200">{statLabel.toLowerCase()}</span>{" "}
+              — split into recent surges, stability leaders and cooling risks.
             </p>
           </div>
 
-          {/* Stat lens filter */}
+          {/* Stat lens */}
           <div className="flex flex-col items-start gap-2 md:items-end">
             <span className="text-[11px] uppercase tracking-[0.18em] text-white/45">
               Stat lens
             </span>
+
             <div className="flex flex-wrap gap-1.5">
-              {STATS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setSelectedStat(s);
-                    setOpenKey(null);
-                  }}
-                  className={cn(
-                    "rounded-full px-3.5 py-1.5 text-xs md:text-[13px] border backdrop-blur-sm transition-all",
-                    selectedStat === s
-                      ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_20px_rgba(250,204,21,0.7)]"
-                      : "bg-white/5 text-white/70 border-white/12 hover:bg-white/10"
-                  )}
-                >
-                  {STAT_LABELS[s]}
-                </button>
-              ))}
+              {STATS.map((s) => {
+                const active = selectedStat === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      setSelectedStat(s);
+                      setOpenKey(null);
+                    }}
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 text-xs md:text-[13px] border transition-all backdrop-blur-sm",
+                      active
+                        ? "bg-yellow-400 text-black border-yellow-300 font-semibold shadow-[0_0_22px_rgba(250,204,21,0.9)]"
+                        : "bg-white/5 text-white/70 border-white/12 hover:bg-white/10"
+                    )}
+                  >
+                    {STAT_LABELS[s]}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* 3-column grid */}
-        <div className="grid gap-5 md:grid-cols-3">
+        {/* Columns */}
+        <div className="grid gap-6 md:grid-cols-3">
           {/* HOT */}
           <ColumnShell
             tone="hot"
-            title="Hot form surge"
-            subtitle={`Biggest L5-round surges vs each player's season baseline.`}
+            title="Hot Form Surge"
+            subtitle="Biggest L5 surges vs season baseline."
           >
             {hot.map((m) => {
               const key = makeKey("hot", m.id);
@@ -499,13 +481,11 @@ export default function FormStabilityGrid() {
                 <PlayerRowCard
                   key={key}
                   tone="hot"
-                  title="Hot form"
+                  title="Hot Form"
                   metric={m}
                   stat={selectedStat}
                   isOpen={openKey === key}
-                  onToggle={() =>
-                    setOpenKey((prev) => (prev === key ? null : key))
-                  }
+                  onToggle={() => setOpenKey(openKey === key ? null : key)}
                   summaryBuilder={buildHotSummary}
                 />
               );
@@ -515,8 +495,8 @@ export default function FormStabilityGrid() {
           {/* STABLE */}
           <ColumnShell
             tone="stable"
-            title="Stability leaders"
-            subtitle="Lowest volatility profiles with dependable L5-round output."
+            title="Stability Leaders"
+            subtitle="Lowest volatility with dependable L5 output."
           >
             {stable.map((m) => {
               const key = makeKey("stable", m.id);
@@ -528,9 +508,7 @@ export default function FormStabilityGrid() {
                   metric={m}
                   stat={selectedStat}
                   isOpen={openKey === key}
-                  onToggle={() =>
-                    setOpenKey((prev) => (prev === key ? null : key))
-                  }
+                  onToggle={() => setOpenKey(openKey === key ? null : key)}
                   summaryBuilder={buildStableSummary}
                   showConsistency
                 />
@@ -541,8 +519,8 @@ export default function FormStabilityGrid() {
           {/* COOLING */}
           <ColumnShell
             tone="cold"
-            title="Cooling risks"
-            subtitle="Softening L5 output vs usual baseline and recent trend."
+            title="Cooling Risks"
+            subtitle="Softening L5 output vs usual baseline."
           >
             {cooling.map((m) => {
               const key = makeKey("cold", m.id);
@@ -554,9 +532,7 @@ export default function FormStabilityGrid() {
                   metric={m}
                   stat={selectedStat}
                   isOpen={openKey === key}
-                  onToggle={() =>
-                    setOpenKey((prev) => (prev === key ? null : key))
-                  }
+                  onToggle={() => setOpenKey(openKey === key ? null : key)}
                   summaryBuilder={buildCoolingSummary}
                 />
               );
