@@ -2,6 +2,7 @@
 import React from "react";
 import RoundSummary from "@/components/afl/players/RoundSummary";
 import FormStabilityGrid from "@/components/afl/players/FormStabilityGrid";
+import PositionTrends from "@/components/afl/players/PositionTrends"; // NEW
 
 export default function AFLPlayersPage() {
   return (
@@ -13,7 +14,7 @@ export default function AFLPlayersPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-[15px]">
           League-wide momentum, fantasy analytics, player trends, stability
-          insights and performance signals — all in one intelligent dashboard.
+          metrics and role-driven insights — all in one intelligent dashboard.
         </p>
       </header>
 
@@ -31,6 +32,7 @@ export default function AFLPlayersPage() {
           <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
             Sections
           </div>
+
           <div className="flex flex-wrap gap-2 md:justify-end">
             <a
               href="#round-momentum"
@@ -44,6 +46,7 @@ export default function AFLPlayersPage() {
             >
               Round Momentum
             </a>
+
             <a
               href="#form-stability"
               className="
@@ -56,11 +59,51 @@ export default function AFLPlayersPage() {
             >
               Form Stability Grid
             </a>
+
+            <a
+              href="#position-trends"
+              className="
+                rounded-full border border-white/15
+                bg-white/5 px-3.5 py-1.5
+                text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white
+                transition-colors
+              "
+            >
+              Position Trends
+            </a>
+
+            {/* These links are placeholders for the upcoming sections */}
+            <a
+              href="#ai-insights"
+              className="
+                rounded-full border border-white/15
+                bg-white/5 px-3.5 py-1.5
+                text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white
+                transition-colors
+              "
+            >
+              AI Insights
+            </a>
+
+            <a
+              href="#master-table"
+              className="
+                rounded-full border border-white/15
+                bg-white/5 px-3.5 py-1.5
+                text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white
+                transition-colors
+              "
+            >
+              Master Table
+            </a>
           </div>
         </div>
       </nav>
 
-      {/* Page Sections */}
+      {/* Content Sections */}
       <div className="space-y-10 md:space-y-14">
         {/* Section 1 — Round Summary */}
         <section id="round-momentum" className="scroll-mt-24">
@@ -72,8 +115,26 @@ export default function AFLPlayersPage() {
           <FormStabilityGrid />
         </section>
 
-        {/* Future sections can be added below */}
-        {/* <YourNextSection /> */}
+        {/* Section 3 — Position Trends (NEW) */}
+        <section id="position-trends" className="scroll-mt-24">
+          <PositionTrends />
+        </section>
+
+        {/* Section 4 — AI Insights — placeholder (to be built next) */}
+        <section id="ai-insights" className="scroll-mt-24">
+          {/* <AIInsights />  ← This will be added after we build it */}
+          <div className="text-center text-white/40 text-sm py-10 italic">
+            AI Insights section coming next.
+          </div>
+        </section>
+
+        {/* Section 5 — Master Table — placeholder */}
+        <section id="master-table" className="scroll-mt-24">
+          {/* <MasterTable />  ← This will be added later */}
+          <div className="text-center text-white/40 text-sm py-10 italic">
+            Master Table section coming soon.
+          </div>
+        </section>
       </div>
     </div>
   );
