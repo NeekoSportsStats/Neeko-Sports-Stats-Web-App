@@ -1,64 +1,41 @@
-import React, { useState } from "react";
-import RoundSummary from "@/components/afl/players/RoundSummary";
-import { StatKey } from "@/components/afl/players/useAFLMockData";
-
-const CURRENT_ROUND = 6;
-
-export default function AFLPlayersPage() {
-  const [selectedStat, setSelectedStat] =
-    useState<StatKey>("fantasy");
-
-  return (// src/pages/sports/afl/AFLPlayers.tsx
 import React from "react";
 import RoundSummary from "@/components/afl/players/RoundSummary";
 
 export default function AFLPlayersPage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 text-white">
-      {/* Page Header */}
-      <header className="mb-7 md:mb-9">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-          AFL Player Performance Dashboard
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm md:text-[15px] text-white/70">
-          League-wide momentum, fantasy analytics, player trends, stability
-          insights and performance signals — all in one intelligent dashboard.
-        </p>
-      </header>
+    <div className="w-full flex flex-col items-center">
+      {/* PAGE CONTAINER */}
+      <div className="w-full max-w-6xl px-4 md:px-6 py-10 space-y-12">
 
-      {/* Page Sections */}
-      <div className="space-y-8 md:space-y-10">
-        {/* Section 1 — Round Summary */}
+        {/* PAGE HEADER */}
+        <header className="space-y-3">
+          <h1 className="text-4xl md:text-5xl font-bold">
+            AFL Player Performance Dashboard
+          </h1>
+
+          <p className="text-white/60 max-w-3xl leading-relaxed text-base md:text-lg">
+            League-wide momentum, fantasy analytics, player trends,
+            stability insights and performance signals — all combined
+            into one intelligent dashboard for AFL analysis.
+          </p>
+        </header>
+
+        {/* SECTION 1 — ROUND SUMMARY (Premium Gold Hybrid) */}
         <RoundSummary />
 
-        {/* Future sections can be added below */}
-        {/* <YourNextSection /> */}
+        {/* ------------------------------------------------------------
+            FUTURE SECTIONS GO HERE (when you approve next patches):
+            ------------------------------------------------------------
+            - Form Leaders (Hot List)
+            - Risk Watchlist (Cold List)
+            - Movers (Risers/Fallers)
+            - Stability Meter
+            - Position Trends
+            - AI Insights
+            - Master Table
+          ------------------------------------------------------------ */}
+        
       </div>
-    </div>
-  );
-}
-    <div className="mx-auto max-w-6xl px-4 pt-5 md:pt-8 pb-12 text-white space-y-8 md:space-y-12">
-
-      {/* PAGE HEADER */}
-      <header className="mb-4 md:mb-6">
-        <h1 className="text-2xl md:text-4xl font-extrabold">
-          AFL Player Performance Dashboard
-        </h1>
-
-        <p className="mt-2 max-w-2xl text-sm md:text-base text-white/60 leading-relaxed">
-          League-wide momentum, fantasy analytics, player trends,
-          stability insights and performance signals — all in one
-          intelligent dashboard.
-        </p>
-      </header>
-
-      {/* SECTION 1 */}
-      <RoundSummary
-        selectedStat={selectedStat}
-        onStatChange={setSelectedStat}
-        roundNumber={CURRENT_ROUND}
-      />
-
     </div>
   );
 }
