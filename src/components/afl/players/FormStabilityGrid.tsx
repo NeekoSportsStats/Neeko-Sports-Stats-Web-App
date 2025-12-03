@@ -58,9 +58,7 @@ type PlayerMetrics = {
 
 function formatMainValue(value: number, stat: StatKey): string {
   const label = STAT_LABELS[stat].toLowerCase();
-  if (stat === "goals") {
-    return `${value.toFixed(1)} ${label}`;
-  }
+  if (stat === "goals") return `${value.toFixed(1)} ${label}`;
   return `${Math.round(value)} ${label}`;
 }
 
@@ -69,10 +67,9 @@ function formatDelta(delta: number, stat: StatKey): string {
   if (Math.abs(delta) < 0.05) return `±0.0 ${label} vs avg`;
 
   const sign = delta > 0 ? "+" : "−";
-  const abs = Math.abs(delta);
-  const rounded = stat === "goals" ? abs.toFixed(1) : abs.toFixed(1);
+  const abs = Math.abs(delta).toFixed(1);
 
-  return `${sign}${rounded} ${label} vs avg`;
+  return `${sign}${abs} ${label} vs avg`;
 }
 
 function deltaTone(delta: number): string {
@@ -106,39 +103,29 @@ function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
 
   return (
     <div className="relative mt-3 h-16 w-full">
-      {/* Glow line */}
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${width} 100`}
-      >
+      {/* Glow */}
+      <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 ${width} 100`}>
         <polyline
           points={normalized
             .map(
               (v, i) =>
-                `${(i / Math.max(normalized.length - 1, 1)) * width},${
-                  100 - v
-                }`
+                `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`
             )
             .join(" ")}
           fill="none"
-          stroke={`${strokeBase},0.35)`}
+          stroke={`${strokeBase},0.32)`}
           strokeWidth={4}
-          className="drop-shadow-[0_0_14px_rgba(0,0,0,0.8)]"
+          className="drop-shadow-[0_0_14px_rgba(0,0,0,0.7)]"
         />
       </svg>
 
-      {/* Main line */}
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${width} 100`}
-      >
+      {/* Main */}
+      <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 ${width} 100`}>
         <polyline
           points={normalized
             .map(
               (v, i) =>
-                `${(i / Math.max(normalized.length - 1, 1)) * width},${
-                  100 - v
-                }`
+                `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`
             )
             .join(" ")}
           fill="none"
@@ -151,31 +138,32 @@ function TrendSparkline({ data, tone }: { data: number[]; tone: Tone }) {
 }
 
 /* ---------------------------------------------------------
-   Summaries
+   Row Summaries
 --------------------------------------------------------- */
 
 const buildHotSummary = (m: PlayerMetrics, stat: StatKey) => {
   const label = STAT_LABELS[stat].toLowerCase();
-  const direction = m.deltaVsSeason > 0 ? "above" : "below";
-  const abs = Math.abs(m.deltaVsSeason).toFixed(1);
+  const delta = m.deltaVsSeason;
+  const direction = delta > 0 ? "above" : "below";
+  const abs = Math.abs(delta).toFixed(1);
   return `${m.name} is running hot with recent ${label} output sitting ${abs} ${label} ${direction} their season baseline.`;
 };
 
 const buildStableSummary = (m: PlayerMetrics, stat: StatKey) => {
   const label = STAT_LABELS[stat].toLowerCase();
-  return `${m.name} is a rock-solid ${label} option, tracking a ${m.consistency.toFixed(
+  return `${m.name} is a rock-solid ${label} performer, maintaining ${m.consistency.toFixed(
     0
-  )}% consistency score with minimal swings.`;
+  )}% consistency with limited week-to-week variation.`;
 };
 
 const buildCoolingSummary = (m: PlayerMetrics, stat: StatKey) => {
   const label = STAT_LABELS[stat].toLowerCase();
   const abs = Math.abs(m.deltaVsSeason).toFixed(1);
-  return `${m.name} has cooled off, sitting ${abs} ${label} below their usual baseline across the last five rounds.`;
+  return `${m.name} has cooled off, sitting ${abs} ${label} below their usual baseline over the last five rounds.`;
 };
 
 /* ---------------------------------------------------------
-   Row Card
+   Card
 --------------------------------------------------------- */
 
 function PlayerRowCard({
@@ -200,57 +188,59 @@ function PlayerRowCard({
   const mainValue = formatMainValue(metric.avgL5, stat);
   const deltaLabel = formatDelta(metric.deltaVsSeason, stat);
 
+  // refined tone glows
+  const glow =
+    tone === "hot"
+      ? "shadow-[0_0_18px_rgba(239,68,68,0.40)]"
+      : tone === "stable"
+      ? "shadow-[0_0_18px_rgba(250,204,21,0.38)]"
+      : "shadow-[0_0_18px_rgba(56,189,248,0.40)]";
+
+  const border =
+    tone === "hot"
+      ? "border-red-500/35"
+      : tone === "stable"
+      ? "border-yellow-400/32"
+      : "border-cyan-400/35";
+
   const badgeBg =
     tone === "hot"
       ? "bg-red-500/25 text-red-200"
       : tone === "stable"
-      ? "bg-yellow-400/25 text-yellow-100"
-      : "bg-cyan-400/25 text-cyan-100";
-
-  const cardGlow =
-    tone === "hot"
-      ? "shadow-[0_0_20px_rgba(239,68,68,0.45)]"
-      : tone === "stable"
-      ? "shadow-[0_0_20px_rgba(250,204,21,0.45)]"
-      : "shadow-[0_0_20px_rgba(56,189,248,0.45)]";
-
-  const cardBorder =
-    tone === "hot"
-      ? "border-red-500/35"
-      : tone === "stable"
-      ? "border-yellow-400/35"
-      : "border-cyan-400/35";
+      ? "bg-yellow-500/25 text-yellow-100"
+      : "bg-cyan-500/25 text-cyan-100";
 
   return (
     <button
       onClick={onToggle}
       className={cn(
-        "group relative w-full text-left rounded-xl border px-4 py-3 md:px-5 md:py-4",
-        "bg-black/55 backdrop-blur-xl transition-all duration-200 hover:-translate-y-[2px]",
-        cardGlow,
-        cardBorder
+        "relative w-full rounded-xl border px-4 py-3 md:px-5 md:py-4",
+        "bg-black/55 backdrop-blur-xl transition-transform duration-200",
+        "hover:-translate-y-[2px]",
+        glow,
+        border
       )}
     >
-      {/* Inner gradient glow */}
+      {/* Tone internal wash */}
       <div
         className={cn(
-          "pointer-events-none absolute inset-0 rounded-xl opacity-60",
+          "pointer-events-none absolute inset-0 rounded-xl opacity-55",
           tone === "hot" &&
-            "bg-gradient-to-br from-red-600/20 via-transparent to-red-400/10",
+            "bg-gradient-to-b from-red-500/20 via-transparent to-red-500/10",
           tone === "stable" &&
-            "bg-gradient-to-br from-yellow-400/25 via-transparent to-yellow-300/10",
+            "bg-gradient-to-b from-yellow-500/20 via-transparent to-yellow-500/10",
           tone === "cold" &&
-            "bg-gradient-to-br from-sky-400/25 via-transparent to-sky-300/10"
+            "bg-gradient-to-b from-sky-400/20 via-transparent to-sky-400/8"
         )}
       />
 
       <div className="relative space-y-2">
-        {/* Header row */}
+        {/* top */}
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.15em]",
+                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em]",
                 badgeBg
               )}
             >
@@ -281,7 +271,7 @@ function PlayerRowCard({
           </div>
         </div>
 
-        {/* Tagline + chevron */}
+        {/* tagline */}
         <div className="flex items-center justify-between">
           <p className="text-[11px] text-white/65 md:text-xs">
             {tone === "hot" && "Trending up in recent output."}
@@ -292,16 +282,19 @@ function PlayerRowCard({
           <div className="flex items-center gap-1 text-[11px] text-white/60">
             <span>{isOpen ? "Hide trend" : "Show trend"}</span>
             <ChevronDown
-              className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                isOpen && "rotate-180"
+              )}
             />
           </div>
         </div>
 
-        {/* Expanded */}
+        {/* expanded */}
         {isOpen && (
           <div className="mt-3 border-t border-white/10 pt-3 animate-in fade-in slide-in-from-top-1">
             <TrendSparkline data={metric.l5} tone={tone} />
-            <p className="mt-2 text-[11px] text-white/70 md:text-xs leading-relaxed">
+            <p className="mt-2 text-[11px] leading-relaxed text-white/70 md:text-xs">
               {summaryBuilder(metric, stat)}
             </p>
           </div>
@@ -331,23 +324,24 @@ function ColumnShell({
       ? "text-red-200"
       : tone === "stable"
       ? "text-yellow-200"
-      : "text-cyan-200";
+      : "text-cyan-100"; // brighter for polish
 
   return (
     <div className="relative space-y-4">
-      <div>
+      <div className="space-y-0.5">
         <p className={cn("text-xs font-semibold uppercase tracking-[0.17em]", headingColor)}>
           {title}
         </p>
         <p className="text-[11px] text-white/65 md:text-xs">{subtitle}</p>
       </div>
+      {/* +1px breathing space applied */}
       <div className="space-y-3">{children}</div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   Main
+   Main Component
 --------------------------------------------------------- */
 
 export default function FormStabilityGrid() {
@@ -410,11 +404,11 @@ export default function FormStabilityGrid() {
         "shadow-[0_0_80px_rgba(0,0,0,0.75)] overflow-hidden"
       )}
     >
-      {/* Column glow wash */}
-      <div className="pointer-events-none absolute inset-x-[-90px] top-28 bottom-[-90px] bg-gradient-to-r from-red-500/25 via-yellow-400/25 to-sky-400/25 blur-3xl opacity-70" />
+      {/* ⬇ refined glow layer (narrower, softer) */}
+      <div className="pointer-events-none absolute inset-x-[-60px] top-28 bottom-[-60px] bg-gradient-to-r from-red-500/18 via-yellow-400/18 to-sky-400/20 blur-2xl opacity-55" />
 
-      {/* Top glow */}
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-48 w-[420px] -translate-x-1/2 rounded-full bg-yellow-500/20 blur-3xl" />
+      {/* top glow */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-48 w-[420px] -translate-x-1/2 rounded-full bg-yellow-500/18 blur-3xl" />
 
       <div className="relative space-y-5">
         {/* Header */}
@@ -436,7 +430,7 @@ export default function FormStabilityGrid() {
             </p>
           </div>
 
-          {/* Stat lens */}
+          {/* stat lens */}
           <div className="flex flex-col items-start gap-2 md:items-end">
             <span className="text-[11px] uppercase tracking-[0.18em] text-white/45">
               Stat lens
@@ -455,7 +449,7 @@ export default function FormStabilityGrid() {
                     className={cn(
                       "rounded-full px-3.5 py-1.5 text-xs md:text-[13px] border transition-all backdrop-blur-sm",
                       active
-                        ? "bg-yellow-400 text-black border-yellow-300 font-semibold shadow-[0_0_22px_rgba(250,204,21,0.9)]"
+                        ? "bg-yellow-400 text-black border-yellow-300 font-semibold shadow-[0_0_15px_rgba(250,204,21,0.6)] ring-1 ring-yellow-500/40"
                         : "bg-white/5 text-white/70 border-white/12 hover:bg-white/10"
                     )}
                   >
@@ -469,7 +463,7 @@ export default function FormStabilityGrid() {
 
         {/* Columns */}
         <div className="grid gap-6 md:grid-cols-3">
-          {/* HOT */}
+          {/* hot */}
           <ColumnShell
             tone="hot"
             title="Hot Form Surge"
@@ -492,7 +486,7 @@ export default function FormStabilityGrid() {
             })}
           </ColumnShell>
 
-          {/* STABLE */}
+          {/* stable */}
           <ColumnShell
             tone="stable"
             title="Stability Leaders"
@@ -516,7 +510,7 @@ export default function FormStabilityGrid() {
             })}
           </ColumnShell>
 
-          {/* COOLING */}
+          {/* cooling */}
           <ColumnShell
             tone="cold"
             title="Cooling Risks"
