@@ -7,7 +7,7 @@ export default function AFLPlayersPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-white">
       {/* Page Header */}
-      <header className="mb-10 md:mb-12">
+      <header className="mb-7 md:mb-9">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
           AFL Player Performance Dashboard
         </h1>
@@ -17,39 +17,60 @@ export default function AFLPlayersPage() {
         </p>
       </header>
 
-      {/* Sticky mini section nav */}
-      <nav className="sticky top-16 z-20 mb-5 md:mb-7 bg-gradient-to-b from-[#020617]/90 via-[#020617]/70 to-transparent backdrop-blur-md">
-        <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
+      {/* Section Navigation */}
+      <nav
+        className="
+          mb-6 md:mb-8
+          rounded-2xl border border-white/5
+          bg-gradient-to-r from-[#050515] via-[#050512] to-[#030308]
+          px-4 py-3 md:px-6 md:py-3.5
+          shadow-[0_0_40px_rgba(0,0,0,0.55)]
+        "
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
             Sections
-          </p>
-        </div>
-        <div className="-mx-2 mt-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10">
-          <div className="flex min-w-max gap-2 px-2 pb-2">
+          </div>
+          <div className="flex flex-wrap gap-2 md:justify-end">
             <a
-              href="#round-summary"
-              className="rounded-full border border-white/12 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/75 backdrop-blur-sm transition hover:bg-white/10"
+              href="#round-momentum"
+              className="
+                rounded-full border border-white/15
+                bg-white/5 px-3.5 py-1.5
+                text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white
+                transition-colors
+              "
             >
               Round Momentum
             </a>
             <a
               href="#form-stability"
-              className="rounded-full border border-white/12 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/75 backdrop-blur-sm transition hover:bg-white/10"
+              className="
+                rounded-full border border-white/15
+                bg-white/5 px-3.5 py-1.5
+                text-xs font-medium text-white/75
+                hover:bg-white/10 hover:text-white
+                transition-colors
+              "
             >
               Form Stability Grid
             </a>
-            {/* Future tabs can be added here */}
           </div>
         </div>
       </nav>
 
       {/* Page Sections */}
-      <div className="space-y-10 md:space-y-12">
+      <div className="space-y-10 md:space-y-14">
         {/* Section 1 — Round Summary */}
-        <RoundSummary />
+        <section id="round-momentum" className="scroll-mt-24">
+          <RoundSummary />
+        </section>
 
         {/* Section 2 — Form Stability Grid */}
-        <FormStabilityGrid />
+        <section id="form-stability" className="scroll-mt-24">
+          <FormStabilityGrid />
+        </section>
 
         {/* Future sections can be added below */}
         {/* <YourNextSection /> */}
