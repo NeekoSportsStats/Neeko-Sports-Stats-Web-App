@@ -1,20 +1,16 @@
 // src/components/afl/players/FormStabilityGrid.tsx
-//--------------------------------------------------------------
-// Hybrid-C Layout + Pro Upgrades + Collapsible Sparkline
-//--------------------------------------------------------------
+// Hybrid C layout + collapsible sparkline + AI summaries
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Flame,
   Shield,
   Snowflake,
   ChevronDown,
   ChevronUp,
-  Activity,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 import {
   useAFLMockPlayers,
   getSeriesForStat,
@@ -23,8 +19,19 @@ import {
 } from "@/components/afl/players/useAFLMockData";
 
 /* ---------------------------------------------------------
-   STAT LABELS
+   Stat config
 --------------------------------------------------------- */
+
+const STATS: StatKey[] = [
+  "fantasy",
+  "disposals",
+  "kicks",
+  "marks",
+  "tackles",
+  "hitouts",
+  "goals",
+];
+
 const STAT_LABELS: Record<StatKey, string> = {
   fantasy: "Fantasy",
   disposals: "Disposals",
@@ -36,7 +43,20 @@ const STAT_LABELS: Record<StatKey, string> = {
 };
 
 /* ---------------------------------------------------------
-   Animated Sparkline (Collapsible)
+   AI summaries (per column)
+--------------------------------------------------------- */
+
+const HOT_AI_SUMMARY =
+  "AI Summary: Output is trending sharply upward, showing short-term momentum well above season baseline. Signals point to elevated opportunity or role-driven spikes.";
+
+const STABLE_AI_SUMMARY =
+  "AI Summary: Strong role stability and low weekly variance. Production clusters tightly around season average, signalling reliable fantasy floors.";
+
+const COOL_AI_SUMMARY =
+  "AI Summary: Output is softening versus season norms. Downward drift hints at reduced opportunity, matchup headwinds or role volatility to monitor closely.";
+
+/* ---------------------------------------------------------
+   Collapsible Sparkline
 --------------------------------------------------------- */
 
 function Sparkline({ data, expanded }: { data: number[]; expanded: boolean }) {
@@ -50,12 +70,12 @@ function Sparkline({ data, expanded }: { data: number[]; expanded: boolean }) {
   return (
     <div
       className={cn(
-        "transition-all duration-500 overflow-hidden",
+        "transition-all duration-500 ease-out overflow-hidden",
         expanded ? "max-h-24 opacity-100 mt-3" : "max-h-0 opacity-0"
       )}
     >
       <div className="relative h-16 w-full">
-        {/* BACKLINE */}
+        {/* Back line */}
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${width} 100`}
@@ -64,17 +84,20 @@ function Sparkline({ data, expanded }: { data: number[]; expanded: boolean }) {
           <polyline
             points={normalized
               .map(
-                (v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`
+                (v, i) =>
+                  `${(i / Math.max(normalized.length - 1, 1)) * width},${
+                    100 - v
+                  }`
               )
               .join(" ")}
             fill="none"
-            stroke="rgba(255,255,255,0.25)"
+            stroke="rgba(255,255,255,0.22)"
             strokeWidth={4}
             className="transition-all duration-700 ease-[cubic-bezier(.17,.67,.43,1)]"
           />
         </svg>
 
-        {/* FOREGROUND */}
+        {/* Foreground line */}
         <svg
           className="absolute inset-0 h-full w-full"
           viewBox={`0 0 ${width} 100`}
@@ -83,7 +106,10 @@ function Sparkline({ data, expanded }: { data: number[]; expanded: boolean }) {
           <polyline
             points={normalized
               .map(
-                (v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`
+                (v, i) =>
+                  `${(i / Math.max(normalized.length - 1, 1)) * width},${
+                    100 - v
+                  }`
               )
               .join(" ")}
             fill="none"
@@ -98,16 +124,12 @@ function Sparkline({ data, expanded }: { data: number[]; expanded: boolean }) {
 }
 
 /* ---------------------------------------------------------
-   FSCard — PRO VERSION
-   - Hover tilt
-   - Expand/collapse sparkline
-   - Microbadge
-   - Depth glow
+   Player card (FSCard) — collapsible sparkline + AI text
 --------------------------------------------------------- */
 
 interface FSCardProps {
   player: string;
-  club: string;
+  team: string;
   pos: string;
   value: number;
   unit: string;
@@ -115,162 +137,167 @@ interface FSCardProps {
   data: number[];
   accent: string;
   labelTopRight: string;
+  aiSummary: string;
 }
 
-function FSCard(props: FSCardProps) {
-  const {
-    player,
-    club,
-    pos,
-    value,
-    unit,
-    diff,
-    data,
-    accent,
-    labelTopRight,
-  } = props;
-
+function FSCard({
+  player,
+  team,
+  pos,
+  value,
+  unit,
+  diff,
+  data,
+  accent,
+  labelTopRight,
+  aiSummary,
+}: FSCardProps) {
   const [expanded, setExpanded] = useState(false);
 
+  const diffLabel =
+    diff > 0 ? `+${diff.toFixed(1)}` : diff < 0 ? diff.toFixed(1) : "0.0";
+
   return (
-    <div
+    <button
+      type="button"
       onClick={() => setExpanded((v) => !v)}
       className={cn(
-        "relative rounded-2xl border p-4 md:p-5 cursor-pointer",
+        "relative w-full rounded-2xl border p-4 md:p-5 text-left",
+        "bg-black/60 backdrop-blur-sm",
         "transition-all duration-300",
-        "bg-black/60 backdrop-blur-sm group",
-        "hover:-translate-y-[3px]",
+        "hover:-translate-y-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60",
         accent
       )}
     >
-      {/* Glow lift when expanded */}
+      {/* Glow on expand */}
       <div
         className={cn(
-          "absolute inset-0 pointer-events-none opacity-0 blur-2xl transition-all duration-500",
+          "pointer-events-none absolute inset-0 opacity-0 blur-2xl transition-opacity duration-500",
           expanded && "opacity-30"
         )}
         style={{
-          background:
-            accent.includes("red")
-              ? "rgba(255,80,80,0.4)"
-              : accent.includes("yellow")
-              ? "rgba(255,230,120,0.4)"
-              : "rgba(120,200,255,0.4)",
+          background: accent.includes("red")
+            ? "rgba(248,113,113,0.45)"
+            : accent.includes("yellow")
+            ? "rgba(250,204,21,0.45)"
+            : "rgba(56,189,248,0.45)",
         }}
       />
 
-      {/* Top row */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[13px] font-semibold">{player}</p>
-          <p className="text-[11px] text-white/50 uppercase tracking-wide">
-            {club} • {pos}
-          </p>
+      <div className="relative">
+        {/* Header row */}
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <p className="text-[13px] font-semibold">{player}</p>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-white/50">
+              {team} • {pos}
+            </p>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-white/38">
+            {labelTopRight}
+          </span>
         </div>
 
-        <span className="text-[10px] text-white/40 uppercase tracking-wide">
-          {labelTopRight}
-        </span>
-      </div>
+        {/* Value + diff */}
+        <div className="mb-1 text-xl font-semibold tabular-nums">
+          {value} {unit}
+        </div>
+        <p className="flex items-center gap-1 text-xs text-white/55 tabular-nums">
+          {diff > 0 && (
+            <span className="font-semibold text-emerald-300">{diffLabel}</span>
+          )}
+          {diff < 0 && (
+            <span className="font-semibold text-red-300">{diffLabel}</span>
+          )}
+          {diff === 0 && (
+            <span className="font-semibold text-white/40">{diffLabel}</span>
+          )}
+          <span className="text-white/40">vs avg</span>
+        </p>
 
-      {/* Value + diff */}
-      <div className="mt-3 mb-1 text-xl font-semibold">
-        {value} {unit}
-      </div>
+        {/* Toggle row */}
+        <div className="mt-2 flex items-center justify-between text-[11px] text-white/45">
+          <span>{expanded ? "Hide trend & AI summary" : "Show trend & AI summary"}</span>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-white/45" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-white/45" />
+          )}
+        </div>
 
-      <p className="text-xs text-white/60 flex items-center gap-1">
-        {diff > 0 ? (
-          <span className="text-emerald-300 font-semibold">
-            +{diff.toFixed(1)}
-          </span>
-        ) : diff < 0 ? (
-          <span className="text-red-300 font-semibold">
-            {diff.toFixed(1)}
-          </span>
-        ) : (
-          <span className="text-white/40">0.0</span>
+        {/* Expanded content: AI summary + sparkline */}
+        {expanded && (
+          <p className="mt-2 text-[11px] leading-snug text-white/70">
+            {aiSummary}
+          </p>
         )}
-        <span className="text-white/40">vs avg</span>
-      </p>
 
-      {/* Expand / collapse row */}
-      <div className="flex justify-between items-center mt-2">
-        <span className="text-[10px] text-white/45">
-          {expanded ? "Hide trend" : "Show trend"}
-        </span>
-
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-white/40" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-white/40" />
-        )}
+        <Sparkline expanded={expanded} data={data} />
       </div>
-
-      {/* Sparkline */}
-      <Sparkline expanded={expanded} data={data} />
-    </div>
+    </button>
   );
 }
 
 /* ---------------------------------------------------------
-   FSColumn — pro aligned header + glow
+   Column wrapper (FSColumn) — aligned headers + glow
 --------------------------------------------------------- */
 
-function FSColumn({
-  title,
-  icon,
-  color,
-  children,
-}: {
+interface FSColumnProps {
   title: string;
   icon: React.ReactNode;
-  color: string;
-  children: any;
-}) {
+  glowClass: string;
+  children: React.ReactNode;
+}
+
+function FSColumn({ title, icon, glowClass, children }: FSColumnProps) {
   return (
-    <div className="relative rounded-3xl border bg-black/30 p-5 md:p-6 overflow-hidden">
+    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/35 p-5 md:p-6">
+      {/* soft column glow */}
       <div
-        className={cn("absolute inset-0 opacity-20 blur-3xl pointer-events-none", color)}
+        className={cn(
+          "pointer-events-none absolute inset-0 opacity-25 blur-3xl",
+          glowClass
+        )}
       />
+      <div className="relative">
+        <div className="mb-5 flex items-center gap-2">
+          {icon}
+          <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+        </div>
 
-      <div className="relative flex items-center gap-2 mb-5">
-        {icon}
-        <h3 className="font-semibold text-lg">{title}</h3>
+        <div className="space-y-4">{children}</div>
       </div>
-
-      <div className="relative space-y-4">{children}</div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   MAIN COMPONENT
+   MAIN SECTION
 --------------------------------------------------------- */
 
 export default function FormStabilityGrid() {
   const players = useAFLMockPlayers();
   const [selected, setSelected] = useState<StatKey>("fantasy");
 
-  // units
-  const unit =
+  const unit: string =
     selected === "fantasy"
       ? "pts"
       : selected === "goals"
       ? "goals"
       : selected;
 
-  /* ---- COMPUTE LISTS ---- */
+  /* ----- Derived lists ----- */
 
   const hot = useMemo(() => {
     return [...players]
       .sort((a, b) => {
-        const A =
-          getSeriesForStat(a, selected).at(-1)! -
-          average(getSeriesForStat(a, selected));
-        const B =
-          getSeriesForStat(b, selected).at(-1)! -
-          average(getSeriesForStat(b, selected));
-        return B - A;
+        const aSeries = getSeriesForStat(a, selected);
+        const bSeries = getSeriesForStat(b, selected);
+        const aDelta =
+          (aSeries.at(-1) ?? 0) - average(aSeries);
+        const bDelta =
+          (bSeries.at(-1) ?? 0) - average(bSeries);
+        return bDelta - aDelta;
       })
       .slice(0, 6);
   }, [players, selected]);
@@ -278,11 +305,17 @@ export default function FormStabilityGrid() {
   const stable = useMemo(() => {
     return [...players]
       .sort((a, b) => {
-        const S1 = getSeriesForStat(a, selected);
-        const S2 = getSeriesForStat(b, selected);
-        const C1 = S1.filter((v) => v >= average(S1)).length / S1.length;
-        const C2 = S2.filter((v) => v >= average(S2)).length / S2.length;
-        return C2 - C1;
+        const aSeries = getSeriesForStat(a, selected);
+        const bSeries = getSeriesForStat(b, selected);
+        const aBase = average(aSeries) || 1;
+        const bBase = average(bSeries) || 1;
+        const aConsistency =
+          (aSeries.filter((v) => v >= aBase).length /
+            Math.max(aSeries.length, 1)) * 100;
+        const bConsistency =
+          (bSeries.filter((v) => v >= bBase).length /
+            Math.max(bSeries.length, 1)) * 100;
+        return bConsistency - aConsistency;
       })
       .slice(0, 6);
   }, [players, selected]);
@@ -290,13 +323,13 @@ export default function FormStabilityGrid() {
   const cooling = useMemo(() => {
     return [...players]
       .sort((a, b) => {
-        const A =
-          average(getSeriesForStat(a, selected)) -
-          getSeriesForStat(a, selected).at(-1)!;
-        const B =
-          average(getSeriesForStat(b, selected)) -
-          getSeriesForStat(b, selected).at(-1)!;
-        return B - A;
+        const aSeries = getSeriesForStat(a, selected);
+        const bSeries = getSeriesForStat(b, selected);
+        const aDelta =
+          average(aSeries) - (aSeries.at(-1) ?? 0);
+        const bDelta =
+          average(bSeries) - (bSeries.at(-1) ?? 0);
+        return bDelta - aDelta;
       })
       .slice(0, 6);
   }, [players, selected]);
@@ -304,120 +337,146 @@ export default function FormStabilityGrid() {
   return (
     <section
       id="form-stability"
-      className="mt-14 rounded-3xl border border-white/10 bg-black/30 px-4 py-8 md:px-8 md:py-12"
+      className={cn(
+        "mt-14 rounded-3xl border border-white/10",
+        "bg-gradient-to-br from-black via-[#050507] to-[#05040a]",
+        "px-4 py-8 md:px-8 md:py-11",
+        "shadow-[0_0_100px_rgba(0,0,0,0.7)]"
+      )}
     >
-      {/* Header pill */}
-      <div className="flex items-center gap-2 mb-6">
-        <span className="px-3 py-1 rounded-full border border-yellow-400/40 text-[11px] font-semibold tracking-wide flex items-center gap-1 text-yellow-300">
-          <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-          FORM STABILITY GRID
-        </span>
-      </div>
+      {/* background glow */}
+      <div className="pointer-events-none absolute inset-x-0 -top-40 h-64 bg-yellow-500/10 blur-3xl" />
 
-      <h2 className="text-xl md:text-2xl font-semibold mb-2">
-        Hot risers, rock-solid anchors & form slumps
-      </h2>
+      <div className="relative">
+        {/* Header pill */}
+        <div className="mb-5 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full border border-yellow-400/45 bg-black/70 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-yellow-300">
+            <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+            FORM STABILITY GRID
+          </span>
+        </div>
 
-      <p className="text-white/70 text-sm md:text-[15px] max-w-2xl mb-6">
-        Last 5 rounds of{" "}
-        <span className="text-yellow-300 font-semibold">
-          {STAT_LABELS[selected].toLowerCase()}
-        </span>{" "}
-        — split into surges, stability leaders, and cooling risks.
-      </p>
+        <h2 className="text-xl font-semibold md:text-2xl">
+          Hot risers, rock-solid anchors & form slumps
+        </h2>
+        <p className="mt-2 mb-6 max-w-2xl text-sm text-white/70 md:text-[15px]">
+          Last 5 rounds of{" "}
+          <span className="font-semibold text-yellow-300">
+            {STAT_LABELS[selected].toLowerCase()}
+          </span>{" "}
+          — split into surges, stability leaders and cooling risks against each
+          player&apos;s season profile.
+        </p>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {(Object.keys(STAT_LABELS) as StatKey[]).map((key) => (
-          <button
-            key={key}
-            onClick={() => setSelected(key)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs md:text-sm transition-all",
-              selected === key
-                ? "bg-yellow-400 text-black font-semibold shadow-[0_0_18px_rgba(250,204,21,0.6)]"
-                : "bg-white/5 text-white/70 border border-white/10 hover:bg-white/10"
-            )}
+        {/* Stat filter row */}
+        <div className="mb-8 flex flex-wrap gap-2">
+          {STATS.map((stat) => (
+            <button
+              key={stat}
+              onClick={() => setSelected(stat)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs md:text-sm transition-all",
+                "backdrop-blur-sm",
+                selected === stat
+                  ? "border-yellow-300 bg-yellow-400 text-black font-semibold shadow-[0_0_18px_rgba(250,204,21,0.7)]"
+                  : "border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              {STAT_LABELS[stat]}
+            </button>
+          ))}
+        </div>
+
+        {/* Columns — Hybrid C */}
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-7 lg:grid-cols-3 lg:gap-8">
+          {/* HOT COLUMN */}
+          <FSColumn
+            title="Hot form surge"
+            icon={<Flame className="h-5 w-5 text-red-400" />}
+            glowClass="bg-red-500/40"
           >
-            {STAT_LABELS[key]}
-          </button>
-        ))}
-      </div>
+            {hot.map((p) => {
+              const series = getSeriesForStat(p, selected);
+              const last = series.at(-1) ?? 0;
+              const delta = last - average(series);
+              return (
+                <FSCard
+                  key={p.id}
+                  player={p.name}
+                  team={p.team}
+                  pos={p.pos}
+                  value={Math.round(last)}
+                  unit={unit}
+                  diff={delta}
+                  data={series}
+                  labelTopRight="AVG LAST 5"
+                  accent="border-red-500/45"
+                  aiSummary={HOT_AI_SUMMARY}
+                />
+              );
+            })}
+          </FSColumn>
 
-      {/* Columns — Hybrid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-7 lg:gap-8">
-        
-        {/* HOT */}
-        <FSColumn
-          title="Hot form surge"
-          icon={<Flame className="text-red-400 h-5 w-5" />}
-          color="bg-red-500/40"
-        >
-          {hot.map((p, i) => (
-            <FSCard
-              key={i}
-              player={p.name}
-              club={p.team}
-              pos={p.pos}
-              value={getSeriesForStat(p, selected).at(-1)!}
-              unit={unit}
-              diff={
-                getSeriesForStat(p, selected).at(-1)! -
-                average(getSeriesForStat(p, selected))
-              }
-              data={getSeriesForStat(p, selected)}
-              labelTopRight="AVG LAST 5"
-              accent="border-red-500/40"
-            />
-          ))}
-        </FSColumn>
+          {/* STABILITY COLUMN */}
+          <FSColumn
+            title="Stability leaders"
+            icon={<Shield className="h-5 w-5 text-yellow-300" />}
+            glowClass="bg-yellow-400/40"
+          >
+            {stable.map((p) => {
+              const series = getSeriesForStat(p, selected);
+              const last = series.at(-1) ?? 0;
+              const base = average(series) || 1;
+              const consistency =
+                (series.filter((v) => v >= base).length /
+                  Math.max(series.length, 1)) * 100;
 
-        {/* STABILITY */}
-        <FSColumn
-          title="Stability leaders"
-          icon={<Shield className="text-yellow-300 h-5 w-5" />}
-          color="bg-yellow-300/40"
-        >
-          {stable.map((p, i) => (
-            <FSCard
-              key={i}
-              player={p.name}
-              club={p.team}
-              pos={p.pos}
-              value={getSeriesForStat(p, selected).at(-1)!}
-              unit={unit}
-              diff={0}
-              data={getSeriesForStat(p, selected)}
-              labelTopRight="CONSISTENCY"
-              accent="border-yellow-300/40"
-            />
-          ))}
-        </FSColumn>
+              return (
+                <FSCard
+                  key={p.id}
+                  player={p.name}
+                  team={p.team}
+                  pos={p.pos}
+                  value={Math.round(last)}
+                  unit={unit}
+                  diff={0} // we explain consistency via label
+                  data={series}
+                  labelTopRight={`${consistency.toFixed(0)}% CONSISTENCY`}
+                  accent="border-yellow-300/45"
+                  aiSummary={STABLE_AI_SUMMARY}
+                />
+              );
+            })}
+          </FSColumn>
 
-        {/* COOLING */}
-        <FSColumn
-          title="Cooling risks"
-          icon={<Snowflake className="text-sky-300 h-5 w-5" />}
-          color="bg-sky-300/30"
-        >
-          {cooling.map((p, i) => (
-            <FSCard
-              key={i}
-              player={p.name}
-              club={p.team}
-              pos={p.pos}
-              value={getSeriesForStat(p, selected).at(-1)!}
-              unit={unit}
-              diff={
-                getSeriesForStat(p, selected).at(-1)! -
-                average(getSeriesForStat(p, selected))
-              }
-              data={getSeriesForStat(p, selected)}
-              labelTopRight="LAST VS PREV"
-              accent="border-sky-300/40"
-            />
-          ))}
-        </FSColumn>
+          {/* COOLING COLUMN */}
+          <FSColumn
+            title="Cooling risks"
+            icon={<Snowflake className="h-5 w-5 text-sky-300" />}
+            glowClass="bg-sky-400/40"
+          >
+            {cooling.map((p) => {
+              const series = getSeriesForStat(p, selected);
+              const last = series.at(-1) ?? 0;
+              const delta = last - average(series);
+              return (
+                <FSCard
+                  key={p.id}
+                  player={p.name}
+                  team={p.team}
+                  pos={p.pos}
+                  value={Math.round(last)}
+                  unit={unit}
+                  diff={delta}
+                  data={series}
+                  labelTopRight="LAST VS AVG"
+                  accent="border-sky-300/45"
+                  aiSummary={COOL_AI_SUMMARY}
+                />
+              );
+            })}
+          </FSColumn>
+        </div>
       </div>
     </section>
   );
