@@ -69,28 +69,22 @@ const CATEGORY_ICON: Record<Category, React.ElementType> = {
   cool: Snowflake,
 };
 
-const CATEGORY_ICON_COLOR: Record<Category, string> = {
-  hot: "text-orange-400",
+const CATEGORY_ICON_COLOUR: Record<Category, string> = {
+  hot: "text-red-400",
   stable: "text-yellow-300",
   cool: "text-sky-400",
 };
 
-const ROW_ACCENT_BORDER: Record<Category, string> = {
-  hot: "hover:border-orange-400/70",
-  stable: "hover:border-yellow-300/70",
-  cool: "hover:border-sky-400/70",
+const ROW_LEFT_BORDER: Record<Category, string> = {
+  hot: "border-l-2 border-l-red-500/80",
+  stable: "border-l-2 border-l-yellow-400/80",
+  cool: "border-l-2 border-l-sky-400/80",
 };
 
-const ROW_ACCENT_BG: Record<Category, string> = {
-  hot: "hover:bg-orange-500/5",
+const ROW_HOVER_ACCENT: Record<Category, string> = {
+  hot: "hover:bg-red-500/5",
   stable: "hover:bg-yellow-400/5",
   cool: "hover:bg-sky-500/5",
-};
-
-const COLUMN_GLOW_BG: Record<Category, string> = {
-  hot: "from-red-500/15 via-transparent to-transparent",
-  stable: "from-yellow-400/15 via-transparent to-transparent",
-  cool: "from-sky-400/15 via-transparent to-transparent",
 };
 
 /* ---------------------------------------------------------
@@ -106,23 +100,29 @@ type PlayerMetric = {
 };
 
 function getTrendLabel(diff: number): string {
-  if (diff > 5) return "Strong surge";
-  if (diff > 2) return "Trending up";
-  if (diff > 0.5) return "Slight rise";
-  if (diff > -0.5) return "In line with usual";
-  if (diff > -2) return "Softening";
-  return "Significant decline";
+  if (diff > 5) return "Strong surge vs recent average.";
+  if (diff > 2) return "Trending up in recent output.";
+  if (diff > 0.5) return "Slight rise vs recent baseline.";
+  if (diff > -0.5) return "Tracking close to recent average.";
+  if (diff > -2) return "Softening vs recent baseline.";
+  return "Meaningful drop-off vs recent average.";
 }
 
 function getTrendColour(diff: number, category: Category): string {
   if (category === "hot") {
-    return diff >= 0 ? "text-orange-400" : "text-zinc-300";
+    if (diff > 2) return "text-red-400";
+    if (diff > 0.5) return "text-orange-300";
+    return "text-zinc-300";
   }
   if (category === "stable") {
-    return Math.abs(diff) <= 1 ? "text-emerald-400" : "text-amber-300";
+    if (Math.abs(diff) < 1) return "text-emerald-400";
+    if (Math.abs(diff) < 2) return "text-amber-300";
+    return "text-zinc-300";
   }
   // cooling
-  return diff <= 0 ? "text-sky-400" : "text-zinc-300";
+  if (diff < -2) return "text-sky-400";
+  if (diff < -0.5) return "text-cyan-300";
+  return "text-zinc-300";
 }
 
 function generatePlayerCommentary(
@@ -131,24 +131,30 @@ function generatePlayerCommentary(
   category: Category
 ): string {
   const { player, diff } = metric;
-  const direction =
-    diff > 0.75 ? "surging above" : diff < -0.75 ? "slipping below" : "tracking close to";
-  const abs = Math.abs(diff).toFixed(1);
   const unit = STAT_UNITS[stat];
 
-  let roleLine: string;
+  const abs = Math.abs(diff).toFixed(1);
+  const direction =
+    diff > 0.75 ? "well above" : diff < -0.75 ? "noticeably below" : "close to";
+
+  let categoryLine: string;
   if (category === "hot") {
-    roleLine =
-      "Recent rounds suggest elevated opportunity and stronger involvement in key passages of play.";
+    categoryLine =
+      "Recent rounds point to a genuine form surge, likely driven by elevated involvement and favourable roles.";
   } else if (category === "stable") {
-    roleLine =
-      "Output is holding steady with a reliable contribution week to week, minimising volatility.";
+    categoryLine =
+      "They continue to offer a reliable scoring floor with limited week-to-week volatility.";
   } else {
-    roleLine =
-      "Recent games point to softening output that may reflect role tweaks, matchup difficulty or form dip.";
+    categoryLine =
+      "Recent games suggest softening output, which may reflect role tweaks, tougher match-ups or form regression.";
   }
 
-  return `${player.name} (${player.team} • ${player.pos}) is ${direction} their recent average (${abs} ${unit}), indicating ${roleLine}`;
+  return `${player.name} (${player.team} • ${player.pos}) is tracking ${direction} their recent average (${abs} ${unit} difference), placing them firmly in the ${category === "hot"
+    ? "hot risers"
+    : category === "stable"
+    ? "stability leaders"
+    : "cooling risks"
+  } cohort. ${categoryLine}`;
 }
 
 /* ---------------------------------------------------------
@@ -166,15 +172,18 @@ function Sparkline({ data }: { data: number[] }) {
   return (
     <div className="relative h-14 w-full">
       <svg viewBox="0 0 100 40" className="absolute inset-0 h-full w-full">
-        {/* soft glow */}
+        {/* glow */}
         <polyline
           fill="none"
-          stroke="rgba(250,204,21,0.35)"
+          stroke="rgba(250,204,21,0.4)"
           strokeWidth={4}
           points={normalized
-            .map((v, i) => `${(i / Math.max(normalized.length - 1, 1)) * 100},${36 - v * 30}`)
+            .map(
+              (v, i) =>
+                `${(i / Math.max(normalized.length - 1, 1)) * 100},${35 - v * 26}`
+            )
             .join(" ")}
-          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]"
+          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.7)]"
         />
         {/* main line */}
         <polyline
@@ -182,7 +191,10 @@ function Sparkline({ data }: { data: number[] }) {
           stroke="rgb(250,204,21)"
           strokeWidth={2}
           points={normalized
-            .map((v, i) => `${(i / Math.max(normalized.length - 1, 1)) * 100},${36 - v * 30}`)
+            .map(
+              (v, i) =>
+                `${(i / Math.max(normalized.length - 1, 1)) * 100},${35 - v * 26}`
+            )
             .join(" ")}
         />
       </svg>
@@ -191,7 +203,7 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   ROW CARD
+   ROW CARD (AFL CLEAN LIST STYLE)
 --------------------------------------------------------- */
 
 interface RowCardProps {
@@ -207,35 +219,32 @@ function RowCard({ metric, stat, category, index }: RowCardProps) {
   const statLabelLower = STAT_LABELS[stat].toLowerCase();
   const trendLabel = getTrendLabel(metric.diff);
   const trendColour = getTrendColour(metric.diff, category);
-
   const Icon = CATEGORY_ICON[category];
 
   const mainValue = `${metric.last5Avg.toFixed(0)} ${unit}`;
-  const diffValue = `${metric.diff >= 0 ? "+" : ""}${metric.diff.toFixed(1)} vs avg`;
+  const diffValue = `${metric.diff >= 0 ? "+" : ""}${metric.diff.toFixed(
+    1
+  )} vs avg`;
 
   return (
     <div
       className={cn(
-        "group rounded-2xl border border-white/8 bg-black/70 px-4 py-3.5 md:px-4.5 md:py-3.5",
+        "group rounded-xl border border-white/10 bg-black/75 px-3.5 py-3 md:px-4 md:py-3",
         "transition-all duration-200 cursor-pointer",
-        ROW_ACCENT_BORDER[category],
-        ROW_ACCENT_BG[category],
-        "hover:shadow-[0_0_26px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-bottom-2"
+        ROW_LEFT_BORDER[category],
+        ROW_HOVER_ACCENT[category],
+        "hover:border-white/25 hover:shadow-[0_0_26px_rgba(0,0,0,0.8)]",
+        "animate-in fade-in slide-in-from-bottom-2"
       )}
-      style={{ animationDelay: `${120 + index * 40}ms` }}
+      style={{ animationDelay: `${100 + index * 40}ms` }}
       onClick={() => setOpen((prev) => !prev)}
     >
-      {/* Top row: name + value */}
+      {/* Top row: player + value */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Icon
-              className={cn(
-                "h-3.5 w-3.5",
-                CATEGORY_ICON_COLOR[category]
-              )}
-            />
-            <p className="truncate text-sm font-medium text-white">
+          <div className="flex items-center gap-1.5">
+            <Icon className={cn("h-3.5 w-3.5", CATEGORY_ICON_COLOUR[category])} />
+            <p className="truncate text-sm font-semibold text-white">
               {metric.player.name}
             </p>
           </div>
@@ -244,25 +253,20 @@ function RowCard({ metric, stat, category, index }: RowCardProps) {
           </p>
         </div>
 
-        <div className="text-right shrink-0">
+        <div className="shrink-0 text-right">
           <p className="text-sm font-semibold text-white">{mainValue}</p>
-          <p
-            className={cn(
-              "mt-0.5 text-[11px] font-medium",
-              trendColour
-            )}
-          >
+          <p className={cn("mt-0.5 text-[11px] font-medium", trendColour)}>
             {diffValue}
           </p>
         </div>
       </div>
 
-      {/* Bottom row: trend + chevron */}
+      {/* Second row: short trend + chevron */}
       <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-white/55">
-          {trendLabel} in recent {statLabelLower} output.
+        <p className="text-[11px] text-white/60 truncate">
+          {trendLabel.replace("recent output", `recent ${statLabelLower} output`)}
         </p>
-        <div className="flex items-center gap-1 text-[11px] text-white/60">
+        <div className="flex items-center gap-1 text-[11px] text-white/65">
           <span>{open ? "Hide trend" : "Show trend"}</span>
           {open ? (
             <ChevronUp className="h-3.5 w-3.5" />
@@ -274,9 +278,9 @@ function RowCard({ metric, stat, category, index }: RowCardProps) {
 
       {/* Expanded detail */}
       {open && (
-        <div className="mt-3 border-t border-white/8 pt-3 space-y-3 animate-in fade-in slide-in-from-top-1">
+        <div className="mt-3 space-y-2.5 border-t border-white/10 pt-3 animate-in fade-in slide-in-from-top-1">
           <Sparkline data={metric.series} />
-          <p className="text-[12px] leading-relaxed text-white/70">
+          <p className="text-[12px] leading-relaxed text-white/75">
             {generatePlayerCommentary(metric, stat, category)}
           </p>
         </div>
@@ -313,9 +317,7 @@ export default function FormStabilityGrid() {
 
   const hot = useMemo(
     () =>
-      [...metrics]
-        .sort((a, b) => b.diff - a.diff)
-        .slice(0, CATEGORY_LIMIT),
+      [...metrics].sort((a, b) => b.diff - a.diff).slice(0, CATEGORY_LIMIT),
     [metrics]
   );
 
@@ -329,9 +331,7 @@ export default function FormStabilityGrid() {
 
   const cool = useMemo(
     () =>
-      [...metrics]
-        .sort((a, b) => a.diff - b.diff)
-        .slice(0, CATEGORY_LIMIT),
+      [...metrics].sort((a, b) => a.diff - b.diff).slice(0, CATEGORY_LIMIT),
     [metrics]
   );
 
@@ -339,23 +339,21 @@ export default function FormStabilityGrid() {
 
   return (
     <section
+      id="form-stability"
       className={cn(
         "relative mt-10 rounded-3xl border border-white/12",
-        "bg-gradient-to-b from-black via-[#050507] to-[#0b0b0d]",
+        "bg-gradient-to-b from-black via-[#050507] to-[#050507]",
         "px-4 py-6 md:px-8 md:py-8",
-        "shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden"
+        "shadow-[0_0_80px_rgba(0,0,0,0.85)] overflow-hidden"
       )}
-      id="form-stability"
     >
-      {/* soft column glows */}
-      <div className="pointer-events-none absolute inset-y-10 left-[6%] right-[68%] bg-gradient-to-br opacity-50 blur-3xl md:block hidden bg-red-500/20" />
-      <div className="pointer-events-none absolute inset-y-10 left-[34%] right-[34%] opacity-50 blur-3xl md:block hidden bg-yellow-400/16" />
-      <div className="pointer-events-none absolute inset-y-10 left-[68%] right-[6%] opacity-50 blur-3xl md:block hidden bg-sky-400/18" />
+      {/* soft background bloom */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-48 w-[420px] -translate-x-1/2 bg-yellow-500/15 blur-3xl" />
 
       <div className="relative space-y-5 md:space-y-6">
         {/* Header */}
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-yellow-500/15 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-black/80 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
             <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
             <span>Form Stability Grid</span>
           </div>
@@ -396,94 +394,67 @@ export default function FormStabilityGrid() {
         </div>
 
         {/* Columns */}
-        <div className="grid gap-5 md:grid-cols-3 md:gap-6">
+        <div className="grid gap-4 md:grid-cols-3 md:gap-6">
           {/* HOT */}
-          <div className="relative">
-            <div
-              className={cn(
-                "pointer-events-none absolute -top-4 -bottom-4 -left-4 -right-4 hidden md:block",
-                "bg-gradient-to-b",
-                COLUMN_GLOW_BG.hot
-              )}
-            />
-            <div className="relative space-y-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Flame className="h-4 w-4 text-orange-400" />
-                <h3 className="text-sm font-semibold text-white">
-                  {CATEGORY_TITLE.hot}
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {hot.map((m, idx) => (
-                  <RowCard
-                    key={m.player.id}
-                    metric={m}
-                    stat={selectedStat}
-                    category="hot"
-                    index={idx}
-                  />
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-red-400" />
+              <h3 className="text-sm font-semibold text-white">
+                {CATEGORY_TITLE.hot}
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {hot.map((m, idx) => (
+                <RowCard
+                  key={m.player.id}
+                  metric={m}
+                  stat={selectedStat}
+                  category="hot"
+                  index={idx}
+                />
+              ))}
             </div>
           </div>
 
           {/* STABLE */}
-          <div className="relative">
-            <div
-              className={cn(
-                "pointer-events-none absolute -top-4 -bottom-4 -left-4 -right-4 hidden md:block",
-                "bg-gradient-to-b",
-                COLUMN_GLOW_BG.stable
-              )}
-            />
-            <div className="relative space-y-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Shield className="h-4 w-4 text-yellow-300" />
-                <h3 className="text-sm font-semibold text-white">
-                  {CATEGORY_TITLE.stable}
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {stable.map((m, idx) => (
-                  <RowCard
-                    key={m.player.id}
-                    metric={m}
-                    stat={selectedStat}
-                    category="stable"
-                    index={idx}
-                  />
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-yellow-300" />
+              <h3 className="text-sm font-semibold text-white">
+                {CATEGORY_TITLE.stable}
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {stable.map((m, idx) => (
+                <RowCard
+                  key={m.player.id}
+                  metric={m}
+                  stat={selectedStat}
+                  category="stable"
+                  index={idx}
+                />
+              ))}
             </div>
           </div>
 
           {/* COOL */}
-          <div className="relative">
-            <div
-              className={cn(
-                "pointer-events-none absolute -top-4 -bottom-4 -left-4 -right-4 hidden md:block",
-                "bg-gradient-to-b",
-                COLUMN_GLOW_BG.cool
-              )}
-            />
-            <div className="relative space-y-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Snowflake className="h-4 w-4 text-sky-400" />
-                <h3 className="text-sm font-semibold text-white">
-                  {CATEGORY_TITLE.cool}
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {cool.map((m, idx) => (
-                  <RowCard
-                    key={m.player.id}
-                    metric={m}
-                    stat={selectedStat}
-                    category="cool"
-                    index={idx}
-                  />
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Snowflake className="h-4 w-4 text-sky-400" />
+              <h3 className="text-sm font-semibold text-white">
+                {CATEGORY_TITLE.cool}
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {cool.map((m, idx) => (
+                <RowCard
+                  key={m.player.id}
+                  metric={m}
+                  stat={selectedStat}
+                  category="cool"
+                  index={idx}
+                />
+              ))}
             </div>
           </div>
         </div>
