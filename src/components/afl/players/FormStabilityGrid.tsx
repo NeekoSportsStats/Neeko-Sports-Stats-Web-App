@@ -72,7 +72,7 @@ type PlayerMetrics = {
   consistency: number;
   volatility: number;
   l5DeltaFromSeason: number;
-  diffLast: number | null; // last - previous
+  diffLast: number | null;
   slumpScore: number;
 };
 
@@ -130,11 +130,11 @@ function MiniSparkline({
   const first = normalized[0];
   const delta = normalized[lastIndex] - first;
 
-  let moodColour = "rgba(250,204,21,0.95)"; // neutral / slight move
+  let moodColour = "rgba(250,204,21,0.9)";
   if (delta > 7) {
-    moodColour = "rgba(34,197,94,0.95)"; // strong up
+    moodColour = "rgba(34,197,94,0.95)";
   } else if (delta < -7) {
-    moodColour = "rgba(248,113,113,0.95)"; // strong down
+    moodColour = "rgba(248,113,113,0.95)";
   }
 
   return (
@@ -155,9 +155,9 @@ function MiniSparkline({
             )
             .join(" ")}
           fill="none"
-          stroke="rgba(250,204,21,0.35)"
+          stroke="rgba(250,204,21,0.3)"
           strokeWidth={4}
-          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]"
+          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]"
         />
 
         {/* main line */}
@@ -171,7 +171,7 @@ function MiniSparkline({
             )
             .join(" ")}
           fill="none"
-          stroke="rgb(250,204,21)"
+          stroke="rgba(250,204,21,0.9)"
           strokeWidth={2}
         />
 
@@ -243,7 +243,7 @@ function PlayerFormCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl px-4 py-3.5 md:px-4.5 md:py-4",
+        "relative min-h-[148px] overflow-hidden rounded-2xl px-4 py-3.5 md:min-h-[156px] md:px-4.5 md:py-4",
         "border backdrop-blur-sm",
         "transition-transform duration-300 hover:-translate-y-1",
         "hover:shadow-[0_0_32px_rgba(250,204,21,0.45)]",
@@ -256,14 +256,25 @@ function PlayerFormCard({
         className={cn(
           "pointer-events-none absolute inset-x-0 -bottom-10 h-20 blur-2xl",
           tone === "hot"
-            ? "bg-red-500/25"
+            ? "bg-red-500/22"
             : tone === "cold"
-            ? "bg-cyan-400/30"
-            : "bg-yellow-500/20"
+            ? "bg-cyan-400/22"
+            : "bg-yellow-500/18"
         )}
       />
       <div className={cn("relative rounded-xl p-0.5", toneClasses)}>
-        <div className="flex items-start justify-between gap-2">
+        {/* tiny tone bar */}
+        <div
+          className={cn(
+            "h-0.5 w-full rounded-t-xl",
+            tone === "hot"
+              ? "bg-gradient-to-r from-red-400 via-red-300 to-yellow-300"
+              : tone === "cold"
+              ? "bg-gradient-to-r from-cyan-400 via-sky-300 to-emerald-300"
+              : "bg-gradient-to-r from-yellow-300 via-amber-200 to-emerald-200"
+          )}
+        />
+        <div className="flex items-start justify-between gap-2 px-3 pt-2 pb-1.5">
           <div>
             <p className="truncate text-sm font-semibold text-white">
               {name}
@@ -291,7 +302,9 @@ function PlayerFormCard({
             )}
           </div>
         </div>
-        <MiniSparkline data={series} baseline={baseline} />
+        <div className="px-3 pb-2">
+          <MiniSparkline data={series} baseline={baseline} />
+        </div>
       </div>
     </div>
   );
@@ -335,10 +348,10 @@ function FormColumn({
         className={cn(
           "pointer-events-none absolute inset-x-6 -top-10 h-16 blur-3xl",
           tone === "hot"
-            ? "bg-red-500/30"
+            ? "bg-red-500/26"
             : tone === "cold"
-            ? "bg-cyan-400/30"
-            : "bg-yellow-500/25"
+            ? "bg-cyan-400/24"
+            : "bg-yellow-500/22"
         )}
       />
       <div className="relative flex items-center justify-between gap-2">
@@ -358,7 +371,7 @@ function FormColumn({
               {title}
             </h3>
           </div>
-          <p className="mt-1.5 text-[11px] text-white/55 md:text-xs">
+          <p className="mt-2 text-[11px] text-white/55 md:text-xs">
             {subtitle}
           </p>
         </div>
@@ -422,8 +435,7 @@ export default function FormStabilityGrid() {
 
       const l5DeltaFromSeason = avgL5 - seasonAvg;
 
-      // simple blended slump score:
-      // heavy weight on L5 vs season, small weight on last-game change
+      // blended slump score
       slumpScore =
         l5DeltaFromSeason * 0.7 + (diffLast !== null ? diffLast * 0.3 : 0);
 
@@ -477,6 +489,7 @@ export default function FormStabilityGrid() {
 
   return (
     <section
+      id="form-stability"
       className={cn(
         "relative overflow-hidden rounded-3xl border border-white/10",
         "bg-gradient-to-br from-[#050507] via-black to-[#111010]",
@@ -485,8 +498,8 @@ export default function FormStabilityGrid() {
       )}
     >
       {/* soft background sparkle */}
-      <div className="pointer-events-none absolute -top-24 left-10 h-40 w-40 rounded-full bg-yellow-500/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-16 right-6 h-40 w-40 rounded-full bg-sky-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 left-10 h-40 w-40 rounded-full bg-yellow-500/22 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 right-6 h-40 w-40 rounded-full bg-sky-500/18 blur-3xl" />
 
       <div className="relative space-y-4 md:space-y-5">
         {/* Header row */}
@@ -499,7 +512,7 @@ export default function FormStabilityGrid() {
               </span>
             </div>
             <h2 className="text-xl font-semibold md:text-2xl">
-              Hot risers, rock-solid anchors & form slumps
+              Hot risers, rock-solid anchors &amp; form slumps
             </h2>
             <p className="max-w-xl text-xs text-white/65 md:text-sm">
               Last 5 rounds of{" "}
@@ -529,7 +542,7 @@ export default function FormStabilityGrid() {
                       "relative overflow-hidden rounded-full px-3 py-1 text-xs md:text-[13px]",
                       "border backdrop-blur-sm transition-all",
                       isActive
-                        ? "border-yellow-300 bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.6)] scale-[1.03]"
+                        ? "scale-[1.03] border-yellow-300 bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.6)]"
                         : "border-white/15 bg-white/5 text-white/70 hover:bg-white/10"
                     )}
                   >
@@ -544,11 +557,11 @@ export default function FormStabilityGrid() {
           </div>
         </div>
 
-        {/* 3-column grid with glow separators on desktop */}
+        {/* 3-column grid with stronger glow separators on desktop */}
         <div
           className={cn(
             "grid gap-4 md:grid-cols-3 md:gap-5",
-            "md:[&>div:nth-child(2)]:border-x md:[&>div:nth-child(2)]:border-white/10",
+            "md:[&>div:nth-child(2)]:border-x md:[&>div:nth-child(2)]:border-white/15",
             "md:[&>div:nth-child(1)]:pr-4 md:[&>div:nth-child(2)]:px-4 md:[&>div:nth-child(3)]:pl-4"
           )}
         >

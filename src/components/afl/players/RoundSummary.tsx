@@ -1,13 +1,7 @@
 // src/components/afl/players/RoundSummary.tsx
 import React, { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  TrendingUp,
-  Flame,
-  Shield,
-  Sparkles,
-  Activity,
-} from "lucide-react";
+import { TrendingUp, Flame, Shield, Sparkles, Activity } from "lucide-react";
 
 import {
   useAFLMockPlayers,
@@ -56,17 +50,17 @@ const PULSE_COPY: Record<StatKey, string> = {
   fantasy:
     "League-wide Fantasy trends reflect shifts driven by usage rates, matchup edges and evolving roles.",
   disposals:
-    "High-volume ball winners dominated disposals, with multiple midfielders posting 30+ touches.",
+    "High-volume ball winners dominated disposals, with many midfielders posting standout numbers.",
   kicks:
-    "Teams pushed territory with more aggressive kicking, lifting inside-50 and switch-kick volume.",
+    "Kick-to-handball ratios trended upward as teams pushed more territory-based transition.",
   marks:
-    "Intercept and link-up marks surged, highlighting defenders and wings controlling transition chains.",
+    "Intercept and link-up marks surged, highlighting defenders & wings dictating chains.",
   tackles:
-    "Pressure acts ramped up, with key midfielders and small forwards driving tackle counts.",
+    "Pressure numbers climbed as contested phases dictated scoring opportunities.",
   hitouts:
     "Ruck contests shaped territory as top rucks separated in hitouts to advantage.",
   goals:
-    "Forward efficiency spiked with multiple players kicking bags and capitalising on inside-50 dominance.",
+    "Forward efficiency spiked with multiple players capitalising on inside-50 supply.",
 };
 
 /* ---------------------------------------------------------
@@ -83,36 +77,31 @@ function Sparkline({ data }: { data: number[] }) {
   const width = Math.max(normalized.length * 20, 80);
 
   return (
-    <div className="relative h-16 md:h-24 w-full">
+    <div className="relative h-16 w-full md:h-24">
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${width} 100`}
         preserveAspectRatio="none"
       >
+        {/* glow */}
         <polyline
           points={normalized
             .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgba(250, 204, 21, 0.4)"
+          stroke="rgba(250, 204, 21, 0.35)"
           strokeWidth={4}
-          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] animate-[pulse_1.8s_ease-in-out_infinite]"
+          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]"
         />
-      </svg>
 
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${width} 100`}
-        preserveAspectRatio="none"
-      >
+        {/* main line */}
         <polyline
           points={normalized
             .map((v, i) => `${(i / (normalized.length - 1)) * width},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgb(250, 204, 21)"
+          stroke="rgba(250,204,21,0.9)"
           strokeWidth={2.5}
-          className="animate-[fade-in_0.8s_ease-out]"
         />
       </svg>
     </div>
@@ -123,27 +112,19 @@ function Sparkline({ data }: { data: number[] }) {
    Mini Card
 --------------------------------------------------------- */
 
-interface MiniCardProps {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  player: string;
-  delay: number;
-}
-
-function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
+function MiniCard({ icon: Icon, label, value, player, delay }) {
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-yellow-500/20 bg-black/70",
+        "relative overflow-hidden rounded-2xl border border-yellow-500/18 bg-black/70",
         "px-4 py-4 md:px-5 md:py-5",
-        "backdrop-blur-sm overflow-hidden",
-        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)]",
+        "backdrop-blur-sm",
+        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_36px_rgba(250,204,21,0.45)]",
         "animate-in fade-in slide-in-from-bottom-4"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="pointer-events-none absolute inset-x-0 -bottom-12 h-24 bg-gradient-to-t from-yellow-500/15 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 -bottom-12 h-24 bg-gradient-to-t from-yellow-500/12 to-transparent" />
       <div className="relative flex flex-col gap-2 text-left">
         <div className="flex items-center justify-between">
           <Icon className="h-5 w-5 text-yellow-400" />
@@ -152,10 +133,10 @@ function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
           </span>
         </div>
         <div>
-          <p className="text-xl md:text-2xl font-semibold text-yellow-300">
+          <p className="text-xl font-semibold text-yellow-300 md:text-2xl">
             {value}
           </p>
-          <p className="text-xs text-white/55 mt-0.5">{player}</p>
+          <p className="mt-0.5 text-xs text-white/55">{player}</p>
         </div>
       </div>
     </div>
@@ -163,7 +144,7 @@ function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
 }
 
 /* ---------------------------------------------------------
-   MAIN SECTION — Option B (Premium Gold Glass Pills Only)
+   MAIN SECTION — FIXED VERSION
 --------------------------------------------------------- */
 
 export default function RoundSummary() {
@@ -174,29 +155,30 @@ export default function RoundSummary() {
   const unit = STAT_UNITS[selected];
   const labelLower = selectedLabel.toLowerCase();
 
-  /* sparkline data */
+  /* sparkline average of all players */
   const avgRounds = useMemo(() => {
     const sample = players[0];
     if (!sample) return [];
     const series = getSeriesForStat(sample, selected);
+
     const totals = Array.from({ length: series.length }, () => 0);
-
     players.forEach((p) => {
-      getSeriesForStat(p, selected).forEach((v, i) => {
-        totals[i] += v;
-      });
+      getSeriesForStat(p, selected).forEach((v, i) => (totals[i] += v));
     });
-
     return totals.map((t) => Math.round(t / players.length));
   }, [players, selected]);
 
-  /* stat calcs */
+  /* top scorer */
   const topScorer = useMemo(() => {
     return players
-      .map((p) => ({ name: p.name, last: getSeriesForStat(p, selected).at(-1) ?? 0 }))
+      .map((p) => {
+        const s = getSeriesForStat(p, selected);
+        return { name: p.name, last: s[s.length - 1] ?? 0 };
+      })
       .sort((a, b) => b.last - a.last)[0];
   }, [players, selected]);
 
+  /* biggest riser */
   const biggestRiser = useMemo(() => {
     return players
       .map((p) => {
@@ -205,9 +187,10 @@ export default function RoundSummary() {
         return { name: p.name, diff: (s.at(-1) ?? 0) - (s.at(-2) ?? 0) };
       })
       .filter(Boolean)
-      .sort((a, b) => (b as any).diff - (a as any).diff)[0] as any;
+      .sort((a, b) => b.diff - a.diff)[0];
   }, [players, selected]);
 
+  /* most consistent */
   const mostConsistent = useMemo(() => {
     return players
       .map((p) => {
@@ -215,7 +198,8 @@ export default function RoundSummary() {
         const base = average(s) || 1;
         return {
           name: p.name,
-          consistency: (s.filter((v) => v >= base).length / s.length) * 100,
+          consistency:
+            (s.filter((v) => v >= base).length / Math.max(s.length, 1)) * 100,
         };
       })
       .sort((a, b) => b.consistency - a.consistency)[0];
@@ -223,49 +207,50 @@ export default function RoundSummary() {
 
   return (
     <section
+      id="round-summary"
       className={cn(
-        "relative rounded-3xl border border-yellow-500/20",
+        "relative overflow-hidden rounded-3xl border border-yellow-500/18",
         "bg-gradient-to-br from-black via-[#050507] to-[#14100a]",
         "px-4 py-6 md:px-8 md:py-8",
-        "shadow-[0_0_120px_rgba(0,0,0,0.7)] overflow-hidden",
-        "animate-in fade-in slide-in-from-bottom-6"
+        "shadow-[0_0_120px_rgba(0,0,0,0.7)]"
       )}
     >
-      {/* gold glow */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[480px] -translate-x-1/2 bg-yellow-500/20 blur-3xl" />
+      {/* glow */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[480px] -translate-x-1/2 bg-yellow-500/16 blur-3xl" />
 
       <div className="relative">
-        {/* HEADER */}
-        <div className="mb-5 md:mb-7">
-          <div className="flex flex-row items-center gap-2">
-            <Sparkles className="h-6 w-6 text-yellow-400" />
-            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Round Momentum Summary
-            </h2>
+        {/* --- NEW HEADER MATCHING FORM STABILITY GRID --- */}
+        <div className="mb-6 md:mb-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/70 px-3 py-1 text-xs text-yellow-200/90">
+            <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+            <span className="uppercase tracking-[0.18em]">Round Momentum</span>
           </div>
 
-          <p className="mt-2 text-xs md:text-sm font-medium text-yellow-300/80">
+          <h2 className="mt-3 text-xl font-semibold md:text-2xl">
+            Round Momentum Summary
+          </h2>
+
+          <p className="mt-1 text-[11px] font-medium text-yellow-300/80 md:text-xs">
             Round {CURRENT_ROUND} • {selectedLabel} Snapshot
           </p>
 
-          <p className="mt-3 text-sm md:text-[15px] text-white/70 max-w-2xl">
-            Live round snapshot — track {labelLower} trends, standout players and role/stability shifts
-            as this stat moves week to week.
+          <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-[15px]">
+            Live round snapshot — track {labelLower} trends, standout players
+            and role/stability shifts as this stat moves week to week.
           </p>
         </div>
 
-        {/* FILTER PILLS — Option B */}
-        <div className="-mx-2 mb-4 mt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
+        {/* --- FILTER PILLS --- */}
+        <div className="-mx-2 mb-5 mt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
           <div className="flex min-w-max gap-2 px-2 pb-1">
             {STATS.map((s) => (
               <button
                 key={s}
                 onClick={() => setSelected(s)}
                 className={cn(
-                  "snap-start whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all",
-                  "backdrop-blur-md border",
+                  "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all border backdrop-blur-md",
                   selected === s
-                    ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_22px_rgba(250,204,21,0.65)]"
+                    ? "bg-yellow-400 text-black border-yellow-300 shadow-[0_0_22px_rgba(250,204,21,0.6)]"
                     : "bg-black/30 text-white/70 border-white/10 hover:bg-black/40 hover:text-white"
                 )}
               >
@@ -275,18 +260,16 @@ export default function RoundSummary() {
           </div>
         </div>
 
-        {/* GRID */}
+        {/* --- GRID --- */}
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           {/* PULSE */}
-          <div
-            className="rounded-2xl border border-yellow-500/20 bg-black/70 px-4 py-4 md:px-6 md:py-5 backdrop-blur-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] animate-in fade-in slide-in-from-bottom-4"
-          >
-            <h3 className="mb-2 flex items-center gap-2 text-base md:text-lg font-semibold">
+          <div className="rounded-2xl border border-yellow-500/18 bg-black/70 px-4 py-4 backdrop-blur-sm hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] transition-transform duration-300 md:px-6 md:py-5">
+            <h3 className="mb-2 flex items-center gap-2 text-base font-semibold md:text-lg">
               <Activity className="h-5 w-5 text-yellow-300" />
               <span>Round Momentum Pulse</span>
             </h3>
 
-            <p className="mb-4 text-sm text-white/70 leading-relaxed">
+            <p className="mb-4 text-sm leading-relaxed text-white/70">
               {PULSE_COPY[selected]}
             </p>
 
@@ -294,10 +277,8 @@ export default function RoundSummary() {
           </div>
 
           {/* HEADLINES */}
-          <div
-            className="rounded-2xl border border-yellow-500/20 bg-black/70 px-4 py-4 md:px-6 md:py-5 backdrop-blur-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] animate-in fade-in slide-in-from-bottom-4"
-          >
-            <h3 className="mb-2 flex items-center gap-2 text-base md:text-lg font-semibold">
+          <div className="rounded-2xl border border-yellow-500/18 bg-black/70 px-4 py-4 backdrop-blur-sm hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)] transition-transform duration-300 md:px-6 md:py-5">
+            <h3 className="mb-2 flex items-center gap-2 text-base font-semibold md:text-lg">
               <Flame className="h-5 w-5 text-orange-400" />
               <span>Key Headlines</span>
             </h3>
@@ -305,18 +286,26 @@ export default function RoundSummary() {
             <ul className="space-y-2 text-sm text-white/80">
               <li>
                 • <strong>{topScorer?.name}</strong> led this round with{" "}
-                <strong>{topScorer?.last} {unit}</strong>.
+                <strong>
+                  {topScorer?.last} {unit}
+                </strong>
+                .
               </li>
               <li>
                 • <strong>{biggestRiser?.name}</strong> climbed{" "}
-                <strong>{biggestRiser?.diff.toFixed(1)} {unit}</strong> on last week.
+                <strong>
+                  {biggestRiser?.diff.toFixed(1)} {unit}
+                </strong>{" "}
+                on last week.
               </li>
               <li>
                 • <strong>{mostConsistent?.name}</strong> holds{" "}
-                <strong>{mostConsistent?.consistency.toFixed(0)}%</strong> above-average games.
+                <strong>{mostConsistent?.consistency.toFixed(0)}%</strong>{" "}
+                above-average games.
               </li>
               <li>
-                • League-wide {labelLower} output continues to show meaningful stability and role changes.
+                • League-wide {labelLower} output continues to show meaningful
+                stability and role changes.
               </li>
             </ul>
           </div>
