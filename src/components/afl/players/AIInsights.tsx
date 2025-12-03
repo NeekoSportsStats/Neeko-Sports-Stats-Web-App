@@ -1,222 +1,220 @@
 // src/components/afl/players/AIInsights.tsx
-import React, { useMemo } from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 import {
   Crown,
-  Lock,
-  Zap,
   TrendingUp,
   TrendingDown,
   BrainCircuit,
+  Zap,
 } from "lucide-react";
 
-import {
-  useAFLMockPlayers,
-  lastN,
-  average,
-  stdDev,
-  getSeriesForStat,
-} from "@/components/afl/players/useAFLMockData";
-
-type StatKey = "fantasy";
+/* ---------------------------------------------------------
+   CONFIG — Mock premium flag for visual testing
+--------------------------------------------------------- */
+const IS_PREMIUM = false; // set true for full section, false for blur preview
 
 /* ---------------------------------------------------------
-   Predictor math (simple but premium-feeling)
+   MOCK INSIGHTS (6 total)
 --------------------------------------------------------- */
 
-function computePrediction(series: number[]) {
-  const l5 = lastN(series, 5);
-  const avgL5 = average(l5);
-  const avgSeason = average(series);
-  const vol = stdDev(l5) || 1;
+const mockInsights = [
+  {
+    id: 1,
+    title: "High-Confidence Projection",
+    score: "82.4 ± 8.1",
+    highlight: "Strong upside with stable usage",
+    color: "emerald",
+    icon: TrendingUp,
+  },
+  {
+    id: 2,
+    title: "Hot Probability Trend",
+    score: "53% hot chance",
+    highlight: "L5 form improving vs baseline",
+    color: "yellow",
+    icon: Zap,
+  },
+  {
+    id: 3,
+    title: "Role-Based Expected Spike",
+    score: "+12% usage shift",
+    highlight: "Midfield rotations trending up",
+    color: "blue",
+    icon: TrendingUp,
+  },
+  // PREMIUM ONLY FROM HERE ↓
+  {
+    id: 4,
+    title: "AI Risk Radar",
+    score: "47% cold chance",
+    highlight: "Downside linked to role volatility",
+    color: "red",
+    icon: TrendingDown,
+  },
+  {
+    id: 5,
+    title: "Stability Regression Signal",
+    score: "61% stability",
+    highlight: "Volatility curve showing early spread",
+    color: "yellow",
+    icon: Zap,
+  },
+  {
+    id: 6,
+    title: "AI Projection Spread",
+    score: "71 → 90",
+    highlight: "Moderate ceiling with consistent floor",
+    color: "purple",
+    icon: BrainCircuit,
+  },
+];
 
-  // Weighted prediction
-  const predicted =
-    avgL5 * 0.5 +
-    avgSeason * 0.3 +
-    (avgL5 - vol) * 0.2;
+/* ---------------------------------------------------------
+   Insight Card
+--------------------------------------------------------- */
 
-  const range = vol * 2; // ± 2 std dev = nice believable range
-
-  const hotProb =
-    Math.max(0, Math.min(100, ((avgL5 - avgSeason) / avgSeason) * 100 + 50));
-
-  const coldProb = 100 - hotProb;
-
-  return {
-    predicted,
-    range,
-    hotProb,
-    coldProb,
-    stability: Math.max(0, Math.min(100, 100 - vol * 8)),
+function InsightCard({
+  title,
+  score,
+  highlight,
+  color,
+  icon: Icon,
+}: {
+  title: string;
+  score: string;
+  highlight: string;
+  color: string;
+  icon: any;
+}) {
+  const colorMap: Record<string, string> = {
+    emerald: "from-emerald-600/20 via-emerald-500/10 to-emerald-600/20 border-emerald-400/30",
+    yellow: "from-yellow-600/20 via-yellow-500/10 to-yellow-600/20 border-yellow-400/30",
+    red: "from-red-600/20 via-red-500/10 to-red-600/20 border-red-400/30",
+    blue: "from-sky-600/20 via-sky-500/10 to-sky-600/20 border-sky-400/30",
+    purple: "from-purple-600/20 via-purple-500/10 to-purple-600/20 border-purple-400/30",
   };
-}
 
-/* ---------------------------------------------------------
-   Premium Blur Overlay
---------------------------------------------------------- */
-
-function PremiumBlurOverlay() {
   return (
     <div
       className={cn(
-        "absolute inset-0 z-20 flex flex-col items-center justify-center gap-4",
-        "backdrop-blur-xl bg-black/70 rounded-2xl border border-yellow-500/40",
-        "shadow-[0_0_40px_rgba(250,204,21,0.35)]"
+        "rounded-xl border p-4",
+        "bg-gradient-to-br",
+        colorMap[color],
+        "shadow-[0_0_20px_rgba(0,0,0,0.25)] hover:brightness-110 transition-all"
       )}
     >
-      <Crown className="h-8 w-8 text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-      <p className="max-w-xs text-center text-sm text-yellow-200/90">
-        Unlock the full Neeko+ AI Projection Engine — predictions, probabilities, and role-based insights.
-      </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.14em] text-white/70">
+            {title}
+          </p>
+          <p className="mt-1 text-lg font-semibold">{score}</p>
+          <p className="mt-1 text-[11px] text-white/55">{highlight}</p>
+        </div>
 
-      <button
-        className={cn(
-          "mt-1 rounded-full px-5 py-2 text-sm font-semibold text-black",
-          "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400",
-          "shadow-[0_0_20px_rgba(250,204,21,0.55)] hover:brightness-110 transition"
-        )}
-      >
-        Unlock Neeko+ Insights
-      </button>
+        <Icon className="h-5 w-5 text-white/75" />
+      </div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   Main Component
+   Premium Overlay
+--------------------------------------------------------- */
+
+function PremiumOverlay() {
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 z-20 flex flex-col items-center justify-center gap-4",
+        "backdrop-blur-xl bg-black/70 rounded-2xl border border-yellow-500/40",
+        "shadow-[0_0_30px_rgba(250,204,21,0.35)]"
+      )}
+    >
+      <Crown className="h-8 w-8 text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]" />
+
+      <p className="max-w-xs text-center text-sm text-yellow-200">
+        Unlock the full Neeko+ AI suite — projections, probabilities, role
+        signals and advanced risk radar.
+      </p>
+
+      <a
+        href="/sports/afl/ai-analysis"
+        className="rounded-full bg-yellow-400 px-5 py-2 text-sm font-semibold text-black shadow-[0_0_20px_rgba(250,204,21,0.45)] hover:brightness-110 transition"
+      >
+        View Full AI Insights →
+      </a>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   MAIN COMPONENT
 --------------------------------------------------------- */
 
 export default function AIInsights() {
-  const players = useAFLMockPlayers();
-  const spotlight = players[0]; // spotlight mock player
-  const series = getSeriesForStat(spotlight, "fantasy");
-  const pred = computePrediction(series);
-
-  const predictedLow = pred.predicted - pred.range;
-  const predictedHigh = pred.predicted + pred.range;
-
-  // FREE VS PREMIUM
-  const isPremium = true; // <- replace with your auth hook
+  const freeInsights = mockInsights.slice(0, 3);
+  const premiumInsights = mockInsights.slice(3);
 
   return (
     <section
       className={cn(
-        "relative mt-8 rounded-3xl border border-white/10",
-        "bg-gradient-to-br from-[#050507] via-black to-[#101016]",
+        "relative mt-10 rounded-3xl border border-white/10",
+        "bg-gradient-to-br from-[#050507] via-[#08080a] to-[#101016]",
         "px-4 py-6 md:px-6 md:py-8 shadow-[0_0_80px_rgba(0,0,0,0.75)]"
       )}
     >
-      {/* Background wash */}
-      <div className="pointer-events-none absolute inset-x-[-60px] top-20 bottom-[-60px] bg-gradient-to-r from-yellow-500/15 via-purple-500/10 to-yellow-500/18 blur-3xl opacity-70" />
-
-      <div className="relative space-y-4">
-        {/* Header */}
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
-            <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
-            <span className="uppercase tracking-[0.18em]">
-              AI Insights (Neeko+)
-            </span>
-          </div>
-
-          <h2 className="text-xl font-semibold md:text-2xl">
-            AI Projection • Forecast • Risk Radar
-          </h2>
-
-          <p className="max-w-xl text-xs text-white/70 md:text-sm">
-            Neeko AI blends stability scores, usage trends and volatility curves
-            to forecast next-round fantasy performance.
-          </p>
+      {/* Header */}
+      <div className="space-y-1.5">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
+          <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
+          <span className="uppercase tracking-[0.18em]">
+            AI Insights (Neeko+)
+          </span>
         </div>
 
-        {/* Main Premium Block */}
-        <div className="relative mt-2 overflow-hidden rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-xl md:p-5">
-          {!isPremium && <PremiumBlurOverlay />}
+        <h2 className="text-xl font-semibold md:text-2xl">
+          AI Projection • Forecast • Risk Radar
+        </h2>
 
-          {/* Inner content (blurred for free users) */}
-          <div className={cn(!isPremium && "blur-sm select-none opacity-50")}>
-            {/* Prediction Value */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-yellow-200">
-                  AI Projection (L5 Expected Range)
-                </p>
-                <p className="mt-1 text-2xl font-semibold">
-                  {pred.predicted.toFixed(1)}{" "}
-                  <span className="text-base text-white/70">
-                    ± {pred.range.toFixed(1)}
-                  </span>
-                </p>
-                <p className="text-[11px] text-white/50">
-                  {predictedLow.toFixed(0)} → {predictedHigh.toFixed(0)}
-                </p>
-              </div>
+        <p className="max-w-xl text-xs text-white/70 md:text-sm">
+          AI-powered probabilities, role-driven context and volatility modelling.
+        </p>
+      </div>
 
-              <Zap className="h-8 w-8 text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
-            </div>
+      {/* Free Insights */}
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        {freeInsights.map((insight) => (
+          <InsightCard key={insight.id} {...insight} />
+        ))}
+      </div>
 
-            {/* Probabilities */}
-            <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-md bg-emerald-600/20 p-3 border border-emerald-500/30">
-                <TrendingUp className="mx-auto mb-1 h-4 w-4 text-emerald-300" />
-                <p className="text-sm font-semibold text-emerald-300">
-                  {pred.hotProb.toFixed(0)}%
-                </p>
-                <p className="text-[10px] text-white/55 uppercase tracking-wider">
-                  Hot Chance
-                </p>
-              </div>
+      {/* Premium Block */}
+      <div className="relative mt-6">
+        {/* Blur overlay */}
+        {!IS_PREMIUM && <PremiumOverlay />}
 
-              <div className="rounded-md bg-red-600/20 p-3 border border-red-500/30">
-                <TrendingDown className="mx-auto mb-1 h-4 w-4 text-red-300" />
-                <p className="text-sm font-semibold text-red-300">
-                  {pred.coldProb.toFixed(0)}%
-                </p>
-                <p className="text-[10px] text-white/55 uppercase tracking-wider">
-                  Cold Chance
-                </p>
-              </div>
-
-              <div className="rounded-md bg-yellow-600/20 p-3 border border-yellow-500/30">
-                <Zap className="mx-auto mb-1 h-4 w-4 text-yellow-300" />
-                <p className="text-sm font-semibold text-yellow-300">
-                  {pred.stability.toFixed(0)}%
-                </p>
-                <p className="text-[10px] text-white/55 uppercase tracking-wider">
-                  Stability
-                </p>
-              </div>
-            </div>
-
-            {/* AI Reasoning */}
-            <div className="mt-5 space-y-1.5">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
-                AI Forecast
-              </p>
-              <p className="text-sm leading-relaxed text-white/75">
-                Based on recent scoring trajectories, volatility behaviour and
-                stability weighting,{" "}
-                <span className="font-semibold text-yellow-200">
-                  {spotlight.name}
-                </span>{" "}
-                is expected to produce a mid-to-high fantasy output with moderate
-                upside potential if usage patterns hold steady.
-              </p>
-            </div>
-
-            {/* Risk Summary */}
-            <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-red-300">
-                Risk Radar
-              </p>
-              <p className="mt-1 text-sm text-white/75">
-                Downside risk increases if role fluctuations reappear or
-                volatility spikes exceed recent norms.
-              </p>
-            </div>
-          </div>
+        <div
+          className={cn(
+            "grid gap-4 md:grid-cols-3 rounded-2xl border border-white/10 p-4 bg-black/40 backdrop-blur-xl",
+            !IS_PREMIUM && "blur-sm opacity-40 select-none"
+          )}
+        >
+          {premiumInsights.map((insight) => (
+            <InsightCard key={insight.id} {...insight} />
+          ))}
         </div>
+      </div>
+
+      {/* Bottom link */}
+      <div className="mt-6 text-center">
+        <a
+          href="/sports/afl/ai-analysis"
+          className="text-sm font-medium text-yellow-300 hover:text-yellow-200 transition"
+        >
+          View full AI Analysis →
+        </a>
       </div>
     </section>
   );
