@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+// src/components/afl/players/RoundSummary.tsx
+import React, { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   TrendingUp,
@@ -16,8 +17,11 @@ import {
 } from "@/components/afl/players/useAFLMockData";
 
 /* ---------------------------------------------------------
-   Available Stats
+   Constants / Stat Metadata
 --------------------------------------------------------- */
+
+const CURRENT_ROUND = 6;
+
 const STATS: StatKey[] = [
   "fantasy",
   "disposals",
@@ -28,39 +32,89 @@ const STATS: StatKey[] = [
   "goals",
 ];
 
+const STAT_LABELS: Record<StatKey, string> = {
+  fantasy: "Fantasy",
+  disposals: "Disposals",
+  kicks: "Kicks",
+  marks: "Marks",
+  tackles: "Tackles",
+  hitouts: "Hitouts",
+  goals: "Goals",
+};
+
+const STAT_UNITS: Record<StatKey, string> = {
+  fantasy: "pts",
+  disposals: "disposals",
+  kicks: "kicks",
+  marks: "marks",
+  tackles: "tackles",
+  hitouts: "hitouts",
+  goals: "goals",
+};
+
+const PULSE_COPY: Record<StatKey, string> = {
+  fantasy:
+    "League-wide Fantasy trends reflect shifts driven by usage rates, matchup edges and evolving roles.",
+  disposals:
+    "High-volume ball winners dominated disposals, with multiple midfielders posting 30+ touches.",
+  kicks:
+    "Teams pushed territory with more aggressive kicking, lifting inside-50 and switch-kick volume.",
+  marks:
+    "Intercept and link-up marks surged, highlighting defenders and wings controlling transition chains.",
+  tackles:
+    "Pressure acts ramped up, with key midfielders and small forwards driving tackle counts.",
+  hitouts:
+    "Ruck contests shaped territory as top rucks separated in hitouts to advantage.",
+  goals:
+    "Forward efficiency spiked with multiple players kicking bags and capitalising on inside-50 dominance.",
+};
+
 /* ---------------------------------------------------------
-   Sparkline (premium gold)
+   Sparkline (with mobile-aware height)
 --------------------------------------------------------- */
+
 function Sparkline({ data }: { data: number[] }) {
   if (!data.length) return null;
 
   const max = Math.max(...data);
   const min = Math.min(...data);
-  const norm = data.map((v) => ((v - min) / (max - min || 1)) * 100);
+  const normalized = data.map((v) => ((v - min) / (max - min || 1)) * 100);
+
+  const width = Math.max(normalized.length * 20, 80);
 
   return (
-    <div className="relative h-24 w-full">
+    <div className="relative h-16 md:h-24 w-full">
+      {/* soft glow line */}
       <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox={`0 0 ${norm.length * 24} 100`}
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${width} 100`}
+        preserveAspectRatio="none"
       >
         <polyline
-          points={norm.map((v, i) => `${i * 24},${100 - v}`).join(" ")}
+          points={normalized
+            .map((v, i) => `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`)
+            .join(" ")}
           fill="none"
-          stroke="rgba(255, 200, 40, 0.4)"
-          strokeWidth="4"
-          className="drop-shadow-[0_0_12px_rgba(255,200,40,0.5)]"
+          stroke="rgba(250, 204, 21, 0.4)" // gold glow
+          strokeWidth={4}
+          className="drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] animate-[pulse_1.8s_ease-in-out_infinite]"
         />
       </svg>
+
+      {/* sharp front line */}
       <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox={`0 0 ${norm.length * 24} 100`}
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${width} 100`}
+        preserveAspectRatio="none"
       >
         <polyline
-          points={norm.map((v, i) => `${i * 24},${100 - v}`).join(" ")}
+          points={normalized
+            .map((v, i) => `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`)
+            .join(" ")}
           fill="none"
-          stroke="rgb(255,210,55)"
-          strokeWidth="3"
+          stroke="rgb(250, 204, 21)"
+          strokeWidth={2.5}
+          className="animate-[fade-in_0.8s_ease-out]"
         />
       </svg>
     </div>
@@ -68,213 +122,269 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   Mini Card (Top Score / Riser / Consistent)
+   Mini Card (tight mobile layout)
 --------------------------------------------------------- */
-function MiniCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  delay,
-}: {
-  icon: any;
+
+interface MiniCardProps {
+  icon: React.ElementType;
   label: string;
   value: string;
-  sub: string;
+  player: string;
   delay: number;
-}) {
+}
+
+function MiniCard({ icon: Icon, label, value, player, delay }: MiniCardProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-4",
-        "shadow-[0_0_20px_rgba(255,215,80,0.1)]",
+        "relative rounded-2xl border border-yellow-500/20 bg-black/70",
+        "px-4 py-4 md:px-5 md:py-5",
+        "backdrop-blur-sm overflow-hidden",
+        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)]",
         "animate-in fade-in slide-in-from-bottom-4"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex items-center justify-between">
-        <Icon className="h-5 w-5 text-yellow-400" />
-        <span className="text-xs tracking-wider text-white/50 uppercase">
-          {label}
-        </span>
+      {/* subtle inner glow */}
+      <div className="pointer-events-none absolute inset-x-0 -bottom-12 h-24 bg-gradient-to-t from-yellow-500/15 to-transparent" />
+      <div className="relative flex flex-col gap-2 text-left">
+        <div className="flex items-center justify-between">
+          <Icon className="h-5 w-5 text-yellow-400" />
+          <span className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+            {label}
+          </span>
+        </div>
+        <div>
+          <p className="text-xl md:text-2xl font-semibold text-yellow-300">
+            {value}
+          </p>
+          <p className="text-xs text-white/55 mt-0.5">{player}</p>
+        </div>
       </div>
-
-      <p className="mt-2 text-2xl font-bold text-yellow-300">{value}</p>
-      <p className="text-sm text-white/60">{sub}</p>
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   MAIN COMPONENT
+   MAIN SECTION — Hybrid Premium Gold
 --------------------------------------------------------- */
+
 export default function RoundSummary() {
+  const [selected, setSelected] = useState<StatKey>("fantasy");
   const players = useAFLMockPlayers();
-  const [stat, setStat] = useState<StatKey>("fantasy");
 
-  /* -----------------------------------------------
-     Process Data
-  ----------------------------------------------- */
+  const selectedLabel = STAT_LABELS[selected];
+  const unit = STAT_UNITS[selected];
+  const labelLower = selectedLabel.toLowerCase();
+
+  /* -----------------------------------------
+     League-wide averages for sparkline
+  ----------------------------------------- */
   const avgRounds = useMemo(() => {
-    const p0 = players[0];
-    if (!p0) return [];
-
-    const len = getSeriesForStat(p0, stat).length;
-    const totals = Array.from({ length: len }, () => 0);
+    const sample = players[0];
+    if (!sample) return [];
+    const sampleSeries = getSeriesForStat(sample, selected);
+    const length = sampleSeries.length;
+    const totals = Array.from({ length }, () => 0);
 
     players.forEach((p) => {
-      const s = getSeriesForStat(p, stat);
-      s.forEach((v, i) => (totals[i] += v));
+      const series = getSeriesForStat(p, selected);
+      series.forEach((val, i) => {
+        if (i < length) totals[i] += val;
+      });
     });
 
-    return totals.map((t) => Math.round(t / players.length));
-  }, [players, stat]);
+    return totals.map((t) => Math.round(t / Math.max(players.length, 1)));
+  }, [players, selected]);
 
+  /* -----------------------------------------
+     Dynamic Stat Leaders (top / riser / consistent)
+  ----------------------------------------- */
   const topScorer = useMemo(() => {
     return players
       .map((p) => {
-        const s = getSeriesForStat(p, stat);
-        return { name: p.name, last: s.at(-1) || 0 };
+        const s = getSeriesForStat(p, selected);
+        return { name: p.name, last: s.at(-1) ?? 0 };
       })
       .sort((a, b) => b.last - a.last)[0];
-  }, [players, stat]);
+  }, [players, selected]);
 
   const biggestRiser = useMemo(() => {
     return players
       .map((p) => {
-        const s = getSeriesForStat(p, stat);
+        const s = getSeriesForStat(p, selected);
         if (s.length < 2) return null;
-        const diff = s.at(-1)! - s.at(-2)!;
+        const diff = (s.at(-1) ?? 0) - (s.at(-2) ?? 0);
         return { name: p.name, diff };
       })
-      .filter(Boolean)
-      .sort((a, b) => b!.diff - a!.diff)[0];
-  }, [players, stat]);
+      .filter((x): x is { name: string; diff: number } => !!x)
+      .sort((a, b) => b.diff - a.diff)[0];
+  }, [players, selected]);
 
   const mostConsistent = useMemo(() => {
     return players
       .map((p) => {
-        const s = getSeriesForStat(p, stat);
-        const avg = average(s) || 1;
-        const pct = (s.filter((v) => v >= avg).length / s.length) * 100;
-        return { name: p.name, pct };
+        const s = getSeriesForStat(p, selected);
+        const base = average(s) || 1;
+        const consistency =
+          (s.filter((v) => v >= base).length / Math.max(s.length, 1)) * 100;
+        return { name: p.name, consistency };
       })
-      .sort((a, b) => b.pct - a.pct)[0];
-  }, [players, stat]);
+      .sort((a, b) => b.consistency - a.consistency)[0];
+  }, [players, selected]);
 
-  /* ---------------------------------------------------------
-     UI
-  --------------------------------------------------------- */
+  const topValue = topScorer?.last ?? 0;
+  const riserValue = biggestRiser?.diff ?? 0;
+  const consistencyValue = mostConsistent?.consistency ?? 0;
+
   return (
     <section
-      className="
-        relative rounded-2xl border border-yellow-500/10 p-6 md:p-10
-        bg-gradient-to-br from-black/60 via-black/70 to-black
-        shadow-[0_0_30px_rgba(255,215,80,0.08)]
-        overflow-hidden
-      "
+      className={cn(
+        "relative rounded-3xl border border-yellow-500/20",
+        "bg-gradient-to-br from-black via-[#050507] to-[#14100a]",
+        "px-4 py-6 md:px-8 md:py-8",
+        "shadow-[0_0_120px_rgba(0,0,0,0.7)] overflow-hidden",
+        "animate-in fade-in slide-in-from-bottom-6"
+      )}
     >
-      {/* Gold glow */}
-      <div className="pointer-events-none absolute -top-24 left-10 w-[360px] h-[240px] bg-yellow-500/20 blur-[140px] rounded-full" />
+      {/* radial gold glow */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-[480px] -translate-x-1/2 bg-yellow-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-0 h-40 w-40 translate-x-6 translate-y-6 bg-yellow-400/15 blur-2xl" />
 
-      {/* Header */}
-      <h2 className="text-3xl font-bold flex items-center gap-2 mb-1">
-        <Sparkles className="h-6 w-6 text-yellow-400" />
-        Round Momentum Summary
-      </h2>
+      <div className="relative">
+        {/* HEADER */}
+        <div className="mb-5 md:mb-7">
+          <div className="flex flex-row items-center gap-2">
+            <Sparkles className="h-6 w-6 text-yellow-400" />
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              Round Momentum Summary
+            </h2>
+          </div>
 
-      <p className="text-sm text-yellow-200/80 font-medium mb-4">
-        Round 6 • {stat.charAt(0).toUpperCase() + stat.slice(1)} Snapshot
-      </p>
-
-      <p className="text-white/70 max-w-2xl mb-6 text-sm leading-relaxed">
-        Live round snapshot — track fantasy trends, standout players and evolving role/stability shifts across the league as this stat moves week to week.
-      </p>
-
-      {/* Filter Bar */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-thin scrollbar-thumb-yellow-500/20">
-        {STATS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStat(s)}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-all",
-              stat === s
-                ? "bg-yellow-400 text-black font-semibold shadow-[0_0_12px_rgba(255,215,80,0.5)]"
-                : "bg-white/5 text-white/70 hover:bg-white/10"
-            )}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Pulse + Headlines */}
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
-        {/* Pulse */}
-        <div className="rounded-xl bg-black/40 border border-white/10 backdrop-blur-md p-5">
-          <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
-            <Activity className="h-5 w-5 text-yellow-400" />
-            Round Momentum Pulse
-          </h3>
-
-          <p className="text-sm text-white/70 leading-relaxed mb-4">
-            League-wide <span className="font-semibold">{stat}</span> trends reflect shifts driven by usage, matchup edges and evolving roles.
+          <p className="mt-2 text-xs md:text-sm font-medium text-yellow-300/80">
+            Round {CURRENT_ROUND} • {selectedLabel} Snapshot
           </p>
 
-          <Sparkline data={avgRounds} />
+          <p className="mt-3 text-sm md:text-[15px] text-white/70 max-w-2xl">
+            Live round snapshot — track {labelLower} trends, standout players
+            and role/stability shifts as this stat moves week to week.
+          </p>
         </div>
 
-        {/* Headlines */}
-        <div className="rounded-xl bg-black/40 border border-white/10 backdrop-blur-md p-5">
-          <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
-            <Flame className="h-5 w-5 text-orange-400" />
-            Key Headlines
-          </h3>
-
-          <ul className="text-sm space-y-2 text-white/80">
-            <li>
-              • <strong>{topScorer?.name}</strong> led this round with{" "}
-              <strong>{topScorer?.last} pts</strong>.
-            </li>
-            <li>
-              • <strong>{biggestRiser?.name}</strong> climbed{" "}
-              <strong>{biggestRiser?.diff.toFixed(1)}</strong> pts from last week.
-            </li>
-            <li>
-              • <strong>{mostConsistent?.name}</strong> holds{" "}
-              <strong>{mostConsistent?.pct.toFixed(0)}%</strong> above-average games.
-            </li>
-            <li>
-              • League-wide {stat} output continues showing meaningful momentum shifts.
-            </li>
-          </ul>
+        {/* FILTER BAR — mobile scrollable chips */}
+        <div className="-mx-2 mb-4 mt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-yellow-500/30">
+          <div className="flex min-w-max gap-2 px-2 pb-1">
+            {STATS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelected(s)}
+                className={cn(
+                  "snap-start rounded-full px-4 py-1.5 text-sm whitespace-nowrap transition-all",
+                  "border border-transparent",
+                  selected === s
+                    ? "bg-yellow-400 text-black font-semibold shadow-[0_0_24px_rgba(250,204,21,0.55)]"
+                    : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border-white/5"
+                )}
+              >
+                {STAT_LABELS[s]}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Mini Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <MiniCard
-          icon={Flame}
-          label="Top Score"
-          value={`${topScorer?.last} pts`}
-          sub={topScorer?.name || ""}
-          delay={100}
-        />
-        <MiniCard
-          icon={TrendingUp}
-          label="Biggest Riser"
-          value={`${biggestRiser?.diff.toFixed(1)} pts`}
-          sub={biggestRiser?.name || ""}
-          delay={200}
-        />
-        <MiniCard
-          icon={Shield}
-          label="Most Consistent"
-          value={`${mostConsistent?.pct.toFixed(0)}%`}
-          sub={mostConsistent?.name || ""}
-          delay={300}
-        />
+        {/* GRID: Pulse + Headlines */}
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+          {/* Pulse card */}
+          <div
+            className={cn(
+              "rounded-2xl border border-yellow-500/20 bg-black/70",
+              "px-4 py-4 md:px-6 md:py-5",
+              "backdrop-blur-sm transition-transform duration-300",
+              "hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)]",
+              "animate-in fade-in slide-in-from-bottom-4"
+            )}
+            style={{ animationDelay: "80ms" }}
+          >
+            <h3 className="mb-2 flex items-center gap-2 text-base md:text-lg font-semibold">
+              <Activity className="h-5 w-5 text-yellow-300" />
+              <span>Round Momentum Pulse</span>
+            </h3>
+            <p className="mb-4 text-sm leading-relaxed text-white/70">
+              {PULSE_COPY[selected]}
+            </p>
+
+            <Sparkline data={avgRounds} />
+          </div>
+
+          {/* Headlines card */}
+          <div
+            className={cn(
+              "rounded-2xl border border-yellow-500/20 bg-black/70",
+              "px-4 py-4 md:px-6 md:py-5",
+              "backdrop-blur-sm transition-transform duration-300",
+              "hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(250,204,21,0.45)]",
+              "animate-in fade-in slide-in-from-bottom-4"
+            )}
+            style={{ animationDelay: "140ms" }}
+          >
+            <h3 className="mb-2 flex items-center gap-2 text-base md:text-lg font-semibold">
+              <Flame className="h-5 w-5 text-orange-400" />
+              <span>Key Headlines</span>
+            </h3>
+            <ul className="space-y-1.5 md:space-y-2 text-sm text-white/80">
+              <li>
+                • <strong>{topScorer?.name ?? "–"}</strong> led this round with{" "}
+                <strong>
+                  {topValue} {unit}
+                </strong>
+                .
+              </li>
+              <li>
+                •{" "}
+                <strong>{biggestRiser?.name ?? "–"}</strong> climbed{" "}
+                <strong>
+                  {riserValue.toFixed(1)} {unit}
+                </strong>{" "}
+                on last week.
+              </li>
+              <li>
+                •{" "}
+                <strong>{mostConsistent?.name ?? "–"}</strong> holds{" "}
+                <strong>{consistencyValue.toFixed(0)}%</strong> above-average
+                games.
+              </li>
+              <li>
+                • League-wide {labelLower} output continues to show meaningful
+                stability and role changes.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* MINI CARDS */}
+        <div className="mt-6 grid gap-4 md:mt-7 md:grid-cols-3">
+          <MiniCard
+            icon={Flame}
+            label="Top Score"
+            value={`${topValue} ${unit}`}
+            player={topScorer?.name ?? "—"}
+            delay={160}
+          />
+          <MiniCard
+            icon={TrendingUp}
+            label="Biggest Riser"
+            value={`${riserValue.toFixed(1)} ${unit}`}
+            player={biggestRiser?.name ?? "—"}
+            delay={220}
+          />
+          <MiniCard
+            icon={Shield}
+            label="Most Consistent"
+            value={`${consistencyValue.toFixed(0)}%`}
+            player={mostConsistent?.name ?? "—"}
+            delay={280}
+          />
+        </div>
       </div>
     </section>
   );
