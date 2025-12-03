@@ -29,7 +29,7 @@ const STATS: StatKey[] = [
 ];
 
 /* ---------------------------------------------------------
-   Sparkline (Gold Theme)
+   Sparkline
 --------------------------------------------------------- */
 function Sparkline({ data }: { data: number[] }) {
   if (!data.length) return null;
@@ -43,7 +43,6 @@ function Sparkline({ data }: { data: number[] }) {
 
   return (
     <div className="relative h-16 w-full md:h-20">
-      {/* soft glow */}
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${normalized.length * 20} 100`}
@@ -53,13 +52,12 @@ function Sparkline({ data }: { data: number[] }) {
             .map((v, i) => `${i * 20},${100 - v}`)
             .join(" ")}
           fill="none"
-          stroke="rgba(234,179,8,0.22)"
+          stroke="rgba(234,179,8,0.20)"
           strokeWidth="4"
-          className="drop-shadow-[0_0_10px_rgba(234,179,8,0.22)]"
+          className="drop-shadow-[0_0_10px_rgba(234,179,8,0.20)]"
         />
       </svg>
 
-      {/* primary line */}
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox={`0 0 ${normalized.length * 20} 100`}
@@ -78,7 +76,7 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   Mini Card — now with thin gold outline
+   MiniCard — gold outline version
 --------------------------------------------------------- */
 function MiniCard({
   icon: Icon,
@@ -96,25 +94,27 @@ function MiniCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-yellow-400/25 p-2.5 md:p-3.5",
+        "rounded-xl border border-yellow-400/25",
         "bg-black/40 backdrop-blur-sm",
+        "p-2 md:p-3",
         "transition-transform duration-300",
         "hover:-translate-y-[3px] hover:shadow-[0_0_10px_rgba(234,179,8,0.18)]",
         "animate-in fade-in slide-in-from-bottom-4"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="mb-0.5 flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 mb-0.5">
         <Icon className="h-4 w-4 text-yellow-400" />
         <p className="text-[11px] uppercase tracking-wide text-white/45">
           {label}
         </p>
       </div>
 
-      <p className="text-lg font-semibold text-yellow-300 md:text-xl">
+      <p className="text-lg md:text-xl font-semibold text-yellow-300">
         {value}
       </p>
-      <p className="mt-1 text-[11px] text-white/55">{player}</p>
+
+      <p className="text-[11px] text-white/55 mt-0.5">{player}</p>
     </div>
   );
 }
@@ -135,15 +135,19 @@ export default function RoundSummary({
 }: RoundSummaryProps) {
   const players = useAFLMockPlayers();
 
-  /* ---------------------------- COMPUTATION ---------------------------- */
+  /* ---------------------- COMPUTATIONS ---------------------- */
+
   const avgRounds = useMemo(() => {
     if (!players.length) return [];
+
     const len = getSeriesForStat(players[0], selectedStat).length;
     const totals = Array(len).fill(0);
+
     players.forEach((p) => {
       const s = getSeriesForStat(p, selectedStat);
       s.forEach((v, i) => (totals[i] += v));
     });
+
     return totals.map((t) => Math.round(t / players.length));
   }, [players, selectedStat]);
 
@@ -182,7 +186,7 @@ export default function RoundSummary({
   const statLabel =
     selectedStat.charAt(0).toUpperCase() + selectedStat.slice(1);
 
-  /* -------------------------------------------------------------------- */
+  /* ----------------------------------------------------------- */
 
   return (
     <section
@@ -192,41 +196,41 @@ export default function RoundSummary({
         bg-gradient-to-br from-black/75 via-black/80 to-black/95
         px-4 py-6 md:px-6 md:py-7
         shadow-[0_0_18px_rgba(234,179,8,0.15)]
-        animate-in fade-in slide-in-from-bottom-6
       "
     >
-      {/* header glow toned down */}
-      <div className="pointer-events-none absolute -top-10 left-1/2 h-[170px] w-[340px] -translate-x-1/2 rounded-full bg-yellow-500/5 blur-3xl md:-top-16 md:h-[240px] md:w-[430px] md:bg-yellow-500/8" />
+      {/* Glow (balanced top/bottom) */}
+      <div className="pointer-events-none absolute -top-16 left-1/2 h-[200px] w-[440px] -translate-x-1/2 rounded-full bg-yellow-500/6 blur-3xl md:bg-yellow-500/8" />
 
       {/* HEADER */}
-      <div className="relative mb-5">
-        <h2 className="flex items-center gap-2 text-xl font-bold md:text-2xl">
-          <Sparkles className="h-5 w-5 text-yellow-400 md:h-6 md:w-6" />
-          <span>Round Momentum Summary —</span>
+      <div className="relative mb-6">
+        <h2 className="flex items-center gap-2 text-xl md:text-2xl font-bold">
+          <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-yellow-400" />
+          Round Momentum Summary —
         </h2>
 
-        <p className="mt-1 text-xs text-white/50 md:text-sm">
+        <p className="mt-1.5 text-xs md:text-sm text-white/50">
           Round {roundNumber} • {statLabel} Snapshot
         </p>
 
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60 md:text-[15px]">
+        <p className="mt-3 text-sm md:text-[15px] leading-relaxed max-w-xl text-white/60">
           Live round snapshot — track fantasy trends, standout players and
           role/stability shifts across the league as this stat moves week to
           week.
         </p>
       </div>
 
-      {/* FILTER BAR */}
-      <div className="relative mb-4 md:mb-3">
+      {/* FILTER ROW */}
+      <div className="relative mb-5">
         <div
           className="
-            flex gap-2 overflow-x-auto pb-1 pr-12
+            flex gap-2 overflow-x-auto pr-14 pb-1
             scrollbar-none snap-x snap-mandatory
           "
         >
           {STATS.map((s) => {
-            const label = s.charAt(0).toUpperCase() + s.slice(1);
-            const isActive = selectedStat === s;
+            const label =
+              s.charAt(0).toUpperCase() + s.slice(1);
+            const active = selectedStat === s;
 
             return (
               <button
@@ -234,8 +238,8 @@ export default function RoundSummary({
                 onClick={() => onStatChange(s)}
                 className={cn(
                   "snap-start whitespace-nowrap rounded-full px-4 py-1.5 text-xs md:text-sm transition-all",
-                  isActive
-                    ? "bg-yellow-400 text-black font-semibold shadow-[0_0_10px_rgba(234,179,8,0.45)]"
+                  active
+                    ? "bg-yellow-400 text-black font-semibold shadow-[0_0_10px_rgba(234,179,8,0.5)]"
                     : "bg-white/5 text-white/70 hover:bg-white/10"
                 )}
               >
@@ -245,27 +249,27 @@ export default function RoundSummary({
           })}
         </div>
 
-        {/* soft fade */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black via-black/0" />
+        {/* smoother fade */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-black via-black/0" />
       </div>
 
-      {/* MAIN GRID */}
-      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-        {/* PULSE */}
+      {/* GRID */}
+      <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+        {/* Pulse Card */}
         <div
           className="
-            rounded-xl border border-white/8 bg-black/30
-            p-4 md:p-5 min-h-[230px]
-            backdrop-blur-sm transition
-            hover:shadow-[0_0_12px_rgba(234,179,8,0.12)]
+            rounded-xl border border-white/10 bg-black/30
+            p-4 md:p-5
+            min-h-[235px] md:min-h-[250px]
+            backdrop-blur-sm
           "
         >
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold md:text-base">
-            <Activity className="h-4 w-4 text-yellow-300 md:h-5 md:w-5" />
+          <h3 className="flex items-center gap-2 text-sm md:text-base font-semibold mb-1">
+            <Activity className="h-4 w-4 md:h-5 md:w-5 text-yellow-300" />
             Round Momentum Pulse
           </h3>
 
-          <p className="mb-3 text-xs leading-snug text-white/65 md:text-sm md:leading-relaxed">
+          <p className="mb-3 text-xs md:text-sm leading-snug md:leading-relaxed text-white/65">
             League-wide <strong>{statLabel}</strong> trends reflect shifts
             driven by usage, matchup edges and evolving roles.
           </p>
@@ -273,21 +277,21 @@ export default function RoundSummary({
           <Sparkline data={avgRounds} />
         </div>
 
-        {/* HEADLINES */}
+        {/* Headlines Card */}
         <div
           className="
-            rounded-xl border border-white/8 bg-black/30
-            p-4 md:p-5 min-h-[230px]
-            backdrop-blur-sm transition
-            hover:shadow-[0_0_12px_rgba(234,179,8,0.12)]
+            rounded-xl border border-white/10 bg-black/30
+            p-4 md:p-5
+            min-h-[235px] md:min-h-[250px]
+            backdrop-blur-sm
           "
         >
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold md:text-base">
-            <Flame className="h-4 w-4 text-orange-400 md:h-5 md:w-5" />
+          <h3 className="flex items-center gap-2 text-sm md:text-base font-semibold mb-2">
+            <Flame className="h-4 w-4 md:h-5 md:w-5 text-orange-400" />
             Key Headlines
           </h3>
 
-          <ul className="space-y-1.5 text-xs text-white/70 md:text-sm">
+          <ul className="text-xs md:text-sm text-white/70 space-y-1.5">
             <li>
               • <strong>{topScorer?.name}</strong> led this round with{" "}
               <strong>{topScorer?.last ?? 0} pts</strong>.
@@ -313,15 +317,16 @@ export default function RoundSummary({
               above-average games.
             </li>
             <li>
-              • League-wide {statLabel.toLowerCase()} output continues to
-              show meaningful stability/role shifts.
+              • League-wide{" "}
+              {statLabel.toLowerCase()} output continues to show meaningful
+              stability and role changes.
             </li>
           </ul>
         </div>
       </div>
 
-      {/* MINI CARDS WITH GOLD EDGES */}
-      <div className="mt-5 grid gap-3 md:mt-6 md:grid-cols-3 md:gap-4">
+      {/* MINI CARDS */}
+      <div className="grid md:grid-cols-3 gap-3 md:gap-4 mt-5 md:mt-6">
         <MiniCard
           icon={Flame}
           label="Top Score"
@@ -333,7 +338,9 @@ export default function RoundSummary({
           icon={TrendingUp}
           label="Biggest Riser"
           value={`${
-            biggestRiser?.diff ? biggestRiser.diff.toFixed(1) : "0.0"
+            biggestRiser?.diff
+              ? biggestRiser.diff.toFixed(1)
+              : "0.0"
           } pts`}
           player={biggestRiser?.name || ""}
           delay={160}
