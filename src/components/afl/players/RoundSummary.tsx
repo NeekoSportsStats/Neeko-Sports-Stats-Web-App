@@ -1,3 +1,12 @@
+/* ---------------------------------------------------------
+   ROUND SUMMARY — POLISHED EDITION (C-STYLE BORDER STRATEGY)
+   - No dash after heading
+   - Main container gold border + glow
+   - Middle cards neutral
+   - Mini-cards subtle gold edge + glow
+   - Improved spacing + typography
+--------------------------------------------------------- */
+
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -71,7 +80,7 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 /* ---------------------------------------------------------
-   Mini Card — refined padding + text contrast
+   Mini Card — subtle gold & lux hover
 --------------------------------------------------------- */
 function MiniCard({
   icon: Icon,
@@ -91,18 +100,18 @@ function MiniCard({
       className={cn(
         "rounded-xl border border-yellow-400/25",
         "bg-black/40 backdrop-blur-sm",
-        "p-2 md:p-3",
-        "transition-transform duration-300",
-        "hover:-translate-y-[3px] hover:shadow-[0_0_10px_rgba(234,179,8,0.18)]",
+        "p-2.5 md:p-3",
+        "transition-all duration-300",
+        "hover:-translate-y-[3px] hover:shadow-[0_0_12px_rgba(234,179,8,0.22)]",
         "animate-in fade-in slide-in-from-bottom-4"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex items-center justify-between gap-2 mb-0.5">
+      <div className="flex items-center justify-between mb-1">
         <Icon className="h-4 w-4 text-yellow-400" />
-        <p className="text-[11px] uppercase tracking-wide text-white/50">
+        <span className="text-[11px] uppercase tracking-wide text-white/50">
           {label}
-        </p>
+        </span>
       </div>
 
       <p className="text-lg md:text-xl font-semibold text-yellow-300">
@@ -193,17 +202,17 @@ export default function RoundSummary({
         mt-4 md:mt-6
       "
     >
-      {/* Balanced Gold Glow */}
-      <div className="pointer-events-none absolute -top-14 left-1/2 h-[200px] w-[460px] -translate-x-1/2 rounded-full bg-yellow-500/10 blur-3xl md:bg-yellow-500/12" />
+      {/* Softened premium glow */}
+      <div className="pointer-events-none absolute -top-12 left-1/2 h-[180px] w-[380px] -translate-x-1/2 rounded-full bg-yellow-500/8 blur-3xl" />
 
       {/* HEADER */}
-      <div className="relative mb-6">
+      <div className="relative mb-5 md:mb-6">
         <h2 className="flex items-center gap-2 text-xl md:text-2xl font-bold">
           <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-yellow-400" />
-          Round Momentum Summary —
+          Round Momentum Summary
         </h2>
 
-        <p className="mt-1.5 text-xs md:text-sm text-white/55">
+        <p className="mt-1 text-xs md:text-sm text-white/55">
           Round {roundNumber} • {statLabel} Snapshot
         </p>
 
@@ -214,14 +223,9 @@ export default function RoundSummary({
         </p>
       </div>
 
-      {/* FILTER ROW */}
-      <div className="relative mb-5 backdrop-saturate-100">
-        <div
-          className="
-            flex gap-2 overflow-x-auto pr-14 pb-1
-            scrollbar-none snap-x snap-mandatory
-          "
-        >
+      {/* FILTERS */}
+      <div className="relative mb-5">
+        <div className="flex gap-2 overflow-x-auto pr-14 pb-1 scrollbar-none snap-x snap-mandatory">
           {STATS.map((s) => {
             const label = s.charAt(0).toUpperCase() + s.slice(1);
             const active = selectedStat === s;
@@ -234,7 +238,7 @@ export default function RoundSummary({
                   "snap-start whitespace-nowrap rounded-full px-4 py-[7px] text-xs md:text-sm transition-all",
                   active
                     ? "bg-yellow-400 text-black font-semibold shadow-[0_0_10px_rgba(234,179,8,0.5)]"
-                    : "bg-white/5 text-white/70 hover:bg-white/10"
+                    : "bg-white/5 text-white/65 hover:bg-white/10"
                 )}
               >
                 {label}
@@ -243,22 +247,13 @@ export default function RoundSummary({
           })}
         </div>
 
-        {/* fade */}
         <div className="pointer-events-none absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-black via-black/0" />
       </div>
 
       {/* GRID */}
       <div className="grid md:grid-cols-2 gap-4 md:gap-6">
         {/* Pulse */}
-        <div
-          className="
-            rounded-xl border border-white/10 bg-black/30
-            p-4 md:p-5
-            min-h-[235px] md:min-h-[250px]
-            pb-3 md:pb-5
-            backdrop-blur-sm
-          "
-        >
+        <div className="rounded-xl border border-white/10 bg-black/30 p-4 md:p-5 min-h-[235px] md:min-h-[250px] backdrop-blur-sm">
           <h3 className="flex items-center gap-2 text-sm md:text-base font-semibold mb-1">
             <Activity className="h-4 w-4 md:h-5 md:w-5 text-yellow-300" />
             Round Momentum Pulse
@@ -273,14 +268,7 @@ export default function RoundSummary({
         </div>
 
         {/* Headlines */}
-        <div
-          className="
-            rounded-xl border border-white/10 bg-black/30
-            p-4 md:p-5
-            min-h-[235px] md:min-h-[250px]
-            backdrop-blur-sm
-          "
-        >
+        <div className="rounded-xl border border-white/10 bg-black/30 p-4 md:p-5 min-h-[235px] md:min-h-[250px] backdrop-blur-sm">
           <h3 className="flex items-center gap-2 text-sm md:text-base font-semibold mb-2">
             <Flame className="h-4 w-4 md:h-5 md:w-5 text-orange-400" />
             Key Headlines
@@ -294,32 +282,26 @@ export default function RoundSummary({
             <li>
               • <strong>{biggestRiser?.name}</strong> climbed{" "}
               <strong>
-                {biggestRiser?.diff
-                  ? biggestRiser.diff.toFixed(1)
-                  : "0.0"}{" "}
-                pts
+                {biggestRiser?.diff?.toFixed(1) ?? "0.0"} pts
               </strong>{" "}
               on last week.
             </li>
             <li>
               • <strong>{mostConsistent?.name}</strong> holds{" "}
               <strong>
-                {mostConsistent?.consistency
-                  ? mostConsistent.consistency.toFixed(0)
-                  : "0"}
-                %
+                {mostConsistent?.consistency?.toFixed(0) ?? "0"}%
               </strong>{" "}
               above-average games.
             </li>
             <li>
-              • League-wide {statLabel.toLowerCase()} output continues to
-              show meaningful stability and role changes.
+              • League-wide {statLabel.toLowerCase()} output continues to show
+              meaningful stability and role changes.
             </li>
           </ul>
         </div>
       </div>
 
-      {/* MINI CARDS */}
+      {/* Mini Cards */}
       <div className="grid md:grid-cols-3 gap-3 md:gap-4 mt-5 md:mt-6">
         <MiniCard
           icon={Flame}
@@ -328,17 +310,17 @@ export default function RoundSummary({
           player={topScorer?.name || ""}
           delay={80}
         />
+
         <MiniCard
           icon={TrendingUp}
           label="Biggest Riser"
           value={`${
-            biggestRiser?.diff
-              ? biggestRiser.diff.toFixed(1)
-              : "0.0"
+            biggestRiser?.diff ? biggestRiser.diff.toFixed(1) : "0.0"
           } pts`}
           player={biggestRiser?.name || ""}
           delay={160}
         />
+
         <MiniCard
           icon={Shield}
           label="Most Consistent"
