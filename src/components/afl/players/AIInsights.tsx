@@ -4,121 +4,97 @@ import { cn } from "@/lib/utils";
 import { Crown, BrainCircuit } from "lucide-react";
 
 /* ---------------------------------------------------------
-   CONFIG — Blur OFF for dev preview
+   CONFIG — Blur OFF for development
 --------------------------------------------------------- */
-const BLUR_ENABLED = false; // turn to true when gating goes live
+const BLUR_ENABLED = false; // set to TRUE when premium gating is ready
 
 /* ---------------------------------------------------------
-   MOCK PLAYERS + AI INSIGHTS (10 rows)
-   These are lightweight — teaser style (not full deep dives)
+   HELPER — Generate a pulse-gradient sparkline path
 --------------------------------------------------------- */
+function Sparkline({ values }: { values: number[] }) {
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const norm = values.map((v) => ((v - min) / (max - min || 1)) * 40);
 
-const mockAI = [
-  {
-    id: 1,
-    name: "Player 51",
-    team: "ESS",
-    pos: "MID",
-    projection: "84.3 ± 7.2",
-    summary:
-      "AI expects a strong midfield presence with elevated stoppage involvement. Usage profile suggests stable opportunity with minor upside.",
-    factors: ["Role stable", "High TOG", "Neutral matchup"],
-  },
-  {
-    id: 2,
-    name: "Player 12",
-    team: "MELB",
-    pos: "DEF",
-    projection: "76.1 ± 6.4",
-    summary:
-      "Projected to see consistent half-back distribution. AI notes reliable kick-start involvement with moderate uncontested load.",
-    factors: ["Rebound role", "Favourable matchup"],
-  },
-  {
-    id: 3,
-    name: "Player 33",
-    team: "CARL",
-    pos: "FWD",
-    projection: "69.8 ± 8.8",
-    summary:
-      "Expected to benefit from forward-half time, though scoring volatility remains elevated. AI flags minor ceiling potential.",
-    factors: ["High variance", "Strong inside-50 rate"],
-  },
-  // premium rows from here ↓
-  {
-    id: 4,
-    name: "Player 22",
-    team: "WBD",
-    pos: "MID",
-    projection: "91.4 ± 5.9",
-    summary:
-      "AI identifies strong contested trend and favourable CBA trajectory. Projection confidence improving week-to-week.",
-    factors: ["Rising workload", "CBA lift"],
-  },
-  {
-    id: 5,
-    name: "Player 7",
-    team: "RICH",
-    pos: "RUC",
-    projection: "92.7 ± 6.1",
-    summary:
-      "Ruck contests expected to remain high. AI notes opponent leakage to rucks, boosting scoring expectation.",
-    factors: ["Ruck advantage", "Favourable matchup"],
-  },
-  {
-    id: 6,
-    name: "Player 18",
-    team: "SYD",
-    pos: "MID",
-    projection: "88.2 ± 7.0",
-    summary:
-      "AI predicts strong centre-bounce involvement with solid disposal expectation. Role consistency drives projection.",
-    factors: ["Stable role", "High TOG"],
-  },
-  {
-    id: 7,
-    name: "Player 29",
-    team: "ADE",
-    pos: "MID",
-    projection: "73.4 ± 8.2",
-    summary:
-      "Projected midfield load slightly reduced due to wing rotation drift. AI flags mild scoring compression.",
-    factors: ["Role shift", "Wing usage"],
-  },
-  {
-    id: 8,
-    name: "Player 10",
-    team: "PORT",
-    pos: "DEF",
-    projection: "79.1 ± 6.7",
-    summary:
-      "Expected interception opportunities favourable, though disposal load remains matchup-dependent.",
-    factors: ["Intercept role", "Ball-movement dependent"],
-  },
-  {
-    id: 9,
-    name: "Player 3",
-    team: "FRE",
-    pos: "FWD",
-    projection: "67.9 ± 9.5",
-    summary:
-      "Volatile forward role expected to continue with inconsistent opportunities inside 50.",
-    factors: ["High variance", "Forward role"],
-  },
-  {
-    id: 10,
-    name: "Player 41",
-    team: "BRIS",
-    pos: "MID",
-    projection: "86.6 ± 7.4",
-    summary:
-      "AI expects balanced scoring from stoppage work and transition chains. Projection confidence remains moderate.",
-    factors: ["Balanced usage", "Stoppage involvement"],
-  },
-];
+  const step = 50 / (values.length - 1);
+
+  const path = norm
+    .map((v, i) => `${i * step},${40 - v}`)
+    .join(" ");
+
+  return (
+    <svg
+      width="50"
+      height="40"
+      viewBox="0 0 50 40"
+      className="overflow-visible"
+    >
+      <defs>
+        <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#fde047" />
+          <stop offset="50%" stopColor="#facc15" />
+          <stop offset="100%" stopColor="#eab308" />
+        </linearGradient>
+      </defs>
+
+      <polyline
+        fill="none"
+        stroke="url(#pulseGradient)"
+        strokeWidth="2"
+        points={path}
+        className="animate-pulse-spark"
+      />
+    </svg>
+  );
+}
 
 /* ---------------------------------------------------------
-   Row component (clean, premium, teaser-style)
+   HELPER — Confidence bar (0–100%)
+--------------------------------------------------------- */
+function ConfidenceBar({ value }: { value: number }) {
+  return (
+    <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+      <div
+        className="h-full rounded-full bg-yellow-400 transition-all"
+        style={{ width: `${value}%` }}
+      />
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   MOCK DATA — 10 rows
+--------------------------------------------------------- */
+
+const mockAI = Array.from({ length: 10 }).map((_, i) => {
+  const base = 70 + Math.random() * 30;
+  const range = (Math.random() * 6 + 4).toFixed(1);
+
+  return {
+    id: i + 1,
+    name: `Player ${Math.floor(Math.random() * 60) + 1}`,
+    team: ["ESS", "MELB", "CARL", "RICH", "SYD", "PORT", "ADE", "FRE", "WBD"][
+      i % 9
+    ],
+    pos: ["MID", "DEF", "FWD", "RUC"][i % 4],
+    projection: `${base.toFixed(1)} ± ${range}`,
+    summary:
+      i % 3 === 0
+        ? "AI expects solid ball involvement with favourable usage projection and consistent midfield presence."
+        : i % 3 === 1
+        ? "Forecasting stable role with expected baseline scoring; matchup influence remains moderate."
+        : "Projected scoring window suggests balanced opportunity; volatility indicators within normal range.",
+    factors:
+      i % 2 === 0
+        ? ["Role stable", "Usage steady", "Neutral matchup"]
+        : ["CBA lift", "Transition chains", "Volatility normal"],
+    confidence: Math.floor(60 + Math.random() * 35), // 60–95%
+    spark: Array.from({ length: 8 }).map(() => Math.random() * 100),
+  };
+});
+
+/* ---------------------------------------------------------
+   AI ROW COMPONENT
 --------------------------------------------------------- */
 
 function AIInsightRow({
@@ -128,74 +104,75 @@ function AIInsightRow({
   projection,
   summary,
   factors,
-}: {
-  name: string;
-  team: string;
-  pos: string;
-  projection: string;
-  summary: string;
-  factors: string[];
-}) {
+  spark,
+  confidence,
+}: any) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-white/10 p-4 md:p-5",
-        "bg-gradient-to-br from-[#0A0A0D] via-[#0C0C10] to-[#101016]",
-        "shadow-[0_0_25px_rgba(0,0,0,0.4)]"
+        "relative rounded-2xl border border-white/10 p-4 md:p-5",
+        "bg-gradient-to-br from-[#0b0c0f] via-[#0d0e12] to-[#131318]",
+        "shadow-[0_0_35px_rgba(0,0,0,0.5)]",
+        "before:absolute before:inset-0 before:rounded-2xl before:animate-pulse-glow",
+        "before:bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.08),transparent_70%)]"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-white">
-          {name}{" "}
-          <span className="text-xs text-white/50">
-            {team} • {pos}
-          </span>
-        </p>
-        <p className="text-sm font-medium text-yellow-300">{projection}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-white font-semibold text-sm">
+            {name}{" "}
+            <span className="text-white/40 text-xs font-normal">
+              {team} • {pos}
+            </span>
+          </p>
+          <p className="mt-0.5 text-yellow-300 font-medium text-sm">
+            {projection}
+          </p>
+        </div>
+
+        {/* Gradient pulse sparkline */}
+        <div className="pt-1">
+          <Sparkline values={spark} />
+        </div>
       </div>
 
-      {/* Summary sentence */}
+      {/* Summary */}
       <p className="mt-2 text-[13px] text-white/70 leading-relaxed">{summary}</p>
 
-      {/* Factors */}
+      {/* Tags */}
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {factors.map((f, i) => (
+        {factors.map((f: string, i: number) => (
           <span
             key={i}
-            className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-white/50 border border-white/10"
+            className="rounded-full border border-white/10 bg-white/5 text-[11px] px-2.5 py-1 text-white/50"
           >
             {f}
           </span>
         ))}
       </div>
+
+      {/* Confidence Bar */}
+      <ConfidenceBar value={confidence} />
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   Premium overlay (inside blurred block)
+   PREMIUM OVERLAY
 --------------------------------------------------------- */
 
 function PremiumOverlay() {
   return (
-    <div
-      className={cn(
-        "absolute inset-0 z-20 flex flex-col items-center justify-center gap-4",
-        "backdrop-blur-xl bg-black/70",
-        "rounded-2xl border border-yellow-500/40",
-        "shadow-[0_0_50px_rgba(250,204,21,0.25)]"
-      )}
-    >
-      <Crown className="h-9 w-9 text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]" />
-
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 backdrop-blur-xl bg-black/70 rounded-2xl border border-yellow-500/40 shadow-[0_0_45px_rgba(250,204,21,0.35)]">
+      <Crown className="h-10 w-10 text-yellow-300 drop-shadow-[0_0_15px_rgba(250,204,21,0.9)]" />
       <p className="max-w-xs text-center text-sm text-yellow-200/90 leading-relaxed">
-        Unlock full next-round projections, role signals, usage forecasting and matchup-based AI insights.
+        Unlock full AI projections, role signals, usage forecasting and
+        matchup-driven intelligence.
       </p>
-
       <a
         href="/sports/afl/ai-analysis"
-        className="rounded-full bg-yellow-400 px-6 py-2 text-sm font-semibold text-black shadow-[0_0_20px_rgba(250,204,21,0.5)] hover:brightness-110 transition"
+        className="rounded-full bg-yellow-400 px-6 py-2 text-sm font-semibold text-black shadow-[0_0_25px_rgba(250,204,21,0.45)] hover:brightness-110 transition"
       >
         Unlock Neeko+ Insights
       </a>
@@ -204,21 +181,17 @@ function PremiumOverlay() {
 }
 
 /* ---------------------------------------------------------
-   MAIN COMPONENT (Strategy 2 — Teaser Module)
+   MAIN COMPONENT — 10 rows (3 free + blurred rest)
 --------------------------------------------------------- */
 
 export default function AIInsights() {
-  const freeRows = mockAI.slice(0, 3);
-  const premiumRows = mockAI.slice(3); // rows 4–10
+  const free = mockAI.slice(0, 3);
+  const premium = mockAI.slice(3);
 
   return (
     <section
-      className={cn(
-        "relative mt-10 rounded-3xl border border-white/10",
-        "bg-gradient-to-br from-[#050507] via-[#08080A] to-[#111016]",
-        "px-4 py-6 md:px-6 md:py-8",
-        "shadow-[0_0_80px_rgba(0,0,0,0.7)]"
-      )}
+      id="ai-insights"
+      className="relative mt-12 rounded-3xl border border-white/10 bg-gradient-to-br from-[#050507] via-[#08080a] to-[#111016] px-4 py-6 md:px-6 md:py-8 shadow-[0_0_90px_rgba(0,0,0,0.75)]"
     >
       {/* Header */}
       <div className="space-y-1.5 mb-6">
@@ -226,33 +199,30 @@ export default function AIInsights() {
           <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
           <span className="uppercase tracking-[0.18em]">AI Insights</span>
         </div>
-
         <h2 className="text-xl font-semibold md:text-2xl">
           AI Projection • Usage Forecast • Role Signals
         </h2>
-
         <p className="text-xs md:text-sm text-white/70 max-w-xl">
-          A fast AI-powered snapshot of next-round expectations — role stability, usage load,
-          matchup forecasting and volatility direction.
+          Next-round expectations predicted by Neeko AI — combining role
+          tendencies, matchup profiles and volatility pathways.
         </p>
       </div>
 
       {/* Free rows */}
       <div className="space-y-4">
-        {freeRows.map((p) => (
+        {free.map((p) => (
           <AIInsightRow key={p.id} {...p} />
         ))}
       </div>
 
-      {/* Premium blurred block */}
-      <div className="relative mt-6">
+      {/* Premium rows (blurred) */}
+      <div className="relative mt-8">
         {!BLUR_ENABLED && (
-          <div className="mb-3 text-[12px] text-white/35 italic">
+          <p className="mb-2 text-[11px] text-white/30 italic">
             (Blur disabled for development preview)
-          </div>
+          </p>
         )}
 
-        {/* Blur overlay */}
         {BLUR_ENABLED && <PremiumOverlay />}
 
         <div
@@ -261,7 +231,7 @@ export default function AIInsights() {
             BLUR_ENABLED && "blur-sm opacity-40 select-none"
           )}
         >
-          {premiumRows.map((p) => (
+          {premium.map((p) => (
             <AIInsightRow key={p.id} {...p} />
           ))}
         </div>
@@ -278,4 +248,35 @@ export default function AIInsights() {
       </div>
     </section>
   );
+}
+
+/* ---------------------------------------------------------
+   GLOBAL ANIMATIONS (sparkline pulse + glow)
+--------------------------------------------------------- */
+const styles = `
+@keyframes pulse-glow {
+  0% { opacity: 0.35; }
+  50% { opacity: 0.55; }
+  100% { opacity: 0.35; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4.5s ease-in-out infinite;
+}
+
+@keyframes sparkPulse {
+  0% { stroke-opacity: 0.5; }
+  50% { stroke-opacity: 1; }
+  100% { stroke-opacity: 0.5; }
+}
+
+.animate-pulse-spark {
+  animation: sparkPulse 2.4s ease-in-out infinite;
+}
+`;
+
+if (typeof document !== "undefined") {
+  const styleTag = document.createElement("style");
+  styleTag.innerHTML = styles;
+  document.head.appendChild(styleTag);
 }
