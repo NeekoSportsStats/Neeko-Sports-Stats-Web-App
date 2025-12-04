@@ -1,29 +1,25 @@
 // src/pages/sports/afl/AFLPlayers.tsx
 import React from "react";
-
 import RoundSummary from "@/components/afl/players/RoundSummary";
 import FormStabilityGrid from "@/components/afl/players/FormStabilityGrid";
 import PositionTrends from "@/components/afl/players/PositionTrends";
-import AIInsights from "@/components/afl/players/AIInsights";
-import MasterTable from "@/components/afl/players/MasterTable"; // ⭐ NEW
+import AIInsights from "@/components/afl/players/AIInsights"; // 🔥 NEW
 
 export default function AFLPlayersPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-white">
-      {/* PAGE HEADER */}
+      {/* Page Header */}
       <header className="mb-7 md:mb-9">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
           AFL Player Performance Dashboard
         </h1>
-
-        <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-[15px] leading-relaxed">
+        <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-[15px]">
           League-wide momentum, fantasy analytics, player trends, stability
-          metrics, role intelligence, predictive insights and full-season player
-          ledgers — all in one intelligent AFL dashboard.
+          metrics and role-driven insights — all in one intelligent dashboard.
         </p>
       </header>
 
-      {/* SECTION NAVIGATION */}
+      {/* Section Navigation */}
       <nav
         className="
           mb-6 md:mb-8
@@ -44,8 +40,7 @@ export default function AFLPlayersPage() {
               className="
                 rounded-full border border-white/15 bg-white/5
                 px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white 
-                transition-colors
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Round Momentum
@@ -54,22 +49,20 @@ export default function AFLPlayersPage() {
             <a
               href="#form-stability"
               className="
-                rounded-full border border-white/15 bg-white/5
+                rounded-full border border-white/15 bg-white/5 
                 px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
-              Form Stability
+              Form Stability Grid
             </a>
 
             <a
               href="#position-trends"
               className="
-                rounded-full border border-white/15 bg-white/5
+                rounded-full border border-white/15 bg-white/5 
                 px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white 
-                transition-colors
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Position Trends
@@ -78,10 +71,9 @@ export default function AFLPlayersPage() {
             <a
               href="#ai-insights"
               className="
-                rounded-full border border-white/15 bg-white/5
+                rounded-full border border-white/15 bg-white/5 
                 px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               AI Insights
@@ -90,10 +82,9 @@ export default function AFLPlayersPage() {
             <a
               href="#master-table"
               className="
-                rounded-full border border-white/15 bg-white/5
+                rounded-full border border-white/15 bg-white/5 
                 px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white 
-                transition-colors
+                hover:bg-white/10 hover:text-white transition-colors
               "
             >
               Master Table
@@ -102,31 +93,33 @@ export default function AFLPlayersPage() {
         </div>
       </nav>
 
-      {/* CONTENT SECTIONS */}
+      {/* Content Sections */}
       <div className="space-y-10 md:space-y-14">
-        {/* SECTION 1 — Round Summary */}
+        {/* Section 1 — Round Summary */}
         <section id="round-momentum" className="scroll-mt-24">
           <RoundSummary />
         </section>
 
-        {/* SECTION 2 — Form Stability Grid */}
+        {/* Section 2 — Form Stability Grid */}
         <section id="form-stability" className="scroll-mt-24">
           <FormStabilityGrid />
         </section>
 
-        {/* SECTION 3 — Position Trends */}
+        {/* Section 3 — Position Trends */}
         <section id="position-trends" className="scroll-mt-24">
           <PositionTrends />
         </section>
 
-        {/* SECTION 4 — AI Insights */}
+        {/* Section 4 — AI Insights */}
         <section id="ai-insights" className="scroll-mt-24">
-          <AIInsights /> 
+          <AIInsights /> {/* 🔥 FULL PREMIUM MODULE */}
         </section>
 
-        {/* SECTION 5 — Master Table */}
+        {/* Section 5 — Master Table (placeholder for now) */}
         <section id="master-table" className="scroll-mt-24">
-          <MasterTable />
+          <div className="text-center text-white/40 text-sm py-10 italic">
+            Master Table section coming soon.
+          </div>
         </section>
       </div>
     </div>
