@@ -1,823 +1,710 @@
 // src/components/afl/players/MasterTable.tsx
-import React, { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
-import {
-  ChevronDown,
-  ChevronRight,
-  Crown,
-  Lock,
-  Activity,
-} from "lucide-react";
-import { useAuth } from "@/lib/auth";
 
-/* ------------------------------------------------------------------ */
-/* Types & stat config                                                */
-/* ------------------------------------------------------------------ */
+import React, { useState } from "react";
+import { ChevronRight, ChevronDown, Lock, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 
-type StatKey =
-  | "fantasy"
-  | "disposals"
-  | "goals"
-  | "kicks"
-  | "marks"
-  | "tackles"
-  | "hitouts";
+// -----------------------------------------------------------------------------
+// Types & mock data
+// -----------------------------------------------------------------------------
 
-const STAT_LABELS: Record<StatKey, string> = {
-  fantasy: "Fantasy",
-  disposals: "Disposals",
-  goals: "Goals",
-  kicks: "Kicks",
-  marks: "Marks",
-  tackles: "Tackles",
-  hitouts: "Hitouts",
+type HitRates = {
+  band90: number;
+  band95: number;
+  band100: number;
+  band105: number;
+  band110: number;
 };
 
-const FREE_STATS: StatKey[] = ["fantasy", "disposals", "goals"];
-
-const TEAMS = [
-  "ADE",
-  "BRIS",
-  "CARL",
-  "COLL",
-  "ESS",
-  "FRE",
-  "GEEL",
-  "GCFC",
-  "GWS",
-  "HAW",
-  "MELB",
-  "NMFC",
-  "PORT",
-  "RICH",
-  "STK",
-  "SYD",
-  "WBD",
-  "WCE",
-];
-
-const POSITIONS = ["DEF", "MID", "RUC", "FWD"] as const;
-type PositionKey = (typeof POSITIONS)[number];
-
-interface PlayerSeasonRow {
+type PlayerRow = {
   id: number;
   name: string;
   team: string;
-  pos: PositionKey;
-  openingRound: number;
-  fantasy: number[]; // length 23
-}
+  role: string;
+  orScore: number; // "OR" opening rating
+  rounds: number[]; // R1–R23
+  min: number;
+  max: number;
+  avg: number;
+  total: number;
+  hitRates: HitRates;
+};
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
+const ROUND_LABELS = [
+  "R1",
+  "R2",
+  "R3",
+  "R4",
+  "R5",
+  "R6",
+  "R7",
+  "R8",
+  "R9",
+  "R10",
+  "R11",
+  "R12",
+  "R13",
+  "R14",
+  "R15",
+  "R16",
+  "R17",
+  "R18",
+  "R19",
+  "R20",
+  "R21",
+  "R22",
+  "R23",
+];
 
-function average(values: number[]): number {
-  if (!values.length) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
+// Simple mock players; swap for Supabase results later
+const MOCK_PLAYERS: PlayerRow[] = Array.from({ length: 40 }).map((_, index) => {
+  const base = 85 + (index % 10);
+  const rounds = ROUND_LABELS.map(() => base + Math.round(Math.random() * 20 - 10));
+  const min = Math.min(...rounds);
+  const max = Math.max(...rounds);
+  const total = rounds.reduce((sum, v) => sum + v, 0);
+  const avg = Math.round((total / rounds.length) * 10) / 10;
 
-function min(values: number[]): number {
-  return values.length ? Math.min(...values) : 0;
-}
+  const above = (threshold: number) =>
+    Math.round((rounds.filter((v) => v >= threshold).length / rounds.length) * 100);
 
-function max(values: number[]): number {
-  return values.length ? Math.max(...values) : 0;
-}
+  return {
+    id: index + 1,
+    name: `Player ${index + 1}`,
+    team: ["GEEL", "CARL", "RICH", "ESS", "COLL", "NMFC"][index % 6],
+    role: ["MID", "RUC", "FWD", "DEF"][index % 4],
+    orScore: base + 10,
+    rounds,
+    min,
+    max,
+    avg,
+    total,
+    hitRates: {
+      band90: above(90),
+      band95: above(95),
+      band100: above(100),
+      band105: above(105),
+      band110: above(110),
+    },
+  };
+});
 
-function stdDev(values: number[]): number {
-  if (values.length <= 1) return 0;
-  const avg = average(values);
-  const variance =
-    values.reduce((acc, v) => acc + (v - avg) * (v - avg), 0) /
-    (values.length - 1);
-  return Math.sqrt(variance);
-}
+// -----------------------------------------------------------------------------
+// Main component
+// -----------------------------------------------------------------------------
 
-function hitRate(values: number[], threshold: number): number {
-  if (!values.length) return 0;
-  const hits = values.filter((v) => v >= threshold).length;
-  return (hits / values.length) * 100;
-}
+export const MasterTable: React.FC = () => {
+  const [compactMode, setCompactMode] = useState(false);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(null);
+  const [selectedStat, setSelectedStat] = useState<"Fantasy" | "Disposals" | "Goals">("Fantasy");
 
-// Simple stat lens transform so that non-fantasy stats still
-// feel believable without us modelling full multi-stat data.
-function projectStat(series: number[], stat: StatKey): number[] {
-  switch (stat) {
-    case "disposals":
-      return series.map((v) => Math.round(v * 0.55));
-    case "goals":
-      return series.map((v) => Math.round(v / 25)); // 0–4-ish
-    case "kicks":
-      return series.map((v) => Math.round(v * 0.33));
-    case "marks":
-      return series.map((v) => Math.round(v * 0.18));
-    case "tackles":
-      return series.map((v) => Math.round(v * 0.12));
-    case "hitouts":
-      return series.map((v) => Math.round(v * 0.4));
-    case "fantasy":
-    default:
-      return series;
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Mock season data (SQL-ready shape for later Supabase wiring)       */
-/* ------------------------------------------------------------------ */
-
-const MOCK_PLAYERS: PlayerSeasonRow[] = Array.from(
-  { length: 60 },
-  (_, i): PlayerSeasonRow => {
-    const team = TEAMS[i % TEAMS.length];
-    const pos = POSITIONS[i % POSITIONS.length];
-    const name = `Player ${i + 1}`;
-
-    // Build a deterministic but slightly wavy scoring profile.
-    const base = 82 + (i % 7) * 3;
-    const fantasy = Array.from({ length: 23 }, (_, r) => {
-      const phase = Math.sin((r + 1 + i * 0.3) / 3) * 8;
-      const trend = r * 0.6 - 3; // gentle upward trend over season
-      const noise = ((r * (i + 3)) % 7) - 3; // pseudo-random but deterministic
-      return Math.round(base + phase + trend + noise);
-    });
-
-    const openingRound = fantasy[0];
-
-    return {
-      id: i + 1,
-      name,
-      team,
-      pos,
-      openingRound,
-      fantasy,
-    };
-  }
-);
-
-/* ------------------------------------------------------------------ */
-/* Tiny sparkline component                                           */
-/* ------------------------------------------------------------------ */
-
-function Sparkline({ values }: { values: number[] }) {
-  if (!values.length) return null;
-
-  const minVal = min(values);
-  const maxVal = max(values);
-  const range = maxVal - minVal || 1;
-  const norm = values.map((v) => ((v - minVal) / range) * 100);
-  const width = Math.max(values.length * 14, 80);
-
-  const points = norm
-    .map((v, i) => {
-      const x =
-        (i / Math.max(norm.length - 1, 1)) * width;
-      const y = 100 - v;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} 100`}
-      preserveAspectRatio="none"
-      className="h-16 w-full"
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="rgba(250,204,21,0.18)"
-        strokeWidth={6}
-      />
-      <polyline
-        points={points}
-        fill="none"
-        stroke="rgba(250,204,21,0.9)"
-        strokeWidth={2.4}
-      />
-    </svg>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Row component                                                      */
-/* ------------------------------------------------------------------ */
-
-interface MasterRowProps {
-  row: PlayerSeasonRow;
-  stat: StatKey;
-  maxRounds: number;
-  isExpanded: boolean;
-  onToggle: () => void;
-  hoveredCol: string | null;
-  setHoveredCol: (key: string | null) => void;
-  isBlurred?: boolean;
-  confidenceOverride?: number;
-}
-
-const GRID_TEMPLATE =
-  "grid grid-cols-[minmax(220px,260px)_70px_repeat(23,56px)_64px_64px_64px_72px_60px_60px_60px_60px_60px_56px]";
-
-function MasterTableRow({
-  row,
-  stat,
-  maxRounds,
-  isExpanded,
-  onToggle,
-  hoveredCol,
-  setHoveredCol,
-  isBlurred,
-  confidenceOverride,
-}: MasterRowProps) {
-  const statSeries = useMemo(
-    () => projectStat(row.fantasy, stat),
-    [row.fantasy, stat]
-  );
-  const rounds = statSeries.slice(0, maxRounds);
-  const total = rounds.reduce((a, b) => a + b, 0);
-  const avg = average(rounds);
-  const minVal = min(rounds);
-  const maxVal = max(rounds);
-  const vol = stdDev(rounds);
-
-  const h90 = hitRate(rounds, 90);
-  const h95 = hitRate(rounds, 95);
-  const h100 = hitRate(rounds, 100);
-  const h105 = hitRate(rounds, 105);
-  const h110 = hitRate(rounds, 110);
-
-  const confidence =
-    confidenceOverride ??
-    Math.max(40, Math.min(99, 100 - vol * 1.1));
-
-  const blurClass = isBlurred
-    ? "select-none blur-sm opacity-60 pointer-events-none"
-    : "";
-
-  const valueCell = (opts: {
-    children: React.ReactNode;
-    colKey: string;
-    align?: "left" | "right" | "center";
-    className?: string;
-  }) => (
-    <div
-      onMouseEnter={() => setHoveredCol(opts.colKey)}
-      className={cn(
-        "px-3 py-2 text-xs",
-        opts.align === "right" && "text-right",
-        opts.align === "center" && "text-center",
-        hoveredCol === opts.colKey && "bg-white/[0.06]",
-        opts.className
-      )}
-    >
-      {opts.children}
-    </div>
-  );
-
-  const hitRateTone = (v: number) =>
-    v >= 80
-      ? "text-emerald-400"
-      : v >= 60
-      ? "text-lime-300"
-      : v >= 40
-      ? "text-yellow-300"
-      : v > 0
-      ? "text-orange-300"
-      : "text-red-400";
-
-  return (
-    <div
-      className={cn(
-        "border-b border-white/5",
-        isExpanded && "bg-white/[0.01]"
-      )}
-    >
-      {/* Main row */}
-      <div
-        className={cn(
-          GRID_TEMPLATE,
-          "items-center text-[11px] md:text-xs",
-          blurClass
-        )}
-      >
-        {/* PLAYER / EXPAND */}
-        <div
-          onMouseEnter={() => setHoveredCol("player")}
-          className={cn(
-            "sticky left-0 z-[15] flex min-w-[220px] items-center gap-3 bg-black/95 px-3 py-2 backdrop-blur-sm border-r border-white/5",
-            hoveredCol === "player" && "bg-white/[0.06]"
-          )}
-        >
-          <button
-            type="button"
-            onClick={onToggle}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/80 hover:bg-white/10"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-          </button>
-          <div>
-            <p className="font-semibold text-white">
-              {row.name}
-            </p>
-            <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
-              {row.team} • {row.pos}
-            </p>
-          </div>
-        </div>
-
-        {/* Opening round */}
-        {valueCell({
-          colKey: "or",
-          align: "right",
-          children: row.openingRound,
-        })}
-
-        {/* R1–R23 */}
-        {Array.from({ length: maxRounds }, (_, idx) =>
-          valueCell({
-            colKey: `r${idx + 1}`,
-            align: "right",
-            children: rounds[idx]?.toFixed(0) ?? "–",
-          })
-        )}
-
-        {/* MIN / MAX / AVG / TOTAL */}
-        {valueCell({
-          colKey: "min",
-          align: "right",
-          children: minVal.toFixed(0),
-        })}
-        {valueCell({
-          colKey: "max",
-          align: "right",
-          children: maxVal.toFixed(0),
-        })}
-        {valueCell({
-          colKey: "avg",
-          align: "right",
-          children: avg.toFixed(1),
-        })}
-        {valueCell({
-          colKey: "total",
-          align: "right",
-          className: "font-semibold text-white",
-          children: total.toFixed(0),
-        })}
-
-        {/* Hit rate bands */}
-        {valueCell({
-          colKey: "h90",
-          align: "right",
-          className: hitRateTone(h90),
-          children: `${h90.toFixed(0)}%`,
-        })}
-        {valueCell({
-          colKey: "h95",
-          align: "right",
-          className: hitRateTone(h95),
-          children: `${h95.toFixed(0)}%`,
-        })}
-        {valueCell({
-          colKey: "h100",
-          align: "right",
-          className: hitRateTone(h100),
-          children: `${h100.toFixed(0)}%`,
-        })}
-        {valueCell({
-          colKey: "h105",
-          align: "right",
-          className: hitRateTone(h105),
-          children: `${h105.toFixed(0)}%`,
-        })}
-        {valueCell({
-          colKey: "h110",
-          align: "right",
-          className: hitRateTone(h110),
-          children: `${h110.toFixed(0)}%`,
-        })}
-
-        {/* Games */}
-        {valueCell({
-          colKey: "gms",
-          align: "center",
-          children: rounds.length,
-        })}
-      </div>
-
-      {/* Expanded panel */}
-      {isExpanded && !isBlurred && (
-        <div className="border-t border-white/5 bg-black/80 px-4 py-4 md:px-6 md:py-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-xl text-xs leading-relaxed text-white/75 md:text-sm">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
-                Round Trend &amp; Role Context
-              </p>
-              <p>
-                Over the sampled rounds,{" "}
-                <span className="font-semibold text-yellow-200">
-                  {row.name}
-                </span>{" "}
-                has tracked at{" "}
-                <span className="font-semibold">
-                  {avg.toFixed(1)} {STAT_LABELS[stat].toLowerCase()}
-                </span>{" "}
-                with a scoring window between{" "}
-                <span className="font-semibold">
-                  {minVal.toFixed(0)}–{maxVal.toFixed(0)}
-                </span>
-                , signalling{" "}
-                <span className="font-semibold">
-                  {vol < 8
-                    ? "steady output"
-                    : vol < 14
-                    ? "controlled volatility"
-                    : "swing-heavy scoring"}
-                </span>{" "}
-                and a{" "}
-                <span className={hitRateTone(h100)}>
-                  {h100.toFixed(0)}% hit rate
-                </span>{" "}
-                above the key 100+ band in this stat lens.
-              </p>
-            </div>
-
-            <div className="w-full max-w-xs rounded-2xl border border-yellow-500/35 bg-gradient-to-br from-yellow-500/20 via-black to-black px-4 py-3 shadow-[0_0_26px_rgba(250,204,21,0.45)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-                Confidence Index
-              </p>
-              <div className="mt-2 flex items-baseline justify-between gap-3">
-                <p className="text-xs text-white/70">
-                  Confidence blends hit-rate bands, volatility spread and
-                  number of games played in this lens.
-                </p>
-                <p className="text-sm font-semibold text-yellow-200">
-                  {confidence.toFixed(0)}%
-                </p>
-              </div>
-              <div className="mt-3 h-2 rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-lime-300 shadow-[0_0_18px_rgba(250,204,21,0.7)]"
-                  style={{ width: `${confidence}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-white/10 bg-black/70 px-3 py-3 md:px-4">
-            <div className="mb-2 flex items-center justify-between text-[11px] text-white/55">
-              <span className="uppercase tracking-[0.16em]">
-                Recent scoring trend
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Activity className="h-3.5 w-3.5 text-yellow-300" />
-                <span>L5 trajectory</span>
-              </span>
-            </div>
-            <Sparkline values={rounds} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Premium blur overlay for gated rows                                */
-/* ------------------------------------------------------------------ */
-
-function PremiumBlurOverlay() {
-  return (
-    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/0 via-black/80 to-black/95 backdrop-blur-md" />
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Main MasterTable component                                         */
-/* ------------------------------------------------------------------ */
-
-export default function MasterTable() {
-  const { isPremium } = useAuth?.() ?? { isPremium: false };
-
-  const [stat, setStat] = useState<StatKey>("fantasy");
-  const [selectedTeam, setSelectedTeam] = useState<string>("all");
-  const [selectedRound, setSelectedRound] = useState<string>("all");
-  const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
-  const [hoveredCol, setHoveredCol] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(20);
-
-  const maxRounds = 23;
-
-  const filteredRows = useMemo(() => {
-    let rows = [...MOCK_PLAYERS];
-
-    if (selectedTeam !== "all") {
-      rows = rows.filter((r) => r.team === selectedTeam);
-    }
-
-    // Round filter intentionally does nothing for now – this will become
-    // a Supabase query later. We keep the state so the UI is wired.
-
-    return rows
-      .map((r) => {
-        const series = projectStat(r.fantasy, stat);
-        const rounds = series.slice(0, maxRounds);
-        const total = rounds.reduce((a, b) => a + b, 0);
-        return { row: r, total };
-      })
-      .sort((a, b) => b.total - a.total)
-      .map((x) => x.row);
-  }, [stat, selectedTeam]);
-
-  const visibleRows = filteredRows.slice(0, visibleCount);
-
-  const freeRows = isPremium
-    ? visibleRows
-    : visibleRows.slice(0, 20);
-  const gatedRows = isPremium
-    ? []
-    : visibleRows.slice(20);
-
-  const canShowMore = visibleCount < filteredRows.length;
-
-  const statLabel = STAT_LABELS[stat];
-
-  const handleStatChange = (value: StatKey) => {
-    if (!FREE_STATS.includes(value) && !isPremium) return;
-    setStat(value);
-    setExpandedRowId(null);
+  const toggleExpand = (id: number) => {
+    setExpandedPlayerId((prev) => (prev === id ? null : id));
   };
 
   return (
     <section
       id="master-table"
-      className={cn(
-        "relative mt-8 rounded-3xl border border-white/10",
-        "bg-gradient-to-br from-[#050507] via-black to-[#05060B]",
-        "px-4 py-6 md:px-6 md:py-8 shadow-[0_0_80px_rgba(0,0,0,0.8)]"
-      )}
+      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-neutral-950/90 via-neutral-950/80 to-black/90 px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-8"
     >
-      {/* background wash */}
-      <div className="pointer-events-none absolute inset-x-[-80px] bottom-[-80px] top-24 bg-gradient-to-r from-yellow-500/10 via-emerald-500/6 to-sky-500/12 blur-3xl" />
-
-      <div className="relative space-y-5">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/15 text-[11px]">
-                ☆
-              </span>
-              <span className="uppercase tracking-[0.18em]">
-                Master Table
-              </span>
-            </div>
-            <h2 className="text-xl font-semibold md:text-2xl">
+      {/* Header */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/20 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+            <Sparkles className="h-3 w-3" />
+            <span>Master Table</span>
+          </div>
+          <div>
+            <h2 className="text-balance text-2xl font-semibold text-neutral-50 sm:text-3xl">
               Full-season player ledger &amp; hit-rate grid
             </h2>
-            <p className="max-w-xl text-xs text-white/70 md:text-sm">
+            <p className="mt-2 max-w-2xl text-sm text-neutral-300/80">
               Every player&apos;s round-by-round{" "}
-              <span className="font-semibold text-yellow-200">
-                {statLabel.toLowerCase()}
-              </span>{" "}
-              output, totals and hit rates across key thresholds — ordered by
-              total output.
+              <span className="font-semibold text-yellow-200/90">{selectedStat.toLowerCase()}</span>{" "}
+              output, totals and hit rates across key thresholds — ordered by total output.
             </p>
-            <p className="text-[11px] text-white/45">
-              Hit-rate bands (90+, 95+, 100+, 105+, 110+) automatically adjust
-              to the selected stat lens.
-            </p>
-          </div>
-
-          {/* Filters */}
-          <div className="space-y-2 text-right">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
-              Table Filters
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              {/* Stat filter */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-xs">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-white/40">
-                  Stat
-                </span>
-                <select
-                  value={stat}
-                  onChange={(e) =>
-                    handleStatChange(e.target.value as StatKey)
-                  }
-                  className={cn(
-                    "bg-transparent text-xs outline-none",
-                    "appearance-none pr-5",
-                    !isPremium &&
-                      !FREE_STATS.includes(stat) &&
-                      "text-white/40"
-                  )}
-                >
-                  {(
-                    [
-                      "fantasy",
-                      "disposals",
-                      "goals",
-                      "kicks",
-                      "marks",
-                      "tackles",
-                      "hitouts",
-                    ] as StatKey[]
-                  ).map((s) => (
-                    <option
-                      key={s}
-                      value={s}
-                      className="bg-black"
-                      disabled={!isPremium && !FREE_STATS.includes(s)}
-                    >
-                      {STAT_LABELS[s]}
-                      {!isPremium && !FREE_STATS.includes(s)
-                        ? " (Neeko+)"
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Team filter (locked for free) */}
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
-                  "border-white/15 bg-black/70",
-                  !isPremium && "opacity-60"
-                )}
-                disabled={!isPremium}
-              >
-                <span className="text-[10px] uppercase tracking-[0.16em] text-white/40">
-                  Team
-                </span>
-                <span className="flex items-center gap-1 text-xs text-white/75">
-                  {selectedTeam === "all" ? "All teams" : selectedTeam}
-                  {!isPremium && (
-                    <Lock className="h-3.5 w-3.5 text-yellow-300" />
-                  )}
-                </span>
-              </button>
-
-              {/* Round filter (locked for free) */}
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
-                  "border-white/15 bg-black/70",
-                  !isPremium && "opacity-60"
-                )}
-                disabled={!isPremium}
-              >
-                <span className="text-[10px] uppercase tracking-[0.16em] text-white/40">
-                  Round
-                </span>
-                <span className="flex items-center gap-1 text-xs text-white/75">
-                  {selectedRound === "all"
-                    ? "All rounds"
-                    : `Round ${selectedRound}`}
-                  {!isPremium && (
-                    <Lock className="h-3.5 w-3.5 text-yellow-300" />
-                  )}
-                </span>
-              </button>
-            </div>
-
-            <p className="text-[10px] text-white/40">
-              Fantasy, Disposals &amp; Goals are free. Team &amp; Round filters
-              are Neeko+ only.
+            <p className="mt-1 max-w-xl text-[11px] text-neutral-400">
+              Hit-rate bands (90+, 95+, 100+, 105+, 110+) automatically adjust to the selected stat
+              lens. Fantasy, Disposals &amp; Goals are free. Team &amp; Round filters are Neeko+ only.
             </p>
           </div>
         </div>
 
-        {/* Table */}
-        <div
-          className="relative overflow-auto rounded-2xl border border-white/10 bg-black/70"
-          onMouseLeave={() => setHoveredCol(null)}
-        >
-          {/* Sticky header */}
-          <div className="sticky top-0 z-30 border-b border-white/10 bg-black/95">
-            <div
-              className={cn(
-                GRID_TEMPLATE,
-                "items-center text-[10px] uppercase tracking-[0.18em] text-white/45"
-              )}
-            >
-              <div className="sticky left-0 z-[20] flex min-w-[220px] items-center gap-2 bg-black/95 px-3 py-2 backdrop-blur-sm border-r border-white/5">
-                <span>Player</span>
-              </div>
-              <div className="px-3 py-2 text-right">OR</div>
-              {Array.from({ length: maxRounds }, (_, i) => (
-                <div
-                  key={`h-r${i + 1}`}
-                  className="px-3 py-2 text-right"
-                >
-                  R{i + 1}
-                </div>
-              ))}
-              <div className="px-3 py-2 text-right">Min</div>
-              <div className="px-3 py-2 text-right">Max</div>
-              <div className="px-3 py-2 text-right">Avg</div>
-              <div className="px-3 py-2 text-right">Total</div>
-              <div className="px-3 py-2 text-right">90+</div>
-              <div className="px-3 py-2 text-right">95+</div>
-              <div className="px-3 py-2 text-right">100+</div>
-              <div className="px-3 py-2 text-right">105+</div>
-              <div className="px-3 py-2 text-right">110+</div>
-              <div className="px-3 py-2 text-center">Gms</div>
-            </div>
-          </div>
-
-          {/* Free rows */}
-          <div className="divide-y divide-white/5">
-            {freeRows.map((row) => (
-              <MasterTableRow
-                key={row.id}
-                row={row}
-                stat={stat}
-                maxRounds={maxRounds}
-                isExpanded={expandedRowId === row.id}
-                onToggle={() =>
-                  setExpandedRowId(
-                    expandedRowId === row.id ? null : row.id
-                  )
-                }
-                hoveredCol={hoveredCol}
-                setHoveredCol={setHoveredCol}
-              />
+        {/* Controls */}
+        <div className="flex flex-col gap-4 md:items-end">
+          {/* Stat selector */}
+          <div className="flex items-center gap-2 rounded-full border border-neutral-700/60 bg-black/60 px-2 py-1 text-xs text-neutral-200">
+            {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
+              <button
+                key={stat}
+                type="button"
+                onClick={() => setSelectedStat(stat)}
+                className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
+                  selectedStat === stat
+                    ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
+                    : "text-neutral-300 hover:bg-neutral-800/80"
+                }`}
+              >
+                {stat}
+              </button>
             ))}
           </div>
 
-          {/* Gated block for non-premium */}
-          {!isPremium && gatedRows.length > 0 && (
-            <div className="relative border-t border-white/10">
-              {/* CTA at start of blur */}
-              <div className="pointer-events-auto sticky top-0 z-40 flex flex-col items-center gap-3 bg-gradient-to-b from-black/98 via-black/90 to-transparent px-4 py-6 text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-yellow-200/90">
-                  <Crown className="h-3.5 w-3.5 text-yellow-300" />
-                  <span>Neeko+ Master Grid</span>
-                </div>
-                <p className="max-w-md text-[13px] leading-relaxed text-yellow-100/90">
-                  Unlock full-season {statLabel.toLowerCase()} ledgers, advanced
-                  hit-rate bands and deep role filters for every player.
-                </p>
-                <button
-                  type="button"
-                  className="rounded-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 px-6 py-2.5 text-sm font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.75)] hover:brightness-110 transition"
-                >
-                  Unlock Neeko+ Insights
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] font-medium text-yellow-200/85 underline-offset-4 hover:underline"
-                >
-                  View full AI analysis →
-                </button>
-              </div>
-
-              {/* Blurred realistic rows */}
-              <div className="relative divide-y divide-white/5">
-                {gatedRows.map((row) => (
-                  <MasterTableRow
-                    key={`blur-${row.id}`}
-                    row={row}
-                    stat={stat}
-                    maxRounds={maxRounds}
-                    isExpanded={false}
-                    onToggle={() => {}}
-                    hoveredCol={hoveredCol}
-                    setHoveredCol={setHoveredCol}
-                    isBlurred
-                    confidenceOverride={72}
-                  />
-                ))}
-              </div>
-
-              <PremiumBlurOverlay />
-            </div>
-          )}
-        </div>
-
-        {/* Show more */}
-        {canShowMore && (
-          <div className="flex justify-center pt-4">
-            <button
-              type="button"
-              onClick={() =>
-                setVisibleCount((prev) => prev + 20)
-              }
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-medium text-white/80 hover:bg-white/10"
-            >
-              Show 20 more rows
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
+          {/* Team / Round filters (locked) */}
+          <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-neutral-300">
+            <LockedFilter label="Team" value="All teams" />
+            <LockedFilter label="Round" value="All rounds" />
           </div>
+
+          {/* Compact mode toggle */}
+          <div className="flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
+            <span className="hidden text-neutral-400 sm:inline">View</span>
+            <span className="font-medium text-neutral-100">Full grid</span>
+            <Switch
+              checked={compactMode}
+              onCheckedChange={setCompactMode}
+              className="data-[state=checked]:bg-yellow-400"
+            />
+            <span className="font-medium text-neutral-100">Compact</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop table */}
+      <div className="mt-8 hidden md:block">
+        {compactMode ? (
+          <DesktopCompactTable
+            players={MOCK_PLAYERS}
+            expandedPlayerId={expandedPlayerId}
+            onToggleExpand={toggleExpand}
+          />
+        ) : (
+          <DesktopFullTable
+            players={MOCK_PLAYERS}
+            expandedPlayerId={expandedPlayerId}
+            onToggleExpand={toggleExpand}
+          />
         )}
+      </div>
+
+      {/* Mobile layout */}
+      <div className="mt-6 space-y-3 md:hidden">
+        <MobileTable players={MOCK_PLAYERS} />
+      </div>
+
+      {/* Bottom CTA */}
+      <div className="mt-16 flex flex-col items-center gap-3 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+          <Sparkles className="h-3 w-3" />
+          <span>Neeko+ Master Grid</span>
+        </div>
+        <p className="max-w-xl text-xs text-neutral-300/90">
+          Unlock full-season fantasy ledgers, advanced hit-rate bands and deep role filters for
+          every player.
+        </p>
+        <Button
+          size="lg"
+          className="mt-1 rounded-full bg-yellow-400 px-7 py-2 text-sm font-semibold text-black shadow-[0_0_40px_rgba(250,204,21,0.9)] hover:bg-yellow-300"
+        >
+          Unlock Neeko+ Insights
+        </Button>
+        <button
+          type="button"
+          className="mt-1 text-xs font-medium text-yellow-200/90 underline-offset-4 hover:underline"
+        >
+          View full AI analysis →
+        </button>
       </div>
     </section>
   );
-}
+};
+
+// -----------------------------------------------------------------------------
+// Locked filter chip
+// -----------------------------------------------------------------------------
+
+type LockedFilterProps = {
+  label: string;
+  value: string;
+};
+
+const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => {
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</span>
+      <span className="text-[11px] text-neutral-100">{value}</span>
+      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
+        <Lock className="h-3 w-3 text-yellow-300" />
+        Neeko+
+      </span>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Desktop Full Table
+// -----------------------------------------------------------------------------
+
+type DesktopTableProps = {
+  players: PlayerRow[];
+  expandedPlayerId: number | null;
+  onToggleExpand: (id: number) => void;
+};
+
+const DesktopFullTable: React.FC<DesktopTableProps> = ({
+  players,
+  expandedPlayerId,
+  onToggleExpand,
+}) => {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/80">
+      <div className="overflow-x-auto">
+        <div className="min-w-[1200px]">
+          {/* Sticky columns header */}
+          <div className="sticky top-0 z-30 flex bg-black/85 backdrop-blur-sm">
+            {/* Player header (sticky left) */}
+            <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 border-b border-neutral-800/80 bg-black/90 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+              <span className="w-6 text-[10px] text-neutral-500">#</span>
+              <span>Player</span>
+            </div>
+
+            {/* Round headers */}
+            <div className="flex flex-1 border-b border-neutral-800/80 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+              <HeaderCell label="OR" />
+              {ROUND_LABELS.map((label) => (
+                <HeaderCell key={label} label={label} />
+              ))}
+              <HeaderCell label="Min" />
+              <HeaderCell label="Max" />
+              <HeaderCell label="Avg" />
+              <HeaderCell label="Total" wide />
+              <HeaderCell label="90+" accent />
+              <HeaderCell label="95+" accent />
+              <HeaderCell label="100+" accent />
+              <HeaderCell label="105+" accent />
+              <HeaderCell label="110+" accent />
+            </div>
+          </div>
+
+          {/* Body rows */}
+          <div className="divide-y divide-neutral-900/80">
+            {players.map((player, index) => {
+              const isExpanded = expandedPlayerId === player.id;
+              return (
+                <React.Fragment key={player.id}>
+                  <div
+                    className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
+                      isExpanded ? "bg-yellow-500/5" : "hover:bg-neutral-900/80"
+                    }`}
+                  >
+                    {/* Player cell (sticky) */}
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpand(player.id)}
+                      className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/95 via-black/90 to-black/70 px-4 py-2.5 text-left"
+                    >
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                        {index + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-medium text-neutral-50">
+                          {player.name}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                          {player.team} • {player.role}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                      ) : (
+                        <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                      )}
+                    </button>
+
+                    {/* Rounds & metrics */}
+                    <div className="flex flex-1 items-center text-center text-[11px]">
+                      <BodyCell value={player.orScore} />
+                      {player.rounds.map((score, idx) => (
+                        <BodyCell key={idx} value={score} />
+                      ))}
+                      <BodyCell value={player.min} dim />
+                      <BodyCell value={player.max} />
+                      <BodyCell value={player.avg.toFixed(1)} />
+                      <BodyCell value={player.total} strong />
+                      <HitRateCell value={player.hitRates.band90} />
+                      <HitRateCell value={player.hitRates.band95} />
+                      <HitRateCell value={player.hitRates.band100} />
+                      <HitRateCell value={player.hitRates.band105} />
+                      <HitRateCell value={player.hitRates.band110} />
+                    </div>
+                  </div>
+
+                  {/* Expanded panel */}
+                  {isExpanded && (
+                    <div className="border-t border-neutral-800/80 bg-gradient-to-r from-yellow-500/5 via-transparent to-transparent px-4 py-4">
+                      <div className="flex gap-4">
+                        {/* Confidence index card */}
+                        <div className="w-full max-w-sm rounded-2xl border border-yellow-500/30 bg-gradient-to-b from-yellow-500/25 via-black to-black px-4 py-4 text-xs text-neutral-50 shadow-[0_0_32px_rgba(250,204,21,0.7)]">
+                          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
+                            <span>Confidence Index</span>
+                            <span>{Math.max(player.hitRates.band100, 78)}%</span>
+                          </div>
+                          <p className="mt-2 text-[11px] text-neutral-100/90">
+                            Confidence blends hit-rate bands, volatility spread and number of games
+                            played in this lens.
+                          </p>
+                          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/40">
+                            <div
+                              className="h-full rounded-full bg-lime-400"
+                              style={{
+                                width: `${Math.max(player.hitRates.band100, 78)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* L5 trajectory mini sparkline placeholder */}
+                        <div className="hidden flex-1 rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/90 via-black to-black px-4 py-4 text-xs text-neutral-200 md:flex">
+                          <div className="flex w-full flex-col justify-between">
+                            <div className="flex items-center justify-between text-[11px] text-neutral-300">
+                              <span className="uppercase tracking-[0.18em] text-neutral-500">
+                                L5 Trajectory
+                              </span>
+                              <span className="text-neutral-200">
+                                Avg{" "}
+                                <span className="font-semibold text-yellow-200">
+                                  {player.rounds.slice(-5).reduce((a, b) => a + b, 0) / 5 || 0}
+                                </span>
+                              </span>
+                            </div>
+                            <div className="mt-3 h-20 w-full rounded-xl bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.2),_transparent_55%),_linear-gradient(to_bottom,_rgba(24,24,27,1),_rgba(0,0,0,1))]">
+                              {/* simple sparkline using CSS border; real chart can replace */}
+                              <div className="relative h-full w-full">
+                                <div className="absolute inset-3 rounded-lg border border-yellow-500/20" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Show 20 more rows */}
+      <div className="border-t border-neutral-900/80 bg-black/80 py-4 text-center">
+        <Button
+          variant="outline"
+          className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+        >
+          Show 20 more rows
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Desktop Compact Table
+// -----------------------------------------------------------------------------
+
+const DesktopCompactTable: React.FC<DesktopTableProps> = ({
+  players,
+  expandedPlayerId,
+  onToggleExpand,
+}) => {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/80">
+      <div className="overflow-x-auto">
+        <div className="min-w-[900px]">
+          {/* Sticky header */}
+          <div className="sticky top-0 z-30 flex bg-black/85 backdrop-blur-sm">
+            {/* Player header */}
+            <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 border-b border-neutral-800/80 bg-black/90 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+              <span className="w-6 text-[10px] text-neutral-500">#</span>
+              <span>Player</span>
+            </div>
+
+            {/* Summary headers */}
+            <div className="flex flex-1 border-b border-neutral-800/80 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+              <HeaderCell label="Min" />
+              <HeaderCell label="Max" />
+              <HeaderCell label="Avg" />
+              <HeaderCell label="Total" wide />
+              <HeaderCell label="90+" accent />
+              <HeaderCell label="95+" accent />
+              <HeaderCell label="100+" accent />
+              <HeaderCell label="105+" accent />
+              <HeaderCell label="110+" accent />
+              <HeaderCell label="L5" wide />
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="divide-y divide-neutral-900/80">
+            {players.map((player, index) => {
+              const isExpanded = expandedPlayerId === player.id;
+              const last5 = player.rounds.slice(-5);
+              const last5Avg =
+                last5.length > 0
+                  ? Math.round((last5.reduce((a, b) => a + b, 0) / last5.length) * 10) / 10
+                  : 0;
+
+              return (
+                <React.Fragment key={player.id}>
+                  <div
+                    className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
+                      isExpanded ? "bg-yellow-500/5" : "hover:bg-neutral-900/80"
+                    }`}
+                  >
+                    {/* Player cell (sticky) */}
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpand(player.id)}
+                      className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/95 via-black/90 to-black/70 px-4 py-2.5 text-left"
+                    >
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                        {index + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-medium text-neutral-50">
+                          {player.name}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                          {player.team} • {player.role}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                      ) : (
+                        <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                      )}
+                    </button>
+
+                    {/* Summary metrics */}
+                    <div className="flex flex-1 items-center text-center text-[11px]">
+                      <BodyCell value={player.min} dim />
+                      <BodyCell value={player.max} />
+                      <BodyCell value={player.avg.toFixed(1)} />
+                      <BodyCell value={player.total} strong />
+                      <HitRateCell value={player.hitRates.band90} />
+                      <HitRateCell value={player.hitRates.band95} />
+                      <HitRateCell value={player.hitRates.band100} />
+                      <HitRateCell value={player.hitRates.band105} />
+                      <HitRateCell value={player.hitRates.band110} />
+                      <BodyCell value={last5Avg.toFixed(1)} highlight />
+                    </div>
+                  </div>
+
+                  {/* Expanded panel – reuse same confidence card */}
+                  {isExpanded && (
+                    <div className="border-t border-neutral-800/80 bg-gradient-to-r from-yellow-500/5 via-transparent to-transparent px-4 py-4">
+                      <div className="w-full max-w-sm rounded-2xl border border-yellow-500/30 bg-gradient-to-b from-yellow-500/25 via-black to-black px-4 py-4 text-xs text-neutral-50 shadow-[0_0_32px_rgba(250,204,21,0.7)]">
+                        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
+                          <span>Confidence Index</span>
+                          <span>{Math.max(player.hitRates.band100, 78)}%</span>
+                        </div>
+                        <p className="mt-2 text-[11px] text-neutral-100/90">
+                          Confidence blends hit-rate bands, volatility spread and number of games
+                          played in this lens.
+                        </p>
+                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-black/40">
+                          <div
+                            className="h-full rounded-full bg-lime-400"
+                            style={{
+                              width: `${Math.max(player.hitRates.band100, 78)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-neutral-900/80 bg-black/80 py-4 text-center">
+        <Button
+          variant="outline"
+          className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+        >
+          Show 20 more rows
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Mobile layout
+// -----------------------------------------------------------------------------
+
+type MobileTableProps = {
+  players: PlayerRow[];
+};
+
+const MobileTable: React.FC<MobileTableProps> = ({ players }) => {
+  return (
+    <>
+      {players.map((player, index) => {
+        const rounds = player.rounds;
+        const last5 = rounds.slice(-5);
+        const last5Avg =
+          last5.length > 0
+            ? Math.round((last5.reduce((a, b) => a + b, 0) / last5.length) * 10) / 10
+            : 0;
+
+        return (
+          <div
+            key={player.id}
+            className="rounded-2xl border border-neutral-800/80 bg-neutral-950/90 p-4 text-xs text-neutral-100"
+          >
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                {index + 1}
+              </span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-medium text-neutral-50">{player.name}</span>
+                  <span className="text-[11px] text-yellow-200">
+                    {player.avg.toFixed(1)} avg
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
+                  <span className="uppercase tracking-[0.16em]">
+                    {player.team} • {player.role}
+                  </span>
+                  <span>
+                    {player.min}–{player.max} • {player.total} total
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hit-rate bands */}
+            <div className="mt-3 grid grid-cols-5 gap-1 text-[10px]">
+              <HitRatePill label="90+" value={player.hitRates.band90} />
+              <HitRatePill label="95+" value={player.hitRates.band95} />
+              <HitRatePill label="100+" value={player.hitRates.band100} />
+              <HitRatePill label="105+" value={player.hitRates.band105} />
+              <HitRatePill label="110+" value={player.hitRates.band110} />
+            </div>
+
+            {/* Rounds scroller */}
+            <div className="mt-3">
+              <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-400">
+                <span className="uppercase tracking-[0.16em]">Round ledger</span>
+                <span>L5: {last5Avg.toFixed(1)}</span>
+              </div>
+              <div className="flex gap-1 overflow-x-auto pb-1">
+                {rounds.map((score, idx) => (
+                  <div
+                    key={idx}
+                    className="min-w-[46px] rounded-md bg-neutral-900/90 px-2 py-1 text-center text-[10px]"
+                  >
+                    <div className="text-[9px] text-neutral-500">{ROUND_LABELS[idx]}</div>
+                    <div className="mt-0.5 text-[11px] text-neutral-100">{score}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="mt-4 text-center">
+        <Button
+          variant="outline"
+          className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-[11px] text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+        >
+          Show 20 more rows
+        </Button>
+      </div>
+    </>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Shared cell components
+// -----------------------------------------------------------------------------
+
+type HeaderCellProps = {
+  label: string;
+  wide?: boolean;
+  accent?: boolean;
+};
+
+const HeaderCell: React.FC<HeaderCellProps> = ({ label, wide, accent }) => (
+  <div
+    className={`flex items-center justify-center border-l border-neutral-900/80 px-2 py-3 ${
+      wide ? "min-w-[72px]" : "min-w-[52px]"
+    } ${accent ? "text-emerald-300" : ""}`}
+  >
+    {label}
+  </div>
+);
+
+type BodyCellProps = {
+  value: number | string;
+  dim?: boolean;
+  strong?: boolean;
+  highlight?: boolean;
+};
+
+const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, highlight }) => (
+  <div
+    className={`flex min-w-[52px] items-center justify-center border-l border-neutral-900/80 px-2 py-2.5 text-[11px] ${
+      dim ? "text-neutral-400" : "text-neutral-100"
+    } ${strong ? "font-semibold text-neutral-50" : ""} ${
+      highlight ? "font-semibold text-yellow-200" : ""
+    }`}
+  >
+    {value}
+  </div>
+);
+
+type HitRateCellProps = {
+  value: number;
+};
+
+const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => {
+  const intensity = value >= 90 ? "text-emerald-300" : value >= 70 ? "text-emerald-200" : "text-emerald-100/80";
+  const bg =
+    value >= 90
+      ? "bg-emerald-500/15"
+      : value >= 70
+      ? "bg-emerald-500/10"
+      : "bg-emerald-500/5";
+
+  return (
+    <div className="flex min-w-[52px] items-center justify-center border-l border-neutral-900/80 px-2 py-2.5">
+      <span
+        className={`inline-flex min-w-[44px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${intensity}`}
+      >
+        {value}%
+      </span>
+    </div>
+  );
+};
+
+type HitRatePillProps = {
+  label: string;
+  value: number;
+};
+
+const HitRatePill: React.FC<HitRatePillProps> = ({ label, value }) => (
+  <div className="flex flex-col items-center justify-center rounded-lg bg-neutral-900/90 px-2 py-1 text-[10px]">
+    <span className="text-[9px] text-neutral-500">{label}</span>
+    <span className="mt-0.5 text-[11px] font-semibold text-emerald-300">{value}%</span>
+  </div>
+);
+
+export default MasterTable;
