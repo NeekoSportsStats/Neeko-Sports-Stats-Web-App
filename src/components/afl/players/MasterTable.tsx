@@ -22,7 +22,7 @@ type PlayerRow = {
   name: string;
   team: string;
   role: string;
-  orScore: number; // Opening rating
+  orScore: number;
   rounds: number[]; // R1–R23
   min: number;
   max: number;
@@ -57,7 +57,7 @@ const ROUND_LABELS = [
   "R23",
 ];
 
-// Simple mock data
+// simple mock data
 const MOCK_PLAYERS: PlayerRow[] = Array.from({ length: 40 }).map((_, index) => {
   const base = 85 + (index % 10);
   const rounds = ROUND_LABELS.map(() => base + Math.round(Math.random() * 20 - 10));
@@ -231,21 +231,19 @@ type LockedFilterProps = {
   value: string;
 };
 
-const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => {
-  return (
-    <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/75 px-3 py-1">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</span>
-      <span className="text-[11px] text-neutral-100">{value}</span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
-        <Lock className="h-3 w-3 text-yellow-300" />
-        Neeko+
-      </span>
-    </div>
-  );
-};
+const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => (
+  <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/75 px-3 py-1">
+    <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</span>
+    <span className="text-[11px] text-neutral-100">{value}</span>
+    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
+      <Lock className="h-3 w-3 text-yellow-300" />
+      Neeko+
+    </span>
+  </div>
+);
 
 // -----------------------------------------------------------------------------
-// Desktop Full Table
+// Desktop Full Table (with Option 1 floating dropdown)
 // -----------------------------------------------------------------------------
 
 type DesktopTableProps = {
@@ -295,162 +293,158 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
               const isExpanded = expandedPlayerId === player.id;
 
               return (
-                <React.Fragment key={player.id}>
-                  {/* Wrapper gives relative context for overlay */}
-                  <div className="relative">
-                    {/* Base row */}
-                    <div
-                      className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                      }`}
+                <div key={player.id} className="relative">
+                  {/* Base row */}
+                  <div
+                    className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
+                      isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                    }`}
+                  >
+                    {/* Player sticky cell */}
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpand(player.id)}
+                      className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
                     >
-                      {/* Player sticky cell */}
-                      <button
-                        type="button"
-                        onClick={() => onToggleExpand(player.id)}
-                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                          {index + 1}
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                        {index + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-medium text-neutral-50">
+                          {player.name}
                         </span>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                          {player.team} • {player.role}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                      ) : (
+                        <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                      )}
+                    </button>
+
+                    {/* Rounds & metrics */}
+                    <div className="flex flex-1 items-center text-center text-[11px]">
+                      <BodyCell value={player.orScore} />
+                      {player.rounds.map((score, idx) => (
+                        <BodyCell key={idx} value={score} />
+                      ))}
+                      <BodyCell value={player.min} dim />
+                      <BodyCell value={player.max} />
+                      <BodyCell value={player.avg.toFixed(1)} />
+                      <BodyCell value={player.total} strong />
+                      <HitRateCell value={player.hitRates.band90} />
+                      <HitRateCell value={player.hitRates.band95} />
+                      <HitRateCell value={player.hitRates.band100} />
+                      <HitRateCell value={player.hitRates.band105} />
+                      <HitRateCell value={player.hitRates.band110} />
+                    </div>
+                  </div>
+
+                  {/* Option 1 floating dropdown (does NOT push rows) */}
+                  {isExpanded && (
+                    <div
+                      className="
+                        absolute
+                        left-[16rem]   /* matches w-64 player column */
+                        right-0
+                        top-full
+                        z-30
+                        mt-0.5
+                        rounded-xl
+                        border border-neutral-800/70
+                        bg-neutral-950/92
+                        backdrop-blur-[4px]
+                        shadow-[0_0_50px_rgba(0,0,0,0.65)]
+                        px-4
+                        py-4
+                        space-y-4
+                      "
+                    >
+                      {/* CONFIDENCE INDEX (top-right) */}
+                      <div className="flex justify-end">
+                        <div
+                          className="
+                            w-[260px]
+                            rounded-lg
+                            border border-yellow-400/35
+                            bg-gradient-to-b from-yellow-500/20 via-black to-black
+                            shadow-[0_0_25px_rgba(250,204,21,0.45)]
+                            p-4
+                          "
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.15em] text-yellow-100">
+                            <span>Confidence Index</span>
+                            <span>{Math.max(player.hitRates.band100, 78)}%</span>
+                          </div>
+
+                          <p className="mt-2 text-[10px] text-neutral-200 leading-snug">
+                            Confidence blends hit-rate consistency, volatility window and games
+                            played at this scoring lens.
+                          </p>
+
+                          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
+                            <div
+                              className="h-full rounded-full bg-lime-400"
+                              style={{
+                                width: `${Math.max(player.hitRates.band100, 78)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* AI PERFORMANCE SUMMARY */}
+                      <div className="rounded-lg border border-neutral-800/60 bg-neutral-900/70 px-4 py-3 shadow-inner">
+                        <div className="mb-1 text-[11px] font-semibold text-yellow-200">
+                          AI Performance Summary
+                        </div>
+                        <p className="text-[10.5px] text-neutral-300 leading-snug">
+                          AI highlights trend momentum, role-driven scoring shifts and expected
+                          stability across the upcoming rounds.
+                        </p>
+                        <button
+                          type="button"
+                          className="mt-2 text-[11px] font-semibold text-yellow-300 underline underline-offset-2 hover:text-yellow-200"
+                        >
+                          View full AI analysis →
+                        </button>
+                      </div>
+
+                      {/* L5 TRAJECTORY PANEL */}
+                      <div className="rounded-lg border border-neutral-800/70 bg-gradient-to-b from-neutral-900/80 via-black to-black p-4">
+                        <div className="mb-2 flex items-center justify-between text-[10px] text-neutral-400">
+                          <span className="uppercase tracking-[0.15em]">L5 Trajectory</span>
+                          <span className="text-yellow-200 font-medium">
+                            Avg{" "}
+                            {(
+                              player.rounds
+                                .slice(-5)
+                                .reduce((a, b) => a + b, 0) /
+                              Math.max(player.rounds.slice(-5).length, 1)
+                            ).toFixed(1)}
                           </span>
                         </div>
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                        )}
-                      </button>
 
-                      {/* Rounds & metrics */}
-                      <div className="flex flex-1 items-center text-center text-[11px]">
-                        <BodyCell value={player.orScore} />
-                        {player.rounds.map((score, idx) => (
-                          <BodyCell key={idx} value={score} />
-                        ))}
-                        <BodyCell value={player.min} dim />
-                        <BodyCell value={player.max} />
-                        <BodyCell value={player.avg.toFixed(1)} />
-                        <BodyCell value={player.total} strong />
-                        <HitRateCell value={player.hitRates.band90} />
-                        <HitRateCell value={player.hitRates.band95} />
-                        <HitRateCell value={player.hitRates.band100} />
-                        <HitRateCell value={player.hitRates.band105} />
-                        <HitRateCell value={player.hitRates.band110} />
+                        <div
+                          className="
+                            h-20
+                            w-full
+                            rounded-md
+                            border border-yellow-500/20
+                            bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),_transparent_60%),_linear-gradient(to_bottom,_rgb(22,22,22),_rgb(0,0,0))]
+                          "
+                        >
+                          {/* placeholder sparkline; swap for real chart later */}
+                          <div className="relative h-full w-full">
+                            <div className="absolute inset-3 rounded-sm border border-yellow-500/20" />
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Floating expanded overlay – DOES NOT push rows */}
-                    {isExpanded && (
-                      <div
-                        className="
-                          absolute 
-                          left-0 
-                          right-0 
-                          top-full 
-                          z-30 
-                          mt-1
-                          rounded-xl 
-                          bg-gradient-to-b 
-                          from-black/85 
-                          via-neutral-950/95 
-                          to-black/95
-                          border 
-                          border-neutral-800/80
-                          backdrop-blur-md
-                          shadow-[0_0_60px_rgba(0,0,0,0.9)]
-                          p-4 
-                          space-y-4
-                        "
-                      >
-                        {/* TOP: confidence card on the right */}
-                        <div className="flex justify-end">
-                          <div
-                            className="
-                              w-[260px] 
-                              rounded-xl 
-                              border border-yellow-400/35 
-                              bg-gradient-to-b from-yellow-500/22 via-black to-black 
-                              p-4 
-                              shadow-[0_0_25px_rgba(250,204,21,0.65)]
-                            "
-                          >
-                            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
-                              <span>Confidence Index</span>
-                              <span>{Math.max(player.hitRates.band100, 78)}%</span>
-                            </div>
-
-                            <p className="mt-2 text-[11px] text-neutral-200 leading-snug">
-                              Confidence blends hit-rate consistency, volatility spread and games
-                              played at this stat lens.
-                            </p>
-
-                            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
-                              <div
-                                className="h-full rounded-full bg-lime-400"
-                                style={{
-                                  width: `${Math.max(player.hitRates.band100, 78)}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* MIDDLE: AI analysis preview */}
-                        <div className="rounded-lg border border-neutral-800/80 bg-neutral-900/70 px-4 py-3 shadow-inner">
-                          <div className="mb-1 text-xs font-medium text-yellow-200">
-                            AI Performance Summary
-                          </div>
-                          <p className="text-[11px] text-neutral-300 leading-snug">
-                            AI highlights trend momentum, role-driven scoring shifts and expected
-                            stability across the upcoming rounds for this player.
-                          </p>
-                          <button
-                            type="button"
-                            className="mt-2 text-[11px] font-semibold text-yellow-300 underline underline-offset-2 hover:text-yellow-200"
-                          >
-                            View full AI analysis →
-                          </button>
-                        </div>
-
-                        {/* BOTTOM: L5 trajectory panel */}
-                        <div className="rounded-xl border border-neutral-800/75 bg-gradient-to-b from-neutral-900/80 via-black to-black p-4">
-                          <div className="mb-2 flex items-center justify-between text-[11px] text-neutral-400">
-                            <span className="uppercase tracking-[0.16em]">L5 Trajectory</span>
-                            <span className="text-yellow-200 font-medium">
-                              Avg{" "}
-                              {(
-                                player.rounds
-                                  .slice(-5)
-                                  .reduce((a, b) => a + b, 0) / Math.max(player.rounds.slice(-5).length, 1)
-                              ).toFixed(1)}
-                            </span>
-                          </div>
-                          <div
-                            className="
-                              h-20 
-                              w-full 
-                              rounded-lg 
-                              border border-yellow-500/25 
-                              bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.22),_transparent_55%),_linear-gradient(to_bottom,_rgba(24,24,27,1),_rgba(0,0,0,1))]
-                            "
-                          >
-                            {/* Replace with real sparkline chart later */}
-                            <div className="relative h-full w-full">
-                              <div className="absolute inset-3 rounded-md border border-yellow-500/25" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </React.Fragment>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -491,7 +485,7 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
               <span>Player</span>
             </div>
 
-            {/* Summary header */}
+            {/* Summary headers */}
             <div className="flex flex-1 border-b border-neutral-800/80 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
               <HeaderCell label="Min" />
               <HeaderCell label="Max" />
@@ -517,97 +511,91 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
                   : 0;
 
               return (
-                <React.Fragment key={player.id}>
-                  <div className="relative">
-                    <div
-                      className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                      }`}
+                <div key={player.id} className="relative">
+                  <div
+                    className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
+                      isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                    }`}
+                  >
+                    {/* Player cell */}
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpand(player.id)}
+                      className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
                     >
-                      {/* Player cell */}
-                      <button
-                        type="button"
-                        onClick={() => onToggleExpand(player.id)}
-                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                          {index + 1}
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                        {index + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-medium text-neutral-50">
+                          {player.name}
                         </span>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
-                          </span>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                        )}
-                      </button>
-
-                      <div className="flex flex-1 items-center text-center text-[11px]">
-                        <BodyCell value={player.min} dim />
-                        <BodyCell value={player.max} />
-                        <BodyCell value={player.avg.toFixed(1)} />
-                        <BodyCell value={player.total} strong />
-                        <HitRateCell value={player.hitRates.band90} />
-                        <HitRateCell value={player.hitRates.band95} />
-                        <HitRateCell value={player.hitRates.band100} />
-                        <HitRateCell value={player.hitRates.band105} />
-                        <HitRateCell value={player.hitRates.band110} />
-                        <BodyCell value={last5Avg.toFixed(1)} highlight />
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                          {player.team} • {player.role}
+                        </span>
                       </div>
-                    </div>
+                      {isExpanded ? (
+                        <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                      ) : (
+                        <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                      )}
+                    </button>
 
-                    {/* Small confidence overlay reused for compact view */}
-                    {isExpanded && (
-                      <div
-                        className="
-                          absolute 
-                          left-0 
-                          right-0 
-                          top-full 
-                          z-30 
-                          mt-1
-                          rounded-xl 
-                          bg-gradient-to-b 
-                          from-black/88 
-                          via-neutral-950/95 
-                          to-black/95
-                          border 
-                          border-neutral-800/80
-                          backdrop-blur-md
-                          shadow-[0_0_60px_rgba(0,0,0,0.9)]
-                          p-4 
-                        "
-                      >
-                        <div className="flex justify-end">
-                          <div className="w-[260px] rounded-xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/22 via-black to-black p-4 shadow-[0_0_25px_rgba(250,204,21,0.65)]">
-                            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
-                              <span>Confidence Index</span>
-                              <span>{Math.max(player.hitRates.band100, 78)}%</span>
-                            </div>
-                            <p className="mt-2 text-[11px] text-neutral-200 leading-snug">
-                              Confidence blends hit-rate consistency and volatility profile in this
-                              lens.
-                            </p>
-                            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
-                              <div
-                                className="h-full rounded-full bg-lime-400"
-                                style={{
-                                  width: `${Math.max(player.hitRates.band100, 78)}%`,
-                                }}
-                              />
-                            </div>
+                    {/* Summary metrics */}
+                    <div className="flex flex-1 items-center text-center text-[11px]">
+                      <BodyCell value={player.min} dim />
+                      <BodyCell value={player.max} />
+                      <BodyCell value={player.avg.toFixed(1)} />
+                      <BodyCell value={player.total} strong />
+                      <HitRateCell value={player.hitRates.band90} />
+                      <HitRateCell value={player.hitRates.band95} />
+                      <HitRateCell value={player.hitRates.band100} />
+                      <HitRateCell value={player.hitRates.band105} />
+                      <HitRateCell value={player.hitRates.band110} />
+                      <BodyCell value={last5Avg.toFixed(1)} highlight />
+                    </div>
+                  </div>
+
+                  {/* small CI overlay for compact mode */}
+                  {isExpanded && (
+                    <div
+                      className="
+                        absolute
+                        left-[16rem]
+                        right-0
+                        top-full
+                        z-30
+                        mt-0.5
+                        rounded-lg
+                        border border-neutral-800/70
+                        bg-neutral-950/95
+                        backdrop-blur-[4px]
+                        shadow-[0_0_40px_rgba(0,0,0,0.65)]
+                        p-4
+                      "
+                    >
+                      <div className="flex justify-end">
+                        <div className="w-[260px] rounded-lg border border-yellow-400/35 bg-gradient-to-b from-yellow-500/20 via-black to-black p-4 shadow-[0_0_25px_rgba(250,204,21,0.55)]">
+                          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.15em] text-yellow-100">
+                            <span>Confidence Index</span>
+                            <span>{Math.max(player.hitRates.band100, 78)}%</span>
+                          </div>
+                          <p className="mt-2 text-[10px] text-neutral-200 leading-snug">
+                            Confidence blends hit-rate and volatility profile at this lens.
+                          </p>
+                          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
+                            <div
+                              className="h-full rounded-full bg-lime-400"
+                              style={{
+                                width: `${Math.max(player.hitRates.band100, 78)}%`,
+                              }}
+                            />
                           </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </React.Fragment>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -627,7 +615,7 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
 };
 
 // -----------------------------------------------------------------------------
-// Mobile layout (cards + horizontal rounds scroller)
+// Mobile layout
 // -----------------------------------------------------------------------------
 
 type MobileTableProps = {
@@ -701,13 +689,13 @@ const MobileTable: React.FC<MobileTableProps> = ({ players }) => {
               </div>
             </div>
 
-            {/* Tiny AI line to keep parity */}
+            {/* AI summary inline for mobile */}
             <div className="mt-3 rounded-lg border border-neutral-800/70 bg-neutral-900/70 px-3 py-2 text-[11px] text-neutral-300">
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-200">
                 AI Performance Summary
               </div>
               <p className="leading-snug">
-                Quick read on role, form stability and scoring outlook.
+                Quick AI read on role, form stability and scoring outlook.
               </p>
               <button
                 type="button"
@@ -733,7 +721,7 @@ const MobileTable: React.FC<MobileTableProps> = ({ players }) => {
 };
 
 // -----------------------------------------------------------------------------
-// Shared header/body cells
+// Shared cells
 // -----------------------------------------------------------------------------
 
 type HeaderCellProps = {
