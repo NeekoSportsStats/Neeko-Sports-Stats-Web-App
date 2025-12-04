@@ -1,59 +1,110 @@
 // src/components/afl/players/AIInsights.tsx
-import React from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Crown, BrainCircuit } from "lucide-react";
+import {
+  BrainCircuit,
+  ChevronRight,
+} from "lucide-react";
+
+import {
+  useAFLMockPlayers,
+  lastN,
+  average,
+  stdDev,
+  getSeriesForStat,
+} from "@/components/afl/players/useAFLMockData";
 
 /* ---------------------------------------------------------
-   CONFIG — Blur OFF for development
+   Core AI Prediction Logic (Simple but premium-feeling)
 --------------------------------------------------------- */
-const BLUR_ENABLED = false; // set to TRUE when premium gating is ready
+
+function computePrediction(series: number[]) {
+  const l5 = lastN(series, 5);
+  const avgL5 = average(l5);
+  const avgSeason = average(series);
+  const vol = stdDev(l5) || 1;
+
+  const predicted =
+    avgL5 * 0.5 +
+    avgSeason * 0.3 +
+    (avgL5 - vol) * 0.2;
+
+  const range = vol * 2;
+
+  const hotProb = Math.max(
+    0,
+    Math.min(100, ((avgL5 - avgSeason) / avgSeason) * 100 + 50)
+  );
+
+  const coldProb = 100 - hotProb;
+
+  const stability = Math.max(
+    0,
+    Math.min(100, 100 - vol * 8)
+  );
+
+  return {
+    predicted,
+    range,
+    hotProb,
+    coldProb,
+    stability,
+    vol,
+    series: l5,
+  };
+}
 
 /* ---------------------------------------------------------
-   HELPER — Generate a pulse-gradient sparkline path
+   Gradient Pulse Sparkline Component
 --------------------------------------------------------- */
-function Sparkline({ values }: { values: number[] }) {
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const norm = values.map((v) => ((v - min) / (max - min || 1)) * 40);
 
-  const step = 50 / (values.length - 1);
+function GradientSparkline({ data }: { data: number[] }) {
+  if (!data.length) return null;
 
-  const path = norm
-    .map((v, i) => `${i * step},${40 - v}`)
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * 48;
+      const y = 24 - ((v - min) / (max - min || 1)) * 22;
+      return `${x},${y}`;
+    })
     .join(" ");
 
   return (
     <svg
-      width="50"
-      height="40"
-      viewBox="0 0 50 40"
+      width="48"
+      height="24"
+      viewBox="0 0 48 24"
       className="overflow-visible"
     >
-      <defs>
-        <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#fde047" />
-          <stop offset="50%" stopColor="#facc15" />
-          <stop offset="100%" stopColor="#eab308" />
-        </linearGradient>
-      </defs>
-
+      {/* Soft glow line */}
       <polyline
+        points={points}
         fill="none"
-        stroke="url(#pulseGradient)"
+        stroke="rgba(255,215,0,0.28)"
+        strokeWidth="5"
+        className="animate-pulse-slow"
+      />
+
+      {/* Main line */}
+      <polyline
+        points={points}
+        fill="none"
+        stroke="rgb(255,215,0)"
         strokeWidth="2"
-        points={path}
-        className="animate-pulse-spark"
       />
     </svg>
   );
 }
 
 /* ---------------------------------------------------------
-   HELPER — Confidence bar (0–100%)
+   Confidence Bar (0–100)
 --------------------------------------------------------- */
+
 function ConfidenceBar({ value }: { value: number }) {
   return (
-    <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+    <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden mt-2">
       <div
         className="h-full rounded-full bg-yellow-400 transition-all"
         style={{ width: `${value}%` }}
@@ -63,135 +114,128 @@ function ConfidenceBar({ value }: { value: number }) {
 }
 
 /* ---------------------------------------------------------
-   MOCK DATA — 10 rows
+   Row Card
 --------------------------------------------------------- */
 
-const mockAI = Array.from({ length: 10 }).map((_, i) => {
-  const base = 70 + Math.random() * 30;
-  const range = (Math.random() * 6 + 4).toFixed(1);
+function AIRowCard({
+  player,
+  prediction,
+  blur,
+}: {
+  player: any;
+  prediction: ReturnType<typeof computePrediction>;
+  blur: boolean;
+}) {
+  const low = prediction.predicted - prediction.range;
+  const high = prediction.predicted + prediction.range;
 
-  return {
-    id: i + 1,
-    name: `Player ${Math.floor(Math.random() * 60) + 1}`,
-    team: ["ESS", "MELB", "CARL", "RICH", "SYD", "PORT", "ADE", "FRE", "WBD"][
-      i % 9
-    ],
-    pos: ["MID", "DEF", "FWD", "RUC"][i % 4],
-    projection: `${base.toFixed(1)} ± ${range}`,
-    summary:
-      i % 3 === 0
-        ? "AI expects solid ball involvement with favourable usage projection and consistent midfield presence."
-        : i % 3 === 1
-        ? "Forecasting stable role with expected baseline scoring; matchup influence remains moderate."
-        : "Projected scoring window suggests balanced opportunity; volatility indicators within normal range.",
-    factors:
-      i % 2 === 0
-        ? ["Role stable", "Usage steady", "Neutral matchup"]
-        : ["CBA lift", "Transition chains", "Volatility normal"],
-    confidence: Math.floor(60 + Math.random() * 35), // 60–95%
-    spark: Array.from({ length: 8 }).map(() => Math.random() * 100),
-  };
-});
-
-/* ---------------------------------------------------------
-   AI ROW COMPONENT
---------------------------------------------------------- */
-
-function AIInsightRow({
-  name,
-  team,
-  pos,
-  projection,
-  summary,
-  factors,
-  spark,
-  confidence,
-}: any) {
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-white/10 p-4 md:p-5",
-        "bg-gradient-to-br from-[#0b0c0f] via-[#0d0e12] to-[#131318]",
-        "shadow-[0_0_35px_rgba(0,0,0,0.5)]",
-        "before:absolute before:inset-0 before:rounded-2xl before:animate-pulse-glow",
-        "before:bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.08),transparent_70%)]"
+        "relative rounded-2xl border border-white/10 bg-gradient-to-br from-[#101015] via-[#0c0c0f] to-[#0a0a0e] p-4 md:p-5 overflow-hidden",
+        "shadow-[0_0_40px_rgba(255,215,0,0.05)]"
       )}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-white font-semibold text-sm">
-            {name}{" "}
-            <span className="text-white/40 text-xs font-normal">
-              {team} • {pos}
-            </span>
-          </p>
-          <p className="mt-0.5 text-yellow-300 font-medium text-sm">
-            {projection}
-          </p>
+      {/* Animated soft pulse glow */}
+      <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 via-transparent to-yellow-500/5 blur-2xl animate-glow-pulse pointer-events-none" />
+
+      {/* Blur layer (disabled for dev) */}
+      <div className={cn(!blur ? "" : "blur-md opacity-40 select-none")}>
+        {/* Player + sparkline row */}
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {player.name}{" "}
+              <span className="text-white/50 text-xs">
+                {player.team} • {player.pos}
+              </span>
+            </p>
+
+            {/* Projection Header */}
+            <p className="text-[10px] uppercase tracking-wide text-white/40 mt-1">
+              Projection • L5 expected range
+            </p>
+
+            {/* Projection */}
+            <p className="text-lg font-semibold text-yellow-300 mt-0.5">
+              {prediction.predicted.toFixed(1)}{" "}
+              <span className="text-sm text-white/60">
+                ± {prediction.range.toFixed(1)}
+              </span>
+            </p>
+
+            <p className="text-[11px] text-white/40">
+              {low.toFixed(0)} → {high.toFixed(0)}
+            </p>
+          </div>
+
+          {/* Sparkline */}
+          <div className="flex flex-col items-end">
+            <GradientSparkline data={prediction.series} />
+            <p className="mt-1 text-[10px] text-white/35">
+              Recent scoring trend
+            </p>
+          </div>
         </div>
 
-        {/* Gradient pulse sparkline */}
-        <div className="pt-1">
-          <Sparkline values={spark} />
-        </div>
-      </div>
+        {/* Summary */}
+        <p className="text-sm text-white/70 mt-3 leading-relaxed">
+          AI expects solid ball involvement with favourable usage projection,
+          consistent volatility profile and stable role continuity.
+        </p>
 
-      {/* Summary */}
-      <p className="mt-2 text-[13px] text-white/70 leading-relaxed">{summary}</p>
-
-      {/* Tags */}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {factors.map((f: string, i: number) => (
-          <span
-            key={i}
-            className="rounded-full border border-white/10 bg-white/5 text-[11px] px-2.5 py-1 text-white/50"
-          >
-            {f}
+        {/* Tags */}
+        <div className="flex flex-wrap gap-2 mt-3">
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/60">
+            Role stable
           </span>
-        ))}
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/60">
+            Usage steady
+          </span>
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/60">
+            Neutral matchup
+          </span>
+        </div>
+
+        {/* Confidence */}
+        <p className="text-[10px] uppercase tracking-wide text-white/40 mt-3">
+          Confidence Index
+        </p>
+        <ConfidenceBar value={prediction.stability} />
       </div>
 
-      {/* Confidence Bar */}
-      <ConfidenceBar value={confidence} />
+      {/* Premium overlay placeholder (blur disabled) */}
+      {false && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-xl flex flex-col items-center justify-center rounded-2xl border border-yellow-500/40">
+          <p className="text-yellow-200 text-sm px-6 text-center">
+            Unlock full Neeko+ AI insights
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ---------------------------------------------------------
-   PREMIUM OVERLAY
---------------------------------------------------------- */
-
-function PremiumOverlay() {
-  return (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 backdrop-blur-xl bg-black/70 rounded-2xl border border-yellow-500/40 shadow-[0_0_45px_rgba(250,204,21,0.35)]">
-      <Crown className="h-10 w-10 text-yellow-300 drop-shadow-[0_0_15px_rgba(250,204,21,0.9)]" />
-      <p className="max-w-xs text-center text-sm text-yellow-200/90 leading-relaxed">
-        Unlock full AI projections, role signals, usage forecasting and
-        matchup-driven intelligence.
-      </p>
-      <a
-        href="/sports/afl/ai-analysis"
-        className="rounded-full bg-yellow-400 px-6 py-2 text-sm font-semibold text-black shadow-[0_0_25px_rgba(250,204,21,0.45)] hover:brightness-110 transition"
-      >
-        Unlock Neeko+ Insights
-      </a>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------
-   MAIN COMPONENT — 10 rows (3 free + blurred rest)
+   Main Component
 --------------------------------------------------------- */
 
 export default function AIInsights() {
-  const free = mockAI.slice(0, 3);
-  const premium = mockAI.slice(3);
+  const players = useAFLMockPlayers();
+
+  const rows = useMemo(() => {
+    return players.slice(0, 6).map((p) => ({
+      player: p,
+      prediction: computePrediction(
+        getSeriesForStat(p, "fantasy")
+      ),
+    }));
+  }, [players]);
 
   return (
     <section
       id="ai-insights"
-      className="relative mt-12 rounded-3xl border border-white/10 bg-gradient-to-br from-[#050507] via-[#08080a] to-[#111016] px-4 py-6 md:px-6 md:py-8 shadow-[0_0_90px_rgba(0,0,0,0.75)]"
+      className="relative mt-12 rounded-3xl border border-white/10 bg-gradient-to-br from-[#09090a] via-[#050506] to-[#0a0a0e] px-4 py-8 md:px-6 md:py-10 shadow-[0_0_70px_rgba(0,0,0,0.65)]"
     >
       {/* Header */}
       <div className="space-y-1.5 mb-6">
@@ -199,51 +243,51 @@ export default function AIInsights() {
           <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
           <span className="uppercase tracking-[0.18em]">AI Insights</span>
         </div>
+
         <h2 className="text-xl font-semibold md:text-2xl">
           AI Projection • Usage Forecast • Role Signals
         </h2>
-        <p className="text-xs md:text-sm text-white/70 max-w-xl">
-          Next-round expectations predicted by Neeko AI — combining role
-          tendencies, matchup profiles and volatility pathways.
+
+        <p className="max-w-xl text-xs text-white/70 md:text-sm">
+          Next-round expectations predicted by Neeko AI — combining role tendencies,
+          matchup profiles and volatility pathways.
         </p>
       </div>
 
-      {/* Free rows */}
+      {/* Row List */}
       <div className="space-y-4">
-        {free.map((p) => (
-          <AIInsightRow key={p.id} {...p} />
+        {/* First 3 = Free */}
+        {rows.slice(0, 3).map((row, i) => (
+          <AIRowCard
+            key={i}
+            player={row.player}
+            prediction={row.prediction}
+            blur={false}
+          />
+        ))}
+
+        <p className="text-[11px] text-white/35 italic">
+          (Blur disabled for development preview)
+        </p>
+
+        {/* Next 3 = Premium (blur ON later) */}
+        {rows.slice(3).map((row, i) => (
+          <AIRowCard
+            key={i}
+            player={row.player}
+            prediction={row.prediction}
+            blur={false} // ← enable later
+          />
         ))}
       </div>
 
-      {/* Premium rows (blurred) */}
-      <div className="relative mt-8">
-        {!BLUR_ENABLED && (
-          <p className="mb-2 text-[11px] text-white/30 italic">
-            (Blur disabled for development preview)
-          </p>
-        )}
-
-        {BLUR_ENABLED && <PremiumOverlay />}
-
-        <div
-          className={cn(
-            "rounded-2xl border border-white/10 p-4 md:p-5 space-y-4 bg-black/40 backdrop-blur-xl",
-            BLUR_ENABLED && "blur-sm opacity-40 select-none"
-          )}
-        >
-          {premium.map((p) => (
-            <AIInsightRow key={p.id} {...p} />
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom link */}
-      <div className="mt-6 text-center">
+      {/* CTA */}
+      <div className="mt-8 flex justify-center">
         <a
           href="/sports/afl/ai-analysis"
-          className="text-sm font-medium text-yellow-300 hover:text-yellow-200 transition"
+          className="text-sm font-semibold text-yellow-300 hover:text-yellow-200 transition flex items-center gap-1"
         >
-          View full AI Analysis →
+          View full AI Analysis <ChevronRight className="h-4 w-4" />
         </a>
       </div>
     </section>
@@ -251,32 +295,29 @@ export default function AIInsights() {
 }
 
 /* ---------------------------------------------------------
-   GLOBAL ANIMATIONS (sparkline pulse + glow)
+   Animations
 --------------------------------------------------------- */
-const styles = `
-@keyframes pulse-glow {
-  0% { opacity: 0.35; }
-  50% { opacity: 0.55; }
-  100% { opacity: 0.35; }
+
+const style = document.createElement("style");
+style.innerHTML = `
+@keyframes glow-pulse {
+  0% { opacity: 0.25; }
+  50% { opacity: 0.6; }
+  100% { opacity: 0.25; }
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 4.5s ease-in-out infinite;
+.animate-glow-pulse {
+  animation: glow-pulse 6s ease-in-out infinite;
 }
 
-@keyframes sparkPulse {
-  0% { stroke-opacity: 0.5; }
-  50% { stroke-opacity: 1; }
-  100% { stroke-opacity: 0.5; }
+@keyframes pulse-slow {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
 }
 
-.animate-pulse-spark {
-  animation: sparkPulse 2.4s ease-in-out infinite;
+.animate-pulse-slow {
+  animation: pulse-slow 3.5s ease-in-out infinite;
 }
 `;
-
-if (typeof document !== "undefined") {
-  const styleTag = document.createElement("style");
-  styleTag.innerHTML = styles;
-  document.head.appendChild(styleTag);
-}
+document.head.appendChild(style);
