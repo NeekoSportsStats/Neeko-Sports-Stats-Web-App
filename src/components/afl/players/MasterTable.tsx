@@ -1,23 +1,23 @@
 // src/components/afl/players/MasterTable.tsx
 import React, { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { BrainCircuit, Filter, Lock } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Crown,
+  Filter,
+  LineChart,
+} from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import {
   useAFLMockPlayers,
   getSeriesForStat,
-  lastN,
-  average,
-  stdDev,
   StatKey,
 } from "@/components/afl/players/useAFLMockData";
 
-/**
- * TEMP: Gating flag.
- * Replace later with: const { isPremium } = useAuth();
- */
-const IS_PREMIUM = false;
-
-const FREE_STATS: StatKey[] = ["fantasy", "disposals", "goals"];
+/* ---------------------------------------------------------
+   Stat labels & thresholds
+--------------------------------------------------------- */
 
 const STAT_LABELS: Record<StatKey, string> = {
   fantasy: "Fantasy",
@@ -29,852 +29,770 @@ const STAT_LABELS: Record<StatKey, string> = {
   goals: "Goals",
 };
 
-type PlayerRowMetrics = {
-  id: number | string;
+const STAT_THRESHOLDS: Record<StatKey, number[]> = {
+  fantasy: [90, 95, 100, 105, 110],
+  disposals: [20, 25, 30, 35, 40],
+  kicks: [10, 15, 20, 25, 30],
+  marks: [5, 7, 9, 11, 13],
+  tackles: [4, 6, 8, 10, 12],
+  hitouts: [20, 25, 30, 35, 40],
+  goals: [1, 2, 3, 4, 5],
+};
+
+/* ---------------------------------------------------------
+   Types & helpers
+--------------------------------------------------------- */
+
+type HitRateKey = "90" | "95" | "100" | "105" | "110";
+
+type MasterRow = {
+  id: number;
   name: string;
   team: string;
   pos: string;
-  opening: number | null;
-  rounds: number[];
+  opening: number;
+  rounds: number[]; // R1..Rn
   min: number;
   max: number;
   avg: number;
   total: number;
-  pct90: number;
-  pct95: number;
-  pct100: number;
-  pct105: number;
-  pct110: number;
+  hitRates: Record<HitRateKey, number>;
   games: number;
-  seriesForSpark: number[];
 };
 
+type ColumnKey =
+  | "player"
+  | "team"
+  | "pos"
+  | "opening"
+  | `R${number}`
+  | "min"
+  | "max"
+  | "avg"
+  | "total"
+  | "h90"
+  | "h95"
+  | "h100"
+  | "h105"
+  | "h110"
+  | "gms";
+
+function percentColorClass(pct: number): string {
+  if (pct >= 80) return "text-emerald-400";
+  if (pct >= 60) return "text-lime-300";
+  if (pct >= 40) return "text-yellow-300";
+  if (pct >= 20) return "text-orange-300";
+  return "text-red-400";
+}
+
+function average(values: number[]): number {
+  if (!values.length) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
 /* ---------------------------------------------------------
-   Helpers
+   Sparkline (expanded row) — gold glow
 --------------------------------------------------------- */
 
-function toPercentColour(value: number): React.CSSProperties["color"] {
-  // 0 -> red (0deg), 100 -> green (120deg)
-  const clamped = Math.max(0, Math.min(100, value || 0));
-  const hue = (clamped / 100) * 120;
-  return `hsl(${hue}, 75%, 55%)`;
-}
+function RowSparkline({ values }: { values: number[] }) {
+  if (!values.length) return null;
 
-function buildActiveSeries(
-  full: number[],
-  roundCount: number | "ALL"
-): number[] {
-  if (roundCount === "ALL") return full;
-  return full.slice(0, roundCount);
-}
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const normalized = values.map((v) => ((v - min) / (max - min || 1)) * 100);
+  const width = Math.max(normalized.length * 22, 120);
 
-/* Sparkline across the row (based on series) */
-function RowSparkline({ series }: { series: number[] }) {
-  if (!series.length) return null;
-  const max = Math.max(...series);
-  const min = Math.min(...series);
-  const points = series
-    .map((v, i) => {
-      const x =
-        (i / Math.max(series.length - 1, 1)) * 100; // 0..100
-      const y = 24 - ((v - min) / (max - min || 1)) * 20; // 4..24
-      return `${x},${y}`;
-    })
+  const points = normalized
+    .map(
+      (v, i) =>
+        `${(i / Math.max(normalized.length - 1, 1)) * width},${100 - v}`
+    )
     .join(" ");
 
   return (
-    <svg
-      viewBox="0 0 100 24"
-      className="h-6 w-full text-yellow-300 opacity-80"
-      preserveAspectRatio="none"
-    >
-      <polyline
-        fill="none"
-        stroke="rgba(0,0,0,0.4)"
-        strokeWidth={4}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-      <polyline
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
+    <div className="relative h-20 w-full">
+      {/* soft glow */}
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${width} 100`}
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={points}
+          fill="none"
+          stroke="rgba(250,204,21,0.35)"
+          strokeWidth={5}
+          className="drop-shadow-[0_0_18px_rgba(250,204,21,0.75)]"
+        />
+      </svg>
+
+      {/* main line */}
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${width} 100`}
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={points}
+          fill="none"
+          stroke="rgba(250,204,21,0.95)"
+          strokeWidth={2.4}
+        />
+      </svg>
+    </div>
   );
 }
 
 /* ---------------------------------------------------------
-   Master Table Component
+   Row components
+--------------------------------------------------------- */
+
+interface MasterRowProps {
+  row: MasterRow;
+  statLabel: string;
+  maxRounds: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  hoveredCol: ColumnKey | null;
+  setHoveredCol: (key: ColumnKey | null) => void;
+  isPremium: boolean;
+  isBlurred?: boolean;
+}
+
+function MasterTableRow({
+  row,
+  statLabel,
+  maxRounds,
+  isExpanded,
+  onToggle,
+  hoveredCol,
+  setHoveredCol,
+  isPremium,
+  isBlurred,
+}: MasterRowProps) {
+  const thresholds: HitRateKey[] = ["90", "95", "100", "105", "110"];
+
+  const fullSeries = [row.opening, ...row.rounds];
+
+  const labelForRoundIndex = (i: number): ColumnKey =>
+    (`R${i + 1}` as ColumnKey);
+
+  const rowContent = (
+    <>
+      {/* main row */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "group relative flex w-full items-center gap-3 border-b border-white/5 px-4 py-2.5 text-left",
+          "hover:bg-white/5 transition-colors",
+          isExpanded && "bg-white/[0.04]"
+        )}
+      >
+        {/* Chevron / collapse control */}
+        <div className="mr-1 flex w-5 items-center justify-center">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/15 text-[10px] text-white/70">
+            {isExpanded ? (
+              <ChevronUp className="h-3 w-3" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )}
+          </span>
+        </div>
+
+        {/* Player / team / pos */}
+        <div
+          className={cn(
+            "flex min-w-[150px] flex-col",
+            hoveredCol === "player" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("player")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          <span className="text-[13px] font-semibold text-white">
+            {row.name}
+          </span>
+          <span className="text-[11px] uppercase tracking-[0.16em] text-white/50">
+            {row.team} · {row.pos}
+          </span>
+        </div>
+
+        {/* Opening round */}
+        <div
+          className={cn(
+            "min-w-[52px] text-[12px] text-white/80",
+            hoveredCol === "opening" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("opening")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          {row.opening.toFixed(0)}
+        </div>
+
+        {/* R1..Rn */}
+        <div className="flex flex-1 gap-2 overflow-x-auto text-[12px] text-white/70">
+          {Array.from({ length: maxRounds }).map((_, rIndex) => {
+            const value = row.rounds[rIndex];
+            const key = labelForRoundIndex(rIndex);
+            return (
+              <div
+                key={rIndex}
+                className={cn(
+                  "min-w-[42px] text-center",
+                  hoveredCol === key && "bg-white/[0.03] -mx-1 px-1 rounded"
+                )}
+                onMouseEnter={() => setHoveredCol(key)}
+                onMouseLeave={() => setHoveredCol(null)}
+              >
+                {typeof value === "number" ? value.toFixed(0) : "—"}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Min / Max / Avg */}
+        <div
+          className={cn(
+            "min-w-[52px] text-[12px] text-white/70",
+            hoveredCol === "min" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("min")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          {row.min.toFixed(0)}
+        </div>
+        <div
+          className={cn(
+            "min-w-[52px] text-[12px] text-white/70",
+            hoveredCol === "max" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("max")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          {row.max.toFixed(0)}
+        </div>
+        <div
+          className={cn(
+            "min-w-[52px] text-[12px] text-white/70",
+            hoveredCol === "avg" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("avg")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          {row.avg.toFixed(1)}
+        </div>
+
+        {/* Total */}
+        <div
+          className={cn(
+            "min-w-[60px] text-[13px] font-semibold",
+            hoveredCol === "total" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("total")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          {row.total.toFixed(0)}
+        </div>
+
+        {/* Hit-rate bands */}
+        {thresholds.map((t, idx) => {
+          const key: HitRateKey = ["90", "95", "100", "105", "110"][idx] as any;
+          const pct = row.hitRates[key];
+          const colKey: ColumnKey =
+            key === "90"
+              ? "h90"
+              : key === "95"
+              ? "h95"
+              : key === "100"
+              ? "h100"
+              : key === "105"
+              ? "h105"
+              : "h110";
+
+          return (
+            <div
+              key={t}
+              className={cn(
+                "min-w-[54px] text-[12px]",
+                percentColorClass(pct),
+                hoveredCol === colKey &&
+                  "bg-white/[0.03] -mx-1 px-1 rounded text-white"
+              )}
+              onMouseEnter={() => setHoveredCol(colKey)}
+              onMouseLeave={() => setHoveredCol(null)}
+            >
+              {pct.toFixed(0)}%
+            </div>
+          );
+        })}
+
+        {/* Games */}
+        <div
+          className={cn(
+            "min-w-[36px] text-[12px] text-white/65 text-right",
+            hoveredCol === "gms" && "bg-white/[0.03] -mx-1 px-1 rounded"
+          )}
+          onMouseEnter={() => setHoveredCol("gms")}
+          onMouseLeave={() => setHoveredCol(null)}
+        >
+          {row.games}
+        </div>
+      </button>
+
+      {/* expanded panel */}
+      {isExpanded && (
+        <div className="border-b border-white/5 bg-black/70 px-4 pb-4 pt-3 text-sm text-white/80">
+          <div className="grid gap-4 md:grid-cols-[2fr,1fr] md:items-center">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                Round trend &amp; role context
+              </p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-white/75">
+                Over the sampled rounds,{" "}
+                <span className="font-semibold text-yellow-200">
+                  {row.name}
+                </span>{" "}
+                has tracked at{" "}
+                <span className="font-semibold">
+                  {row.avg.toFixed(1)} {statLabel.toLowerCase()}
+                </span>{" "}
+                with a scoring window between{" "}
+                <span className="font-semibold">
+                  {row.min.toFixed(0)}–{row.max.toFixed(0)}
+                </span>
+                , signalling{" "}
+                <span className="font-semibold">
+                  {row.hitRates["100"] >= 50 ? "high upside" : "steady output"}
+                </span>{" "}
+                and a{" "}
+                <span className="font-semibold">
+                  {row.hitRates["90"].toFixed(0)}%{" "}
+                </span>
+                hit rate above the key threshold band.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-yellow-500/30 bg-gradient-to-br from-yellow-500/10 via-black to-black/80 px-3 py-3">
+              <div className="flex items-center justify-between text-xs text-yellow-200/90">
+                <span className="uppercase tracking-[0.16em]">
+                  Confidence index
+                </span>
+                <span className="font-semibold">
+                  {Math.min(
+                    98,
+                    Math.max(40, row.hitRates["90"] + row.hitRates["100"] / 4)
+                  ).toFixed(0)}
+                  %
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-emerald-300"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.max(18, row.hitRates["90"])
+                    ).toFixed(0)}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-white/60">
+                Confidence blends hit-rate bands, volatility spread and number
+                of games played in this stat lens.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/60 px-3 py-2.5">
+            <RowSparkline values={fullSeries} />
+          </div>
+        </div>
+      )}
+
+      {/* blurred overlay for gated rows */}
+      {isBlurred && !isPremium && (
+        <div className="pointer-events-none absolute inset-0 rounded-none bg-gradient-to-b from-black/10 via-black/80 to-black/95 backdrop-blur-md" />
+      )}
+    </>
+  );
+
+  return <div className="relative">{rowContent}</div>;
+}
+
+/* ---------------------------------------------------------
+   Main Master Table section
 --------------------------------------------------------- */
 
 export default function MasterTable() {
   const players = useAFLMockPlayers();
-  const [selectedStat, setSelectedStat] =
-    useState<StatKey>("fantasy");
-  const [selectedTeam, setSelectedTeam] =
-    useState<string>("ALL");
-  // "ALL" or numeric count (e.g. "10" => first 10 rounds)
-  const [selectedRoundCount, setSelectedRoundCount] =
-    useState<string>("ALL");
+  const { isPremium } = useAuth();
+
+  const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
+  const [selectedTeam, setSelectedTeam] = useState<string>("all");
+  const [selectedRound, setSelectedRound] = useState<"all" | number>("all");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [hoveredCol, setHoveredCol] = useState<ColumnKey | null>(null);
+  const [rowsToShow, setRowsToShow] = useState<number>(40);
 
   const statLabel = STAT_LABELS[selectedStat];
+  const thresholds = STAT_THRESHOLDS[selectedStat];
 
-  const teams = useMemo(() => {
-    const set = new Set<string>();
-    players.forEach((p) => set.add(p.team));
-    return Array.from(set).sort();
-  }, [players]);
-
-  const maxRounds = useMemo(() => {
-    if (!players.length) return 0;
-    const series = getSeriesForStat(players[0], selectedStat);
-    return series.length;
-  }, [players, selectedStat]);
-
-  const activeRoundCount: number | "ALL" = useMemo(() => {
-    if (selectedRoundCount === "ALL") return "ALL";
-    const parsed = parseInt(selectedRoundCount, 10);
-    if (isNaN(parsed)) return "ALL";
-    return Math.min(Math.max(parsed, 1), maxRounds || 1);
-  }, [selectedRoundCount, maxRounds]);
-
-  /* -------------------------------------------------------
-     Build metrics for visible section (real data)
-  ------------------------------------------------------- */
-  const visibleRows: PlayerRowMetrics[] = useMemo(() => {
-    if (!players.length) return [];
-
-    const metrics: PlayerRowMetrics[] = players
-      .filter((p) =>
-        selectedTeam === "ALL" ? true : p.team === selectedTeam
-      )
-      .map((p) => {
-        const full = getSeriesForStat(p, selectedStat);
-        const active =
-          activeRoundCount === "ALL"
-            ? full
-            : full.slice(0, activeRoundCount);
-
-        if (!active.length) {
-          return {
-            id: p.id,
-            name: p.name,
-            team: p.team,
-            pos:
-              (p as any).pos ??
-              (p as any).position ??
-              "",
-            opening: null,
-            rounds: [],
-            min: 0,
-            max: 0,
-            avg: 0,
-            total: 0,
-            pct90: 0,
-            pct95: 0,
-            pct100: 0,
-            pct105: 0,
-            pct110: 0,
-            games: 0,
-            seriesForSpark: [],
-          };
-        }
-
-        const opening = active[0] ?? null;
-        const rounds = active.slice(1);
-        const games = active.length;
-
-        const total =
-          active.reduce((sum, v) => sum + v, 0) || 0;
-        const avg = total / games;
-        const min = Math.min(...active);
-        const max = Math.max(...active);
-
-        function pctAt(threshold: number) {
-          const hits = active.filter(
-            (v) => v >= threshold
-          ).length;
-          return games ? (hits / games) * 100 : 0;
-        }
-
-        const pct90 = pctAt(90);
-        const pct95 = pctAt(95);
-        const pct100 = pctAt(100);
-        const pct105 = pctAt(105);
-        const pct110 = pctAt(110);
-
+  const tableRows: MasterRow[] = useMemo(() => {
+    return players.map((p) => {
+      const series = getSeriesForStat(p, selectedStat) || [];
+      if (!series.length) {
         return {
           id: p.id,
           name: p.name,
           team: p.team,
-          pos:
-            (p as any).pos ??
-            (p as any).position ??
-            "",
-          opening,
-          rounds,
-          min,
-          max,
-          avg,
-          total,
-          pct90,
-          pct95,
-          pct100,
-          pct105,
-          pct110,
-          games,
-          seriesForSpark: active,
+          pos: p.pos,
+          opening: 0,
+          rounds: [],
+          min: 0,
+          max: 0,
+          avg: 0,
+          total: 0,
+          games: 0,
+          hitRates: { "90": 0, "95": 0, "100": 0, "105": 0, "110": 0 },
         };
+      }
+
+      const opening = series[0];
+      const rounds = series.slice(1);
+      const games = rounds.length || 1;
+      const minVal = Math.min(...rounds);
+      const maxVal = Math.max(...rounds);
+      const avgVal = average(rounds);
+      const totalVal = rounds.reduce((s, v) => s + v, 0);
+
+      const hitRates: Record<HitRateKey, number> = {
+        "90": 0,
+        "95": 0,
+        "100": 0,
+        "105": 0,
+        "110": 0,
+      };
+
+      thresholds.forEach((t, idx) => {
+        const count = rounds.filter((v) => v >= t).length;
+        const pct = (count / games) * 100;
+        const key: HitRateKey = ["90", "95", "100", "105", "110"][idx] as any;
+        hitRates[key] = pct;
       });
 
-    return metrics
-      .filter((m) => m.games > 0)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 19); // rows 1–19 visible
-  }, [
-    players,
-    selectedTeam,
-    selectedStat,
-    activeRoundCount,
-  ]);
+      return {
+        id: p.id,
+        name: p.name,
+        team: p.team,
+        pos: p.pos,
+        opening,
+        rounds,
+        min: minVal,
+        max: maxVal,
+        avg: avgVal,
+        total: totalVal,
+        games,
+        hitRates,
+      };
+    });
+  }, [players, selectedStat, thresholds]);
 
-  /* -------------------------------------------------------
-     Fake premium rows (behind blur, anti-scrape)
-  ------------------------------------------------------- */
-  const premiumRows: PlayerRowMetrics[] = useMemo(() => {
-    // These are hand-crafted mocks, NOT real data.
-    const rows: PlayerRowMetrics[] = [
-      {
-        id: "fake-20",
-        name: "Player 58",
-        team: "RICH",
-        pos: "MID",
-        opening: 88,
-        rounds: [92, 84, 90, 95, 87],
-        min: 84,
-        max: 95,
-        avg: 89.2,
-        total: 535,
-        pct90: 68,
-        pct95: 42,
-        pct100: 26,
-        pct105: 18,
-        pct110: 9,
-        games: 6,
-        seriesForSpark: [88, 92, 84, 90, 95, 87],
-      },
-      {
-        id: "fake-21",
-        name: "Player 42",
-        team: "ESS",
-        pos: "FWD",
-        opening: 76,
-        rounds: [81, 79, 83, 75, 82],
-        min: 75,
-        max: 83,
-        avg: 79.5,
-        total: 477,
-        pct90: 22,
-        pct95: 9,
-        pct100: 4,
-        pct105: 0,
-        pct110: 0,
-        games: 6,
-        seriesForSpark: [76, 81, 79, 83, 75, 82],
-      },
-      {
-        id: "fake-22",
-        name: "Player 71",
-        team: "ADE",
-        pos: "DEF",
-        opening: 82,
-        rounds: [79, 88, 85, 81, 90],
-        min: 79,
-        max: 90,
-        avg: 84.2,
-        total: 505,
-        pct90: 35,
-        pct95: 18,
-        pct100: 10,
-        pct105: 5,
-        pct110: 0,
-        games: 6,
-        seriesForSpark: [82, 79, 88, 85, 81, 90],
-      },
-      {
-        id: "fake-23",
-        name: "Player 63",
-        team: "CARL",
-        pos: "MID",
-        opening: 91,
-        rounds: [94, 89, 97, 92, 88],
-        min: 88,
-        max: 97,
-        avg: 91.8,
-        total: 551,
-        pct90: 80,
-        pct95: 52,
-        pct100: 31,
-        pct105: 19,
-        pct110: 7,
-        games: 6,
-        seriesForSpark: [91, 94, 89, 97, 92, 88],
-      },
-      {
-        id: "fake-24",
-        name: "Player 39",
-        team: "GWS",
-        pos: "RUC",
-        opening: 83,
-        rounds: [86, 81, 88, 84, 90],
-        min: 81,
-        max: 90,
-        avg: 85.3,
-        total: 512,
-        pct90: 40,
-        pct95: 22,
-        pct100: 11,
-        pct105: 4,
-        pct110: 0,
-        games: 6,
-        seriesForSpark: [83, 86, 81, 88, 84, 90],
-      },
-    ];
+  const maxRounds = useMemo(
+    () =>
+      tableRows.reduce(
+        (max, row) => Math.max(max, row.rounds.length),
+        0
+      ),
+    [tableRows]
+  );
 
+  const teams = useMemo(
+    () =>
+      Array.from(new Set(players.map((p) => p.team))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [players]
+  );
+
+  const filteredRows = useMemo(() => {
+    let rows = [...tableRows];
+
+    if (isPremium && selectedTeam !== "all") {
+      rows = rows.filter((r) => r.team === selectedTeam);
+    }
+
+    if (isPremium && selectedRound !== "all") {
+      const index = selectedRound - 1; // R1 = index 0
+      rows = rows.filter((r) => typeof r.rounds[index] === "number");
+    }
+
+    rows.sort((a, b) => b.total - a.total);
     return rows;
-  }, []);
+  }, [tableRows, selectedTeam, selectedRound, isPremium]);
 
-  const allRoundsCount =
-    activeRoundCount === "ALL"
-      ? maxRounds
-      : activeRoundCount;
-
-  const roundColumnLabels = useMemo(() => {
-    if (!allRoundsCount || allRoundsCount < 1) return [];
-    const labels: string[] = [];
-    // OR = opening (index 0), R1..R(n-1) shown after
-    for (let i = 1; i < allRoundsCount; i++) {
-      labels.push(`R${i}`);
-    }
-    return labels;
-  }, [allRoundsCount]);
-
-  /* -------------------------------------------------------
-     Filters
-  ------------------------------------------------------- */
-
-  const handleStatChange = (value: StatKey) => {
-    if (!IS_PREMIUM && !FREE_STATS.includes(value)) {
-      return;
-    }
-    setSelectedStat(value);
-  };
+  const visibleRows = filteredRows.slice(0, rowsToShow);
+  const premiumCutoff = 20;
+  const freeRows = isPremium ? visibleRows : visibleRows.slice(0, premiumCutoff);
+  const gatedRows = isPremium ? [] : visibleRows.slice(premiumCutoff);
+  const canShowMore = rowsToShow < filteredRows.length;
 
   return (
     <section
-      id="master-table"
       className={cn(
-        "relative mt-12 rounded-3xl border border-white/10",
-        "bg-gradient-to-b from-[#050508] via-[#050509] to-[#020204]",
-        "px-4 py-8 md:px-6 md:py-10",
-        "shadow-[0_0_70px_rgba(0,0,0,0.75)]"
+        "relative rounded-3xl border border-white/10",
+        "bg-gradient-to-br from-[#050507] via-black to-[#08070B]",
+        "px-4 py-6 md:px-6 md:py-8 shadow-[0_0_80px_rgba(0,0,0,0.75)]"
       )}
     >
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
-            <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
-            <span className="uppercase tracking-[0.18em]">
-              Master Table
-            </span>
+      {/* background wash */}
+      <div className="pointer-events-none absolute inset-x-[-80px] top-16 bottom-[-80px] bg-gradient-to-b from-yellow-500/10 via-black/50 to-black/90 blur-3xl opacity-70" />
+
+      <div className="relative space-y-4">
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
+              <LineChart className="h-3.5 w-3.5 text-yellow-300" />
+              <span className="uppercase tracking-[0.18em]">
+                Master Table
+              </span>
+            </div>
+            <h2 className="text-xl font-semibold md:text-2xl">
+              Full-season player ledger &amp; hit-rate grid
+            </h2>
+            <p className="max-w-xl text-xs text-white/70 md:text-sm">
+              Every player&apos;s round-by-round{" "}
+              <span className="font-semibold text-yellow-200">
+                {statLabel.toLowerCase()}
+              </span>{" "}
+              output, totals and hit rates across key thresholds — ordered by
+              total output.
+            </p>
+            <p className="pt-1 text-[11px] text-white/45 md:text-[11px]">
+              Hit-rate bands (90+, 95+, 100+, 105+, 110+) automatically adjust
+              to the selected stat lens.
+            </p>
           </div>
 
-          <h2 className="text-xl font-semibold md:text-2xl">
-            Full-season player ledger &amp; hit-rate grid
-          </h2>
+          {/* Filters */}
+          <div className="space-y-2 text-right">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+              Table filters
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 text-xs">
+              {/* Stat filter (freemium) */}
+              <div className="relative">
+                <select
+                  value={selectedStat}
+                  onChange={(e) =>
+                    setSelectedStat(e.target.value as StatKey)
+                  }
+                  className={cn(
+                    "appearance-none rounded-full border border-white/15 bg-black/70 px-3.5 py-1.5 pr-7 text-xs text-white/80",
+                    "focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+                  )}
+                >
+                  {/* Free options */}
+                  <option value="fantasy">Fantasy</option>
+                  <option value="disposals">Disposals</option>
+                  <option value="goals">Goals</option>
 
-          <p className="max-w-xl text-sm text-white/70">
-            Every player’s round-by-round {statLabel.toLowerCase()} output,
-            totals and hit rates across key thresholds — ordered by total{" "}
-            {statLabel.toLowerCase()}.
-          </p>
+                  {/* Locked options just to signal Neeko+ depth */}
+                  <option disabled>────────</option>
+                  <option disabled>Neeko+ · Kicks</option>
+                  <option disabled>Neeko+ · Marks</option>
+                  <option disabled>Neeko+ · Tackles</option>
+                  <option disabled>Neeko+ · Hitouts</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/50" />
+              </div>
 
-          <p className="text-[10px] text-white/35 mt-1.5">
-            Hit-rate bands (90+, 95+, 100+, 105+, 110+) update with each
-            selected stat lens.
-          </p>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col items-start gap-2 md:items-end">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/45">
-            <Filter className="h-3.5 w-3.5" />
-            <span>Table Filters</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            {/* Stat filter */}
-            <div className="flex items-center gap-1">
-              <label className="text-[11px] text-white/55">
-                Stat
-              </label>
-              <select
-                value={selectedStat}
-                onChange={(e) =>
-                  handleStatChange(
-                    e.target.value as StatKey
-                  )
-                }
+              {/* Team filter (premium only) */}
+              <button
+                type="button"
+                disabled={!isPremium}
                 className={cn(
-                  "rounded-full border border-white/12 bg-black/70 px-3 py-1.5 text-xs text-white/80",
-                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-yellow-400/60"
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs",
+                  isPremium
+                    ? "border-white/15 bg-black/70 text-white/80 hover:bg-white/10"
+                    : "border-white/10 bg-black/40 text-white/35 cursor-not-allowed"
                 )}
               >
-                {(Object.keys(
-                  STAT_LABELS
-                ) as StatKey[]).map((key) => {
-                  const locked =
-                    !IS_PREMIUM &&
-                    !FREE_STATS.includes(key);
-                  return (
-                    <option
-                      key={key}
-                      value={key}
-                      disabled={locked}
-                    >
-                      {STAT_LABELS[key]}
-                      {locked ? " (Neeko+)" : ""}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {/* Team filter (Neeko+ gated) */}
-            <div className="flex items-center gap-1">
-              <label className="text-[11px] text-white/55">
-                Team
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedTeam}
-                  onChange={(e) =>
-                    setSelectedTeam(e.target.value)
-                  }
-                  disabled={!IS_PREMIUM}
-                  className={cn(
-                    "rounded-full border border-white/12 bg-black/70 px-3 py-1.5 text-xs text-white/80 pr-7",
-                    !IS_PREMIUM &&
-                      "opacity-40 cursor-not-allowed"
-                  )}
-                >
-                  <option value="ALL">All teams</option>
-                  {teams.map((team) => (
-                    <option key={team} value={team}>
-                      {team}
-                    </option>
-                  ))}
-                </select>
-                {!IS_PREMIUM && (
-                  <Lock className="pointer-events-none absolute right-1.5 top-1.5 h-3.5 w-3.5 text-white/45" />
+                <Filter className="h-3.5 w-3.5" />
+                <span>
+                  Team:{" "}
+                  {isPremium
+                    ? selectedTeam === "all"
+                      ? "All teams"
+                      : selectedTeam
+                    : "All teams"}
+                </span>
+                {!isPremium && (
+                  <Crown className="h-3 w-3 text-yellow-300" />
                 )}
+              </button>
+
+              {/* Round filter (premium only) */}
+              <button
+                type="button"
+                disabled={!isPremium}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs",
+                  isPremium
+                    ? "border-white/15 bg-black/70 text-white/80 hover:bg-white/10"
+                    : "border-white/10 bg-black/40 text-white/35 cursor-not-allowed"
+                )}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span>
+                  Round:{" "}
+                  {isPremium
+                    ? selectedRound === "all"
+                      ? "All rounds"
+                      : `R${selectedRound}`
+                    : "All rounds"}
+                </span>
+                {!isPremium && (
+                  <Crown className="h-3 w-3 text-yellow-300" />
+                )}
+              </button>
+            </div>
+            <div className="text-[10px] text-white/45">
+              Fantasy, Disposals &amp; Goals are free. Team &amp; Round filters
+              are Neeko+ only.
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="relative mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/70">
+          <div className="relative max-h-[520px] overflow-auto">
+            {/* sticky header */}
+            <div className="sticky top-0 z-20 border-b border-white/10 bg-black/95">
+              <div className="flex items-center gap-3 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                <div className="mr-1 w-5" />
+                <div className="min-w-[150px]">
+                  <span>Player</span>
+                </div>
+                <div className="min-w-[52px]">OR</div>
+                <div className="flex flex-1 gap-2 overflow-x-auto">
+                  {Array.from({ length: maxRounds }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="min-w-[42px] text-center"
+                    >
+                      R{index + 1}
+                    </div>
+                  ))}
+                </div>
+                <div className="min-w-[52px] text-center">Min</div>
+                <div className="min-w-[52px] text-center">Max</div>
+                <div className="min-w-[52px] text-center">Avg</div>
+                <div className="min-w-[60px] text-center">Total</div>
+                {thresholds.map((t) => (
+                  <div
+                    key={t}
+                    className="min-w-[54px] text-center"
+                  >
+                    {t}+
+                  </div>
+                ))}
+                <div className="min-w-[36px] text-right">Gms</div>
               </div>
             </div>
 
-            {/* Round filter (Neeko+ gated) */}
-            <div className="flex items-center gap-1">
-              <label className="text-[11px] text-white/55">
-                Round
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedRoundCount}
-                  onChange={(e) =>
-                    setSelectedRoundCount(
-                      e.target.value
+            {/* free rows */}
+            <div className="divide-y divide-white/5">
+              {freeRows.map((row) => (
+                <MasterTableRow
+                  key={row.id}
+                  row={row}
+                  statLabel={statLabel}
+                  maxRounds={maxRounds}
+                  isExpanded={expandedId === row.id}
+                  onToggle={() =>
+                    setExpandedId((prev) =>
+                      prev === row.id ? null : row.id
                     )
                   }
-                  disabled={!IS_PREMIUM}
-                  className={cn(
-                    "rounded-full border border-white/12 bg-black/70 px-3 py-1.5 text-xs text-white/80 pr-7",
-                    !IS_PREMIUM &&
-                      "opacity-40 cursor-not-allowed"
-                  )}
-                >
-                  <option value="ALL">
-                    All rounds
-                  </option>
-                  {Array.from(
-                    { length: maxRounds },
-                    (_, i) => i + 1
-                  ).map((r) => (
-                    <option
-                      key={r}
-                      value={String(r)}
-                    >
-                      Up to R{r}
-                    </option>
-                  ))}
-                </select>
-                {!IS_PREMIUM && (
-                  <Lock className="pointer-events-none absolute right-1.5 top-1.5 h-3.5 w-3.5 text-white/45" />
-                )}
-              </div>
+                  hoveredCol={hoveredCol}
+                  setHoveredCol={setHoveredCol}
+                  isPremium={!!isPremium}
+                />
+              ))}
             </div>
-          </div>
 
-          {!IS_PREMIUM && (
-            <p className="text-[10px] text-white/40">
-              Fantasy, Disposals &amp; Goals are free. Team &amp;
-              Round filters are Neeko+.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="mt-6 relative rounded-2xl border border-white/8 bg-black/60">
-        <div className="max-h-[520px] overflow-auto rounded-2xl">
-          <table className="min-w-[1200px] w-full text-[11px]">
-            <thead className="sticky top-0 z-20 bg-gradient-to-b from-[#050507] via-[#050507] to-[#050507]/95 backdrop-blur-sm">
-              <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.16em] text-white/50">
-                <th className="px-3 py-3 text-left">
-                  Player
-                </th>
-                <th className="px-3 py-3 text-left">
-                  Team
-                </th>
-                <th className="px-3 py-3 text-left">
-                  Pos
-                </th>
-                <th className="px-3 py-3 text-right">
-                  OR
-                </th>
-                {roundColumnLabels.map((label) => (
-                  <th
-                    key={label}
-                    className="px-3 py-3 text-right"
-                  >
-                    {label}
-                  </th>
-                ))}
-                <th className="px-3 py-3 text-right">
-                  Min
-                </th>
-                <th className="px-3 py-3 text-right">
-                  Max
-                </th>
-                <th className="px-3 py-3 text-right">
-                  Avg
-                </th>
-                <th className="px-3 py-3 text-right">
-                  Total
-                </th>
-                <th className="px-3 py-3 text-right">
-                  90+
-                </th>
-                <th className="px-3 py-3 text-right">
-                  95+
-                </th>
-                <th className="px-3 py-3 text-right">
-                  100+
-                </th>
-                <th className="px-3 py-3 text-right">
-                  105+
-                </th>
-                <th className="px-3 py-3 text-right">
-                  110+
-                </th>
-                <th className="px-3 py-3 text-right">
-                  Gms
-                </th>
-                <th className="px-3 py-3 text-left">
-                  Trend
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((row, idx) => (
-                <tr
-                  key={row.id}
-                  className={cn(
-                    "border-b border-white/5 last:border-b-0",
-                    idx % 2 === 1 &&
-                      "bg-white/[0.02]"
-                  )}
-                >
-                  <td className="px-3 py-2 text-left font-medium text-[11px]">
-                    {row.name}
-                  </td>
-                  <td className="px-3 py-2 text-left text-white/70">
-                    {row.team}
-                  </td>
-                  <td className="px-3 py-2 text-left text-white/70">
-                    {row.pos}
-                  </td>
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.opening != null
-                      ? row.opening.toFixed(0)
-                      : "—"}
-                  </td>
-                  {roundColumnLabels.map((_, i) => (
-                    <td
-                      key={`${row.id}-r-${i}`}
-                      className="px-3 py-2 text-right text-white/70"
-                    >
-                      {row.rounds[i] != null
-                        ? row.rounds[i].toFixed(0)
-                        : "—"}
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.min.toFixed(0)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.max.toFixed(0)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.avg.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2 text-right font-semibold text-white">
-                    {row.total.toFixed(0)}
-                  </td>
-
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct90
-                      ),
-                    }}
-                  >
-                    {row.pct90.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct95
-                      ),
-                    }}
-                  >
-                    {row.pct95.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct100
-                      ),
-                    }}
-                  >
-                    {row.pct100.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct105
-                      ),
-                    }}
-                  >
-                    {row.pct105.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct110
-                      ),
-                    }}
-                  >
-                    {row.pct110.toFixed(0)}%
-                  </td>
-
-                  <td className="px-3 py-2 text-right text-white/75">
-                    {row.games}
-                  </td>
-                  <td className="px-3 py-2 text-left align-middle">
-                    <RowSparkline
-                      series={row.seriesForSpark}
+            {/* gated block */}
+            {!isPremium && gatedRows.length > 0 && (
+              <div className="relative mt-0 border-t border-white/5">
+                <div className="divide-y divide-white/5 opacity-90">
+                  {gatedRows.map((row) => (
+                    <MasterTableRow
+                      key={row.id}
+                      row={row}
+                      statLabel={statLabel}
+                      maxRounds={maxRounds}
+                      isExpanded={false}
+                      onToggle={() => {}}
+                      hoveredCol={hoveredCol}
+                      setHoveredCol={setHoveredCol}
+                      isPremium={false}
+                      isBlurred
                     />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-
-            {/* PREMIUM SECTION */}
-            <tbody
-              className={cn(
-                !IS_PREMIUM &&
-                  "blur-sm brightness-[0.6] select-none"
-              )}
-            >
-              {premiumRows.map((row, idx) => (
-                <tr
-                  key={row.id}
-                  className={cn(
-                    "border-b border-white/5 last:border-b-0",
-                    (visibleRows.length + idx) %
-                      2 ===
-                      1 && "bg-white/[0.02]"
-                  )}
-                >
-                  <td className="px-3 py-2 text-left font-medium text-[11px]">
-                    {row.name}
-                  </td>
-                  <td className="px-3 py-2 text-left text-white/70">
-                    {row.team}
-                  </td>
-                  <td className="px-3 py-2 text-left text-white/70">
-                    {row.pos}
-                  </td>
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.opening != null
-                      ? row.opening.toFixed(0)
-                      : "—"}
-                  </td>
-                  {roundColumnLabels.map((_, i) => (
-                    <td
-                      key={`${row.id}-r-${i}`}
-                      className="px-3 py-2 text-right text-white/70"
-                    >
-                      {row.rounds[i] != null
-                        ? row.rounds[i].toFixed(0)
-                        : "—"}
-                    </td>
                   ))}
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.min.toFixed(0)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.max.toFixed(0)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-white/80">
-                    {row.avg.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2 text-right font-semibold text-white">
-                    {row.total.toFixed(0)}
-                  </td>
+                </div>
 
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct90
-                      ),
-                    }}
+                {/* blur overlay + CTA */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-black/85 to-black/95 backdrop-blur-md" />
+                <div className="pointer-events-auto absolute inset-x-0 bottom-10 flex flex-col items-center gap-3 px-4 text-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-yellow-200/90">
+                    <Crown className="h-3.5 w-3.5 text-yellow-300" />
+                    <span>Neeko+ Master Grid</span>
+                  </div>
+                  <p className="max-w-md text-[13px] text-yellow-100/90">
+                    Unlock full-season fantasy ledgers, advanced hit-rate bands
+                    and deep role filters for every player.
+                  </p>
+                  <button
+                    type="button"
+                    className="rounded-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 px-6 py-2.5 text-sm font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.75)]"
                   >
-                    {row.pct90.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct95
-                      ),
-                    }}
+                    Unlock Neeko+ Insights
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium text-yellow-200/85 underline-offset-4 hover:underline"
                   >
-                    {row.pct95.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct100
-                      ),
-                    }}
-                  >
-                    {row.pct100.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct105
-                      ),
-                    }}
-                  >
-                    {row.pct105.toFixed(0)}%
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right"
-                    style={{
-                      color: toPercentColour(
-                        row.pct110
-                      ),
-                    }}
-                  >
-                    {row.pct110.toFixed(0)}%
-                  </td>
-
-                  <td className="px-3 py-2 text-right text-white/75">
-                    {row.games}
-                  </td>
-                  <td className="px-3 py-2 text-left align-middle">
-                    <RowSparkline
-                      series={row.seriesForSpark}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Premium overlay for locked rows */}
-        {!IS_PREMIUM && (
-          <div
-            className={cn(
-              "pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col items-center justify-center",
-              "rounded-b-2xl bg-gradient-to-t from-black/90 via-black/80 to-transparent",
-              "border-t border-yellow-500/30 pt-6 pb-6"
+                    View full AI analysis →
+                  </button>
+                </div>
+              </div>
             )}
-          >
-            <div className="flex flex-col items-center gap-3 px-4 text-center">
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-yellow-400/15 border border-yellow-400/50">
-                  <span className="text-xs font-semibold text-yellow-300">
-                    +
-                  </span>
-                </span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
-                  Neeko+ Master Grid
-                </span>
-              </div>
+          </div>
+        </div>
 
-              <p className="text-sm text-yellow-50/95 max-w-md">
-                Unlock full-season {statLabel.toLowerCase()} ledgers, advanced
-                hit-rate bands and deep role filters for every player.
-              </p>
-
-              <div className="flex flex-col gap-2">
-                <a
-                  href="/sports/afl/ai-analysis"
-                  className={cn(
-                    "rounded-full px-6 py-2 text-sm font-semibold text-black",
-                    "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400",
-                    "shadow-[0_0_24px_rgba(250,204,21,0.7)] hover:brightness-110 transition"
-                  )}
-                >
-                  Unlock Neeko+ Insights
-                </a>
-                <a
-                  href="/sports/afl/ai-analysis"
-                  className="text-[11px] text-yellow-200/80 hover:text-yellow-200 underline underline-offset-4"
-                >
-                  View full AI Analysis →
-                </a>
-              </div>
-            </div>
+        {/* Show more button */}
+        {canShowMore && (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setRowsToShow((prev) =>
+                  Math.min(prev + 20, filteredRows.length)
+                )
+              }
+              className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10"
+            >
+              Show 20 more rows ↓
+            </button>
           </div>
         )}
+
+        {/* Premium-only notice for filters */}
+        <div className="pt-2 text-center text-[11px] text-white/40">
+          Table ordered by total {statLabel.toLowerCase()} output. Use the AI
+          Insights section above for projections and risk analysis.
+        </div>
       </div>
     </section>
   );
