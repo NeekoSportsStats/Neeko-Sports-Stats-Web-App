@@ -16,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/lib/auth";
 
 // -----------------------------------------------------------------------------
 // Types & config
@@ -201,6 +202,8 @@ function computeConfidenceScore(player: PlayerRow, lens: StatLens) {
 // -----------------------------------------------------------------------------
 
 export const MasterTable: React.FC = () => {
+  const { isPremium } = useAuth();
+
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
@@ -401,7 +404,6 @@ export const MasterTable: React.FC = () => {
             <tbody className="divide-y divide-neutral-900/80">
               {visiblePlayers.map((player, index) => {
                 const isExpanded = expandedPlayerId === player.id;
-                const isPremiumBlurred = index >= 20;
                 const rounds = getRoundsForLens(player, selectedStat);
                 const summary = computeSummary(player, selectedStat);
                 const hitRates = computeHitRates(player, selectedStat);
@@ -414,6 +416,8 @@ export const MasterTable: React.FC = () => {
                   "transition-colors duration-150 " +
                   (compactMode ? "leading-tight" : "");
 
+                // Blur only if NOT premium and beyond free limit
+                const isPremiumBlurred = !isPremium && index >= 20;
                 const blurClass = isPremiumBlurred
                   ? "blur-[3px] brightness-[0.65]"
                   : "";
@@ -554,7 +558,7 @@ export const MasterTable: React.FC = () => {
       <div className="mt-8 md:hidden">
         <div className="space-y-3">
           {visiblePlayers.map((player, index) => {
-            const isPremiumBlurred = index >= 20;
+            const isPremiumBlurred = !isPremium && index >= 20;
             const blurClass = isPremiumBlurred
               ? "blur-[3px] brightness-[0.65]"
               : "";
@@ -607,8 +611,11 @@ export const MasterTable: React.FC = () => {
       <Sheet open={mobileOpen} onOpenChange={handleMobileSheetChange}>
         <SheetContent
           side="bottom"
-          className="h-[85vh] rounded-t-[32px] border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-4 py-4"
+          className="h-[85vh] rounded-t-[32px] border border-yellow-500/60 bg-gradient-to-b from-yellow-500/20 via-neutral-950 to-black px-4 py-3 shadow-[0_0_60px_rgba(250,204,21,0.7)]"
         >
+          {/* drag handle */}
+          <div className="mx-auto mb-3 mt-1 h-1.5 w-10 rounded-full bg-yellow-200/70" />
+
           {mobilePlayer && (
             <>
               <SheetHeader className="space-y-1">
@@ -620,7 +627,7 @@ export const MasterTable: React.FC = () => {
                 </div>
               </SheetHeader>
 
-              <div className="mt-4 h-[calc(85vh-80px)] overflow-y-auto pb-6">
+              <div className="mt-4 h-[calc(85vh-96px)] overflow-y-auto pb-6">
                 <ExpandedInsights
                   player={mobilePlayer}
                   selectedStat={selectedStat}
@@ -772,8 +779,8 @@ const ExpandedInsights: React.FC<ExpandedInsightsProps> = ({
           <div className="space-y-2.5">
             {hitRates.map((value, idx) => (
               <HitRateProfileBar
-                key={config.hitRateLabels[idx]}
-                label={config.hitRateLabels[idx]}
+                key={STAT_CONFIG[selectedStat].hitRateLabels[idx]}
+                label={STAT_CONFIG[selectedStat].hitRateLabels[idx]}
                 value={value}
               />
             ))}
@@ -785,7 +792,7 @@ const ExpandedInsights: React.FC<ExpandedInsightsProps> = ({
 };
 
 // -----------------------------------------------------------------------------
-// Mobile premium card – gradient/glow, compact summary
+// Mobile premium card – gradient/glow, compact summary + round wheel
 // -----------------------------------------------------------------------------
 
 type MobilePlayerCardProps = {
@@ -806,6 +813,7 @@ const MobilePlayerCard: React.FC<MobilePlayerCardProps> = ({
   const config = STAT_CONFIG[selectedStat];
   const summary = computeSummary(player, selectedStat);
   const hitRates = computeHitRates(player, selectedStat);
+  const rounds = getRoundsForLens(player, selectedStat);
 
   const topBand = hitRates[0] ?? 0;
   const ceilingBand = hitRates[hitRates.length - 1] ?? 0;
@@ -814,75 +822,101 @@ const MobilePlayerCard: React.FC<MobilePlayerCardProps> = ({
     <div
       className={`relative overflow-hidden rounded-2xl border border-yellow-500/40 bg-gradient-to-br from-yellow-500/10 via-black to-black px-4 py-3 shadow-[0_0_40px_rgba(0,0,0,0.9)] ${blurClass}`}
     >
-      {/* subtle glow */}
+      {/* subtle glow overlay */}
       <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-yellow-500/5 via-transparent to-yellow-500/5 opacity-60" />
 
-      <div className="relative z-10 flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-              {index + 1}
-            </span>
-            <div className="flex flex-col">
-              <span className="text-[13px] font-semibold text-neutral-50">
-                {player.name}
+      <div className="relative z-10">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                {index + 1}
               </span>
-              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                {player.team} • {player.role}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-[13px] font-semibold text-neutral-50">
+                  {player.name}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                  {player.team} • {player.role}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-neutral-200">
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                  {config.label} avg
+                </div>
+                <div className="mt-0.5 text-sm font-semibold text-yellow-200">
+                  {summary.avg.toFixed(1)} {config.valueUnitShort}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                  Total
+                </div>
+                <div className="mt-0.5 text-sm font-semibold text-neutral-100">
+                  {summary.total}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                  L5 avg
+                </div>
+                <div className="mt-0.5 text-xs font-medium text-neutral-100">
+                  {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                  Hit profile
+                </div>
+                <div className="mt-0.5 text-xs text-neutral-200">
+                  <span className="font-semibold text-emerald-300">
+                    {topBand}%{" "}
+                  </span>
+                  {config.hitRateLabels[0]} floor •{" "}
+                  <span className="font-semibold text-lime-300">
+                    {ceilingBand}%{" "}
+                  </span>
+                  {
+                    config.hitRateLabels[
+                      config.hitRateLabels.length - 1
+                    ]
+                  }{" "}
+                  ceiling
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-neutral-200">
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
-                {config.label} avg
-              </div>
-              <div className="mt-0.5 text-sm font-semibold text-yellow-200">
-                {summary.avg.toFixed(1)} {config.valueUnitShort}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
-                Total
-              </div>
-              <div className="mt-0.5 text-sm font-semibold text-neutral-100">
-                {summary.total}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
-                L5 avg
-              </div>
-              <div className="mt-0.5 text-xs font-medium text-neutral-100">
-                {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
-              </div>
-            </div>
-            <div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
-                Hit profile
-              </div>
-              <div className="mt-0.5 text-xs text-neutral-200">
-                <span className="font-semibold text-emerald-300">
-                  {topBand}%{" "}
-                </span>
-                {config.hitRateLabels[0]} floor •{" "}
-                <span className="font-semibold text-lime-300">
-                  {ceilingBand}%{" "}
-                </span>
-                {config.hitRateLabels[config.hitRateLabels.length - 1]} ceiling
-              </div>
-            </div>
-          </div>
+          <Button
+            size="sm"
+            onClick={onOpen}
+            className="rounded-full bg-yellow-400 px-3 py-1 text-[11px] font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)] hover:bg-yellow-300"
+          >
+            View insights
+          </Button>
         </div>
 
-        <Button
-          size="sm"
-          onClick={onOpen}
-          className="rounded-full bg-yellow-400 px-3 py-1 text-[11px] font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)] hover:bg-yellow-300"
-        >
-          View insights
-        </Button>
+        {/* Round-by-round scroll wheel */}
+        <div className="mt-3 overflow-x-auto">
+          <div className="flex gap-2 pb-1">
+            {rounds.map((value, i) => (
+              <div
+                key={i}
+                className="flex min-w-[46px] flex-col items-center"
+              >
+                <span className="text-[9px] text-neutral-500">
+                  {ROUND_LABELS[i]}
+                </span>
+                <div className="mt-1 flex h-8 w-10 items-center justify-center rounded-md bg-neutral-950/80 text-[11px] text-neutral-100">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
