@@ -84,6 +84,9 @@ const STAT_CONFIG: Record<
 const TOTAL_COLUMNS =
   1 + ROUND_LABELS.length + 4 + STAT_CONFIG.Fantasy.hitRateLabels.length;
 
+const INITIAL_VISIBLE = 20;
+const PAGE_SIZE = 20;
+
 // -----------------------------------------------------------------------------
 // Mock data – SQL-friendly shape to swap for Supabase later
 // -----------------------------------------------------------------------------
@@ -153,7 +156,6 @@ function computeHitRates(player: PlayerRow, lens: StatLens) {
   });
 }
 
-// Simple confidence score – blend of floor/ceiling hit-rates & volatility
 function computeConfidenceScore(player: PlayerRow, lens: StatLens) {
   const hitRates = computeHitRates(player, lens);
   const { volatilityRange } = computeSummary(player);
@@ -175,11 +177,10 @@ function computeConfidenceScore(player: PlayerRow, lens: StatLens) {
 export const MasterTable: React.FC = () => {
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
-  const [visibleCount, setVisibleCount] = useState(20);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [compactMode, setCompactMode] = useState(false);
 
-  // Search is visually present but Neeko+ only – locked for now
-  const players = MOCK_PLAYERS;
+  const players = MOCK_PLAYERS; // swap for Supabase query later
 
   const filteredPlayers = useMemo(() => players, [players]);
   const visiblePlayers = useMemo(
@@ -196,7 +197,9 @@ export const MasterTable: React.FC = () => {
 
   const handleShowMore = () => {
     if (!hasMoreRows) return;
-    setVisibleCount((prev) => Math.min(prev + 20, filteredPlayers.length));
+    setVisibleCount((prev) =>
+      Math.min(prev + PAGE_SIZE, filteredPlayers.length)
+    );
   };
 
   return (
@@ -204,7 +207,7 @@ export const MasterTable: React.FC = () => {
       id="master-table"
       className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/15 bg-gradient-to-b from-neutral-950 via-neutral-950/90 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-6 lg:px-8"
     >
-      {/* Header & Controls */}
+      {/* Header & controls */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
@@ -320,15 +323,16 @@ export const MasterTable: React.FC = () => {
         </div>
       </div>
 
-      {/* TABLE WRAPPER – desktop + mobile (scrollable) */}
-      <div className="mt-8 overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
-        <div className="max-h-[calc(100vh-260px)] overflow-x-auto overflow-y-auto">
-          <table className="min-w-[1150px] border-separate border-spacing-0 text-[11px] text-neutral-100">
+      {/* TABLE WRAPPER – desktop + mobile (horizontal scroll only) */}
+      <div className="mt-8 rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
+        <div className="w-full overflow-x-auto">
+          {/* min-w keeps structure on narrow phones; table itself can still grow */}
+          <table className="min-w-[1040px] border-separate border-spacing-0 text-[11px] text-neutral-100 md:min-w-full">
             <thead>
               <tr className="sticky top-0 z-20 bg-black/95 backdrop-blur-sm">
                 {/* Sticky player header */}
                 <th
-                  className="sticky left-0 z-30 w-64 border-b border-neutral-800/80 bg-black px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
+                  className="sticky left-0 z-30 w-60 border-b border-neutral-800/80 bg-black px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
                   scope="col"
                 >
                   <span className="inline-flex items-center gap-2">
@@ -358,7 +362,7 @@ export const MasterTable: React.FC = () => {
             <tbody className="divide-y divide-neutral-900/80">
               {visiblePlayers.map((player, index) => {
                 const isExpanded = expandedPlayerId === player.id;
-                const isPremiumBlurred = index >= 20;
+                const isPremiumBlurred = index >= 20; // keep blur after top 20 visible rows
                 const summary = computeSummary(player);
                 const hitRates = computeHitRates(player, selectedStat);
                 const confidence = computeConfidenceScore(
@@ -379,12 +383,14 @@ export const MasterTable: React.FC = () => {
                     {/* Main row */}
                     <tr
                       className={`${rowBase} ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                        isExpanded
+                          ? "bg-neutral-900/75"
+                          : "hover:bg-neutral-900/55"
                       }`}
                     >
                       {/* Sticky player cell */}
                       <td
-                        className={`sticky left-0 z-10 w-64 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 ${
+                        className={`sticky left-0 z-10 w-60 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 ${
                           compactMode ? "py-2" : "py-2.5"
                         } ${blurClass}`}
                       >
@@ -484,7 +490,7 @@ export const MasterTable: React.FC = () => {
           </table>
         </div>
 
-        {/* Show more rows */}
+        {/* Show more rows – always outside scroll so it never "disappears" */}
         {hasMoreRows && (
           <div className="border-t border-neutral-900/80 bg-black/90 py-4 text-center">
             <Button
@@ -824,7 +830,7 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values }) => {
       (i / Math.max(values.length - 1, 1)) * (width - paddingX * 2);
     const y =
       paddingY +
-      (1 - (v - min) / range) * (height - paddingY * 2); // invert y (0 at top)
+      (1 - (v - min) / range) * (height - paddingY * 2);
     return { x, y };
   });
 
