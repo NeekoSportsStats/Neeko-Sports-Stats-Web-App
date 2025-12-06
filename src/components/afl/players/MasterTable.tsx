@@ -6,19 +6,19 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
 // -----------------------------------------------------------------------------
-// Types & stat config
+// Types & config
 // -----------------------------------------------------------------------------
 
 type StatLens = "Fantasy" | "Disposals" | "Goals";
+
+type StatRoundsByLens = Record<StatLens, number[]>;
 
 type PlayerRow = {
   id: number;
   name: string;
   team: string;
   role: string;
-  fantasyRounds: number[];   // 24 values: OR + R1–R23
-  disposalsRounds: number[]; // 24 values: OR + R1–R23
-  goalsRounds: number[];     // 24 values: OR + R1–R23
+  roundsByLens: StatRoundsByLens; // separate data per lens
 };
 
 const ROUND_LABELS = [
@@ -78,48 +78,49 @@ const STAT_CONFIG: Record<
 };
 
 // -----------------------------------------------------------------------------
-// Mock data – distinct rounds per stat lens (Option B)
+// Mock data – realistic-ish separate stats per lens
 // -----------------------------------------------------------------------------
 
 const TEAMS = ["GEEL", "CARL", "ESS", "COLL", "RICH", "NMFC"];
 const ROLES = ["MID", "RUC", "FWD", "DEF"];
 
-// helper for random-ish values
-function randomRound(base: number, spread: number, min: number, max: number) {
-  const jitter = Math.round((Math.random() - 0.5) * spread * 2);
-  const value = base + jitter;
-  return Math.min(max, Math.max(min, value));
-}
+function buildMockPlayers(): PlayerRow[] {
+  const playerCount = 60; // enough to test Show More multiple times
+  const roundCount = ROUND_LABELS.length;
 
-const buildMockPlayers = (): PlayerRow[] =>
-  Array.from({ length: 40 }).map((_, index) => {
-    // Tiered base values by ranking band
-    const fantasyBase = index < 10 ? 95 : index < 20 ? 88 : index < 30 ? 82 : 76;
-    const disposalsBase = index < 10 ? 27 : index < 20 ? 24 : index < 30 ? 21 : 18;
-    const goalsBase = index < 10 ? 2.2 : index < 20 ? 1.7 : index < 30 ? 1.3 : 0.8;
+  const makeRounds = (base: number, jitter: number, min: number) =>
+    Array.from({ length: roundCount }).map(() => {
+      const delta = Math.round((Math.random() - 0.5) * 2 * jitter);
+      return Math.max(min, base + delta);
+    });
 
-    const fantasyRounds = ROUND_LABELS.map(() =>
-      randomRound(fantasyBase, 7, 55, 140)
-    );
+  return Array.from({ length: playerCount }).map((_, index) => {
+    // tiered bases so top players look stronger
+    const tier = index < 10 ? 2 : index < 25 ? 1 : 0;
 
-    const disposalsRounds = ROUND_LABELS.map(() =>
-      randomRound(disposalsBase, 6, 8, 40)
-    );
+    const fantasyBase = 78 + tier * 6;
+    const disposalsBase = 20 + tier * 3;
+    const goalsBase = tier === 2 ? 2.2 : tier === 1 ? 1.4 : 0.8;
 
-    const goalsRounds = ROUND_LABELS.map(() =>
-      randomRound(Math.round(goalsBase * 10), 8, 0, 50) // work in tenths then clamp
-    ).map((v) => Math.round(Math.min(5, v / 10))); // clamp to 0–5 goals
+    const fantasyRounds = makeRounds(fantasyBase, 9, 50);
+    const disposalsRounds = makeRounds(disposalsBase, 6, 8);
+    const goalsRounds = makeRounds(Math.round(goalsBase * 10), 5, 0).map(
+      (v) => Math.round(v / 10)
+    ); // compress to 0–5-ish
 
     return {
       id: index + 1,
       name: `Player ${index + 1}`,
       team: TEAMS[index % TEAMS.length],
       role: ROLES[index % ROLES.length],
-      fantasyRounds,
-      disposalsRounds,
-      goalsRounds,
+      roundsByLens: {
+        Fantasy: fantasyRounds,
+        Disposals: disposalsRounds,
+        Goals: goalsRounds,
+      },
     };
   });
+}
 
 const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
 
@@ -127,14 +128,12 @@ const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
 // Helpers
 // -----------------------------------------------------------------------------
 
-function getRoundsForLens(player: PlayerRow, lens: StatLens): number[] {
-  if (lens === "Fantasy") return player.fantasyRounds;
-  if (lens === "Disposals") return player.disposalsRounds;
-  return player.goalsRounds;
+function getRounds(player: PlayerRow, lens: StatLens): number[] {
+  return player.roundsByLens[lens];
 }
 
 function computeSummary(player: PlayerRow, lens: StatLens) {
-  const rounds = getRoundsForLens(player, lens);
+  const rounds = getRounds(player, lens);
   const min = Math.min(...rounds);
   const max = Math.max(...rounds);
   const total = rounds.reduce((sum, v) => sum + v, 0);
@@ -151,29 +150,18 @@ function computeSummary(player: PlayerRow, lens: StatLens) {
   const windowMax = lastWindow.length ? Math.max(...lastWindow) : max;
   const volatilityRange = windowMax - windowMin;
 
-  return {
-    min,
-    max,
-    total,
-    avg,
-    lastWindow,
-    l5Avg,
-    windowMin,
-    windowMax,
-    volatilityRange,
-  };
+  return { min, max, total, avg, lastWindow, l5Avg, windowMin, windowMax, volatilityRange };
 }
 
 function computeHitRates(player: PlayerRow, lens: StatLens) {
   const { thresholds } = STAT_CONFIG[lens];
-  const rounds = getRoundsForLens(player, lens);
+  const rounds = getRounds(player, lens);
   return thresholds.map((t) => {
     const count = rounds.filter((v) => v >= t).length;
     return Math.round((count / rounds.length) * 100);
   });
 }
 
-// Simple confidence score – blend of floor/ceiling hit-rates & volatility
 function computeConfidenceScore(player: PlayerRow, lens: StatLens) {
   const hitRates = computeHitRates(player, lens);
   const { volatilityRange } = computeSummary(player, lens);
@@ -196,20 +184,17 @@ export const MasterTable: React.FC = () => {
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(20);
+  const [search] = useState(""); // locked for free users (no filtering)
   const [compactMode, setCompactMode] = useState(false);
-  const [search] = useState(""); // gated for Neeko+ – currently locked
 
   const players = MOCK_PLAYERS;
-
-  // (Search is visually + functionally locked for now – always return all players)
-  const filteredPlayers = useMemo(() => players, [players]);
-
+  const filteredPlayers = players; // search is gated for Neeko+ later
   const visiblePlayers = useMemo(
     () => filteredPlayers.slice(0, visibleCount),
     [filteredPlayers, visibleCount]
   );
-
   const hasMoreRows = visibleCount < filteredPlayers.length;
+
   const config = STAT_CONFIG[selectedStat];
 
   const handleToggleExpand = (id: number) => {
@@ -218,18 +203,16 @@ export const MasterTable: React.FC = () => {
 
   const handleShowMore = () => {
     if (!hasMoreRows) return;
-    setVisibleCount((prev) =>
-      Math.min(prev + 20, filteredPlayers.length)
-    );
+    setVisibleCount((prev) => Math.min(prev + 20, filteredPlayers.length));
   };
 
-  const showSummaryCols = !compactMode;
-  const showHitRateCols = !compactMode;
+  const cellWidthClass = compactMode ? "min-w-[48px]" : "min-w-[56px]";
+  const summaryWidthClass = compactMode ? "min-w-[64px]" : "min-w-[72px]";
 
   return (
     <section
       id="master-table"
-      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/18 bg-gradient-to-b from-neutral-950 via-neutral-950/95 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-6 lg:px-8"
+      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/15 bg-gradient-to-b from-neutral-950 via-neutral-950/90 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-6 lg:px-8"
     >
       {/* Header & Controls */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
@@ -268,13 +251,30 @@ export const MasterTable: React.FC = () => {
                 onClick={() => setSelectedStat(stat)}
                 className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
                   selectedStat === stat
-                    ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.7)]"
+                    ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
                     : "text-neutral-300 hover:bg-neutral-800/80"
                 }`}
               >
                 {stat}
               </button>
             ))}
+          </div>
+
+          {/* Search – VISUALLY present but locked for Neeko+ (disabled) */}
+          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
+            <Search className="h-3.5 w-3.5 text-yellow-300" />
+            <input
+              type="text"
+              value={search}
+              disabled
+              readOnly
+              placeholder="Search players (Neeko+ only)"
+              className="w-44 bg-transparent text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none disabled:cursor-not-allowed"
+            />
+            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
+              <Lock className="h-3 w-3 text-yellow-300" />
+              Neeko+
+            </span>
           </div>
 
           {/* Compact toggle – desktop only */}
@@ -290,177 +290,164 @@ export const MasterTable: React.FC = () => {
         </div>
       </div>
 
-      {/* Neeko+ search + filters (search locked) */}
-      <div className="mt-6 space-y-3">
-        {/* Search – visually and functionally locked for Neeko+ */}
-        <div className="flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-3 py-1.5 text-xs text-neutral-300">
-          <Search className="h-4 w-4 text-yellow-300" />
-          <input
-            type="text"
-            value={search}
-            disabled
-            placeholder="Search players (Neeko+ only)"
-            className="w-full bg-transparent text-xs text-neutral-500 placeholder:text-neutral-500 focus:outline-none disabled:cursor-not-allowed"
-          />
-          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
-            <Lock className="h-3 w-3 text-yellow-300" />
-            Neeko+
-          </span>
-        </div>
-
-        {/* Team / Round filters – UI only, Neeko+ gated */}
-        <div className="flex flex-wrap gap-3 text-[11px] text-neutral-200">
-          <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-black/80 px-3 py-1">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Team
-            </span>
-            <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-xs">
-              All teams
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
-              <Lock className="h-3 w-3 text-yellow-300" />
-              Neeko+
-            </span>
-          </div>
-
-          <div className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-black/80 px-3 py-1">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Round
-            </span>
-            <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-xs">
-              All rounds
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
-              <Lock className="h-3 w-3 text-yellow-300" />
-              Neeko+
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* TABLE WRAPPER – desktop + mobile (horizontal scroll on small screens) */}
-      <div className="mt-8 overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
+      <div className="mt-8 rounded-3xl border border-neutral-800/80 bg-neutral-950/90">
         <div className="overflow-x-auto">
           <div className="min-w-[1200px]">
-            {/* Sticky header row */}
+            {/* Sticky header */}
             <div className="sticky top-0 z-30 flex bg-black/95 backdrop-blur-sm">
-              {/* Player header (sticky left) */}
-              <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 border-b border-neutral-800/80 bg-black px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+              {/* Player header */}
+              <div className="sticky left-0 z-40 flex w-56 flex-shrink-0 items-center gap-3 border-b border-neutral-800/80 bg-black px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300 sm:w-64">
                 <span className="w-6 text-[10px] text-neutral-500">#</span>
                 <span>Player</span>
               </div>
 
               {/* Rounds + summary + hit-rate headers */}
               <div className="flex flex-1 border-b border-neutral-800/80 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-                <div className="grid flex-1 grid-cols-[repeat(24,minmax(52px,1fr))]">
+                <div
+                  className={`grid flex-1 grid-cols-[repeat(24,minmax(0,1fr))]`}
+                >
                   {ROUND_LABELS.map((label) => (
-                    <HeaderCell key={label} label={label} />
+                    <HeaderCell
+                      key={label}
+                      label={label}
+                      widthClass={cellWidthClass}
+                    />
                   ))}
-                  {showSummaryCols && (
-                    <>
-                      <HeaderCell label="Min" />
-                      <HeaderCell label="Max" />
-                      <HeaderCell label="Avg" />
-                      <HeaderCell label="Total" wide />
-                    </>
-                  )}
-                  {showHitRateCols &&
-                    config.hitRateLabels.map((label) => (
-                      <HeaderCell key={label} label={label} accent />
-                    ))}
+                  <HeaderCell label="Min" widthClass={summaryWidthClass} />
+                  <HeaderCell label="Max" widthClass={summaryWidthClass} />
+                  <HeaderCell label="Avg" widthClass={summaryWidthClass} />
+                  <HeaderCell
+                    label="Total"
+                    widthClass={summaryWidthClass}
+                    wide
+                  />
+                  {config.hitRateLabels.map((label) => (
+                    <HeaderCell
+                      key={label}
+                      label={label}
+                      accent
+                      widthClass={cellWidthClass}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
 
             {/* Body rows */}
-            <div className="divide-y divide-neutral-900/80">
-              {visiblePlayers.map((player, index) => {
-                const isExpanded = expandedPlayerId === player.id;
-                const isPremiumBlurred = index >= 20;
-                const summary = computeSummary(player, selectedStat);
-                const hitRates = computeHitRates(player, selectedStat);
-                const rounds = getRoundsForLens(player, selectedStat);
+            <div className="relative">
+              {/* Premium blur overlay for rows > 20 – a single stronger blur layer */}
+              {filteredPlayers.length > 20 && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[420px] z-20 bg-gradient-to-b from-transparent via-black/55 to-black/90 backdrop-blur-[6px]" />
+              )}
 
-                return (
-                  <div
-                    key={player.id}
-                    className={`relative transition-opacity ${
-                      isPremiumBlurred
-                        ? "pointer-events-none blur-[3px] brightness-[0.6]"
-                        : ""
-                    }`}
-                  >
-                    {/* Main row */}
-                    <div
-                      className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded
-                          ? "bg-neutral-900/80"
-                          : "hover:bg-neutral-900/55"
-                      }`}
-                    >
-                      {/* Sticky player cell */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleExpand(player.id)}
-                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
+              <div className="divide-y divide-neutral-900/80">
+                {visiblePlayers.map((player, index) => {
+                  const isExpanded = expandedPlayerId === player.id;
+                  const isPremiumBlurred = index >= 20;
+                  const summary = computeSummary(player, selectedStat);
+                  const hitRates = computeHitRates(player, selectedStat);
+
+                  const rowBaseClasses =
+                    "group flex text-xs text-neutral-100 transition-colors duration-150";
+                  const rowColorClasses = isExpanded
+                    ? "bg-neutral-900/75"
+                    : "hover:bg-neutral-900/55";
+
+                  return (
+                    <div key={player.id} className="relative">
+                      {/* Main row */}
+                      <div
+                        className={`${rowBaseClasses} ${rowColorClasses} ${
+                          isPremiumBlurred ? "opacity-70" : ""
+                        }`}
                       >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                          {index + 1}
-                        </span>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
+                        {/* Sticky player cell */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleExpand(player.id)}
+                          className="sticky left-0 z-10 flex w-56 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left sm:w-64"
+                        >
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                            {index + 1}
                           </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
-                          </span>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                        )}
-                      </button>
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-medium text-neutral-50">
+                              {player.name}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                              {player.team} • {player.role}
+                            </span>
+                          </div>
+                          {isExpanded ? (
+                            <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                          ) : (
+                            <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                          )}
+                        </button>
 
-                      {/* Round + summary + hit-rate cells */}
-                      <div className="grid flex-1 grid-cols-[repeat(24,minmax(52px,1fr))] text-center text-[11px]">
-                        {rounds.map((score, idx) => (
-                          <BodyCell key={idx} value={score} />
-                        ))}
+                        {/* Grid cells */}
+                        <div
+                          className={`grid flex-1 grid-cols-[repeat(24,minmax(0,1fr))] text-center text-[11px]`}
+                        >
+                          {getRounds(player, selectedStat).map(
+                            (score, idx) => (
+                              <BodyCell
+                                key={idx}
+                                value={score}
+                                widthClass={cellWidthClass}
+                              />
+                            )
+                          )}
 
-                        {showSummaryCols && (
-                          <>
-                            <BodyCell value={summary.min} dim />
-                            <BodyCell value={summary.max} />
-                            <BodyCell value={summary.avg.toFixed(1)} />
-                            <BodyCell value={summary.total} strong wide />
-                          </>
-                        )}
+                          <BodyCell
+                            value={summary.min}
+                            dim
+                            widthClass={summaryWidthClass}
+                          />
+                          <BodyCell
+                            value={summary.max}
+                            widthClass={summaryWidthClass}
+                          />
+                          <BodyCell
+                            value={summary.avg.toFixed(1)}
+                            widthClass={summaryWidthClass}
+                          />
+                          <BodyCell
+                            value={summary.total}
+                            strong
+                            widthClass={summaryWidthClass}
+                            wide
+                          />
 
-                        {showHitRateCols &&
-                          hitRates.map((value, idx) => (
-                            <HitRateCell key={idx} value={value} />
+                          {hitRates.map((value, idx) => (
+                            <HitRateCell
+                              key={idx}
+                              value={value}
+                              widthClass={cellWidthClass}
+                            />
                           ))}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Expanded analytics row */}
-                    {isExpanded && (
-                      <DesktopExpandedRow
-                        player={player}
-                        selectedStat={selectedStat}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                      {/* Expanded analytics row */}
+                      {isExpanded && (
+                        <DesktopExpandedRow
+                          player={player}
+                          selectedStat={selectedStat}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Show more rows */}
         {hasMoreRows && (
-          <div className="border-t border-neutral-900/80 bg-black/95 py-4 text-center">
+          <div className="border-t border-neutral-900/80 bg-black/90 py-4 text-center">
             <Button
               variant="outline"
               onClick={handleShowMore}
@@ -472,15 +459,15 @@ export const MasterTable: React.FC = () => {
         )}
       </div>
 
-      {/* Single full-width Neeko+ CTA under blurred section */}
-      <div className="mt-10 flex flex-col items-center gap-3 rounded-[28px] border border-yellow-500/60 bg-gradient-to-b from-black/95 via-black/98 to-black px-6 py-6 text-center shadow-[0_0_50px_rgba(250,204,21,0.45)]">
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/90 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/95">
+      {/* Bottom full-width CTA */}
+      <div className="mt-16 flex flex-col items-center gap-3 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
           <Sparkles className="h-3 w-3" />
           <span>Neeko+ Master Grid</span>
         </div>
         <p className="max-w-xl text-xs text-neutral-300/90">
           Unlock full compact grid, advanced hit-rate bands and deep role
-          filters for every player across the entire season ledger.
+          filters for every player.
         </p>
         <Button
           size="lg"
@@ -494,7 +481,7 @@ export const MasterTable: React.FC = () => {
 };
 
 // -----------------------------------------------------------------------------
-// Expanded analytics row
+// Desktop expanded row – sparkline + confidence + hit-rate profile + AI summary
 // -----------------------------------------------------------------------------
 
 type ExpandedRowProps = {
@@ -520,10 +507,6 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
 
   return (
     <div className="border-t border-neutral-900/80 bg-gradient-to-b from-neutral-950 via-neutral-950 to-black px-4 pb-6 pt-4 sm:px-6 lg:px-8">
-      <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-        Player summary —{" "}
-        <span className="text-yellow-200">{config.label}</span>
-      </div>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)]">
         {/* Left – sparkline + micro stats + AI summary */}
         <div className="space-y-4">
@@ -569,7 +552,7 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
             </div>
 
             {/* Mini sparkline */}
-            <div className="rounded-xl border border-yellow-500/25 bg-gradient-to-b from-yellow-500/12 via-neutral-950 to-black px-4 py-3">
+            <div className="rounded-xl border border-yellow-500/20 bg-gradient-to-b from-yellow-500/10 via-neutral-950 to-black px-4 py-3">
               <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-400">
                 <span>Recent form sparkline</span>
                 <span className="text-neutral-500">
@@ -600,7 +583,7 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
         {/* Right – Confidence index + hit-rate profile */}
         <div className="space-y-4">
           {/* Confidence Index */}
-          <div className="rounded-2xl border border-yellow-400/40 bg-gradient-to-b from-yellow-500/20 via-black to-black p-5 shadow-[0_0_30px_rgba(250,204,21,0.75)]">
+          <div className="rounded-2xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/18 via-black to-black p-5 shadow-[0_0_30px_rgba(250,204,21,0.75)]">
             <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-yellow-100">
               <span>Confidence Index</span>
               <span>{confidence}%</span>
@@ -631,8 +614,8 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
             <div className="space-y-2.5">
               {hitRates.map((value, idx) => (
                 <HitRateProfileBar
-                  key={config.hitRateLabels[idx]}
-                  label={config.hitRateLabels[idx]}
+                  key={STAT_CONFIG[selectedStat].hitRateLabels[idx]}
+                  label={STAT_CONFIG[selectedStat].hitRateLabels[idx]}
                   value={value}
                 />
               ))}
@@ -650,14 +633,20 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
 
 type HeaderCellProps = {
   label: string;
+  widthClass: string;
   wide?: boolean;
   accent?: boolean;
 };
 
-const HeaderCell: React.FC<HeaderCellProps> = ({ label, wide, accent }) => (
+const HeaderCell: React.FC<HeaderCellProps> = ({
+  label,
+  widthClass,
+  wide,
+  accent,
+}) => (
   <div
     className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-3 ${
-      wide ? "min-w-[72px]" : "min-w-[52px]"
+      wide ? "min-w-[80px]" : widthClass
     } ${accent ? "text-emerald-300" : ""}`}
   >
     {label}
@@ -666,15 +655,22 @@ const HeaderCell: React.FC<HeaderCellProps> = ({ label, wide, accent }) => (
 
 type BodyCellProps = {
   value: number | string;
+  widthClass: string;
   dim?: boolean;
   strong?: boolean;
   wide?: boolean;
 };
 
-const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, wide }) => (
+const BodyCell: React.FC<BodyCellProps> = ({
+  value,
+  widthClass,
+  dim,
+  strong,
+  wide,
+}) => (
   <div
     className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-2.5 text-[11px] ${
-      wide ? "min-w-[72px]" : "min-w-[52px]"
+      wide ? "min-w-[80px]" : widthClass
     } ${dim ? "text-neutral-400" : "text-neutral-100"} ${
       strong ? "font-semibold text-neutral-50" : ""
     }`}
@@ -685,10 +681,10 @@ const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, wide }) => (
 
 type HitRateCellProps = {
   value: number;
+  widthClass: string;
 };
 
-// Hit-rate % with red → green gradient chip
-const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => {
+const HitRateCell: React.FC<HitRateCellProps> = ({ value, widthClass }) => {
   let color = "";
   let bg = "";
 
@@ -710,7 +706,9 @@ const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => {
   }
 
   return (
-    <div className="flex min-w-[52px] items-center justify-center border-l border-neutral-900/85 px-2 py-2.5">
+    <div
+      className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-2.5 ${widthClass}`}
+    >
       <span
         className={`inline-flex min-w-[44px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${color}`}
       >
@@ -781,7 +779,7 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values }) => {
       (i / Math.max(values.length - 1, 1)) * (width - paddingX * 2);
     const y =
       paddingY +
-      (1 - (v - min) / range) * (height - paddingY * 2); // invert y
+      (1 - (v - min) / range) * (height - paddingY * 2);
     return { x, y };
   });
 
@@ -797,7 +795,6 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values }) => {
       className="h-20 w-full text-yellow-300"
       preserveAspectRatio="none"
     >
-      {/* baseline */}
       <line
         x1={paddingX}
         x2={width - paddingX}
@@ -806,7 +803,6 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values }) => {
         stroke="rgba(148,163,184,0.35)"
         strokeWidth={0.75}
       />
-      {/* line */}
       <path
         d={pathD}
         fill="none"
@@ -814,7 +810,6 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values }) => {
         strokeWidth={1.8}
         strokeLinecap="round"
       />
-      {/* last point marker */}
       {last && (
         <>
           <line
