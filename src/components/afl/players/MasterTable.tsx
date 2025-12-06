@@ -73,9 +73,18 @@ export const MasterTable: React.FC = () => {
   const [compactMode, setCompactMode] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedStat, setSelectedStat] = useState<"Fantasy" | "Disposals" | "Goals">("Fantasy");
+  const [visibleCount, setVisibleCount] = useState(20);
+
+  const players = MOCK_PLAYERS;
+  const visiblePlayers = players.slice(0, visibleCount);
+  const canShowMore = visibleCount < players.length;
 
   const toggleExpand = (id: number) => {
     setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const handleShowMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 20, players.length));
   };
 
   return (
@@ -138,41 +147,58 @@ export const MasterTable: React.FC = () => {
           {/* Full / Compact toggle */}
           <div className="flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/80 px-3 py-1.5 text-[11px] text-neutral-300">
             <span className="hidden text-neutral-400 sm:inline">View</span>
-            <span className="font-medium text-neutral-100">Full grid</span>
+            <span
+              className={`font-medium ${
+                !compactMode ? "text-yellow-100" : "text-neutral-300"
+              }`}
+            >
+              Full grid
+            </span>
             <Switch
               checked={compactMode}
               onCheckedChange={setCompactMode}
               className="data-[state=checked]:bg-yellow-400"
             />
-            <span className="font-medium text-neutral-100">Compact</span>
+            <span
+              className={`font-medium ${
+                compactMode ? "text-yellow-100" : "text-neutral-300"
+              }`}
+            >
+              Compact
+            </span>
           </div>
         </div>
       </div>
 
-      {/* DESKTOP TABLES */}
-      <div className="mt-8 hidden md:block">
+      {/* TABLES (same on desktop + mobile; horizontal scroll handles overflow) */}
+      <div className="mt-8">
         {compactMode ? (
           <DesktopCompactTable
-            players={MOCK_PLAYERS}
+            players={visiblePlayers}
             expandedId={expandedId}
             onToggleExpand={toggleExpand}
           />
         ) : (
           <DesktopFullTable
-            players={MOCK_PLAYERS}
+            players={visiblePlayers}
             expandedId={expandedId}
             onToggleExpand={toggleExpand}
           />
         )}
       </div>
 
-      {/* MOBILE */}
-      <div className="mt-6 space-y-3 md:hidden">
-        <MobileTable players={MOCK_PLAYERS} expandedId={expandedId} onToggleExpand={toggleExpand} />
-      </div>
+      {/* SHOW MORE + CTA */}
+      <div className="mt-10 flex flex-col items-center gap-3 text-center">
+        {canShowMore && (
+          <Button
+            variant="outline"
+            onClick={handleShowMore}
+            className="mb-2 rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+          >
+            Show 20 more rows
+          </Button>
+        )}
 
-      {/* BOTTOM CTA */}
-      <div className="mt-16 flex flex-col items-center gap-3 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
           <Sparkles className="h-3 w-3" />
           <span>Neeko+ Master Grid</span>
@@ -213,7 +239,7 @@ const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => (
 );
 
 // -----------------------------------------------------------------------------
-// Desktop Full Table (T1 widths + Option A dropdown)
+// Desktop / Mobile Full Table (T1 widths + Option A dropdown)
 // -----------------------------------------------------------------------------
 
 type DesktopTableProps = {
@@ -230,116 +256,103 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
   return (
     <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
       <div className="overflow-x-auto">
-        <div className="min-w-[1200px]">
-          <table className="w-full table-fixed border-separate border-spacing-0">
-            {/* HEADER */}
-            <thead className="sticky top-0 z-30 bg-black/95 backdrop-blur-sm">
-              <tr>
-                <th className="sticky left-0 z-40 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
-                  Player
-                </th>
+        <table className="w-full table-auto border-separate border-spacing-0">
+          {/* HEADER */}
+          <thead className="sticky top-0 z-30 bg-black/95 backdrop-blur-sm">
+            <tr>
+              <th className="sticky left-0 z-40 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+                Player
+              </th>
 
-                <HeaderCell label="OR" />
-                {ROUND_LABELS.map((label) => (
-                  <HeaderCell key={label} label={label} />
-                ))}
-                <HeaderCell label="Min" />
-                <HeaderCell label="Max" />
-                <HeaderCell label="Avg" />
-                <HeaderCell label="Total" wide />
-                <HeaderCell label="90+" accent />
-                <HeaderCell label="95+" accent />
-                <HeaderCell label="100+" accent />
-                <HeaderCell label="105+" accent />
-                <HeaderCell label="110+" accent />
-              </tr>
-            </thead>
+              <HeaderCell label="OR" />
+              {ROUND_LABELS.map((label) => (
+                <HeaderCell key={label} label={label} />
+              ))}
+              <HeaderCell label="Min" />
+              <HeaderCell label="Max" />
+              <HeaderCell label="Avg" />
+              <HeaderCell label="Total" wide />
+              <HeaderCell label="90+" accent />
+              <HeaderCell label="95+" accent />
+              <HeaderCell label="100+" accent />
+              <HeaderCell label="105+" accent />
+              <HeaderCell label="110+" accent />
+            </tr>
+          </thead>
 
-            {/* BODY */}
-            <tbody className="divide-y divide-neutral-900/80">
-              {players.map((player, index) => {
-                const isExpanded = expandedId === player.id;
+          {/* BODY */}
+          <tbody className="divide-y divide-neutral-900/80">
+            {players.map((player, index) => {
+              const isExpanded = expandedId === player.id;
 
-                return (
-                  <>
-                    <tr
-                      key={player.id}
-                      className={`cursor-pointer text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                      }`}
+              return (
+                <React.Fragment key={player.id}>
+                  <tr
+                    className={`cursor-pointer text-xs text-neutral-100 transition-colors duration-150 ${
+                      isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                    }`}
+                  >
+                    {/* Player sticky cell */}
+                    <td
+                      onClick={() => onToggleExpand(player.id)}
+                      className="sticky left-0 z-20 w-64 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5"
                     >
-                      {/* Player sticky cell */}
-                      <td
-                        onClick={() => onToggleExpand(player.id)}
-                        className="sticky left-0 z-20 w-64 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                            {index + 1}
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                          {index + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] font-medium text-neutral-50">
+                            {player.name}
                           </span>
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-medium text-neutral-50">
-                              {player.name}
-                            </span>
-                            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                              {player.team} • {player.role}
-                            </span>
-                          </div>
-                          {isExpanded ? (
-                            <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                          ) : (
-                            <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                          )}
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                            {player.team} • {player.role}
+                          </span>
                         </div>
+                        {isExpanded ? (
+                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                        ) : (
+                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Row numbers */}
+                    <BodyCell value={player.orScore} />
+                    {player.rounds.map((score, idx) => (
+                      <BodyCell key={idx} value={score} />
+                    ))}
+                    <BodyCell value={player.min} dim />
+                    <BodyCell value={player.max} />
+                    <BodyCell value={player.avg.toFixed(1)} />
+                    <BodyCell value={player.total} strong wide />
+                    <HitRateCell value={player.hitRates.band90} />
+                    <HitRateCell value={player.hitRates.band95} />
+                    <HitRateCell value={player.hitRates.band100} />
+                    <HitRateCell value={player.hitRates.band105} />
+                    <HitRateCell value={player.hitRates.band110} />
+                  </tr>
+
+                  {/* INLINE DROPDOWN ROW */}
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={100} className="bg-neutral-950/95 px-6 pb-4 pt-4">
+                        <InlineDropdown player={player} />
                       </td>
-
-                      {/* Row numbers */}
-                      <BodyCell value={player.orScore} />
-                      {player.rounds.map((score, idx) => (
-                        <BodyCell key={idx} value={score} />
-                      ))}
-                      <BodyCell value={player.min} dim />
-                      <BodyCell value={player.max} />
-                      <BodyCell value={player.avg.toFixed(1)} />
-                      <BodyCell value={player.total} strong wide />
-                      <HitRateCell value={player.hitRates.band90} />
-                      <HitRateCell value={player.hitRates.band95} />
-                      <HitRateCell value={player.hitRates.band100} />
-                      <HitRateCell value={player.hitRates.band105} />
-                      <HitRateCell value={player.hitRates.band110} />
                     </tr>
-
-                    {/* INLINE DROPDOWN ROW */}
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={100} className="bg-neutral-950/95 px-6 pb-4 pt-3">
-                          <InlineDropdown player={player} />
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Show more rows CTA */}
-      <div className="border-t border-neutral-900/80 bg-black/90 py-4 text-center">
-        <Button
-          variant="outline"
-          className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
-        >
-          Show 20 more rows
-        </Button>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Desktop Compact Table (summary view + same dropdown)
+// Desktop / Mobile Compact Table (summary view + same dropdown)
 // -----------------------------------------------------------------------------
 
 const DesktopCompactTable: React.FC<DesktopTableProps> = ({
@@ -350,166 +363,86 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
   return (
     <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
       <div className="overflow-x-auto">
-        <div className="min-w-[900px]">
-          <table className="w-full table-fixed border-separate border-spacing-0">
-            {/* HEADER */}
-            <thead className="sticky top-0 z-30 bg-black/95 backdrop-blur-sm">
-              <tr>
-                <th className="sticky left-0 z-40 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
-                  Player
-                </th>
-                <HeaderCell label="Min" />
-                <HeaderCell label="Max" />
-                <HeaderCell label="Avg" />
-                <HeaderCell label="Total" wide />
-                <HeaderCell label="90+" accent />
-                <HeaderCell label="95+" accent />
-                <HeaderCell label="100+" accent />
-                <HeaderCell label="105+" accent />
-                <HeaderCell label="110+" accent />
-              </tr>
-            </thead>
+        <table className="w-full table-auto border-separate border-spacing-0">
+          {/* HEADER */}
+          <thead className="sticky top-0 z-30 bg-black/95 backdrop-blur-sm">
+            <tr>
+              <th className="sticky left-0 z-40 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+                Player
+              </th>
+              <HeaderCell label="Min" />
+              <HeaderCell label="Max" />
+              <HeaderCell label="Avg" />
+              <HeaderCell label="Total" wide />
+              <HeaderCell label="90+" accent />
+              <HeaderCell label="95+" accent />
+              <HeaderCell label="100+" accent />
+              <HeaderCell label="105+" accent />
+              <HeaderCell label="110+" accent />
+            </tr>
+          </thead>
 
-            {/* BODY */}
-            <tbody className="divide-y divide-neutral-900/80">
-              {players.map((player, index) => {
-                const isExpanded = expandedId === player.id;
+          {/* BODY */}
+          <tbody className="divide-y divide-neutral-900/80">
+            {players.map((player, index) => {
+              const isExpanded = expandedId === player.id;
 
-                return (
-                  <>
-                    <tr
-                      key={player.id}
-                      className={`cursor-pointer text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                      }`}
+              return (
+                <React.Fragment key={player.id}>
+                  <tr
+                    className={`cursor-pointer text-xs text-neutral-100 transition-colors duration-150 ${
+                      isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                    }`}
+                  >
+                    <td
+                      onClick={() => onToggleExpand(player.id)}
+                      className="sticky left-0 z-20 w-64 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5"
                     >
-                      <td
-                        onClick={() => onToggleExpand(player.id)}
-                        className="sticky left-0 z-20 w-64 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                            {index + 1}
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                          {index + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] font-medium text-neutral-50">
+                            {player.name}
                           </span>
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-medium text-neutral-50">
-                              {player.name}
-                            </span>
-                            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                              {player.team} • {player.role}
-                            </span>
-                          </div>
-                          {isExpanded ? (
-                            <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                          ) : (
-                            <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                          )}
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                            {player.team} • {player.role}
+                          </span>
                         </div>
+                        {isExpanded ? (
+                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                        ) : (
+                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                        )}
+                      </div>
+                    </td>
+
+                    <BodyCell value={player.min} dim />
+                    <BodyCell value={player.max} />
+                    <BodyCell value={player.avg.toFixed(1)} />
+                    <BodyCell value={player.total} strong wide />
+                    <HitRateCell value={player.hitRates.band90} />
+                    <HitRateCell value={player.hitRates.band95} />
+                    <HitRateCell value={player.hitRates.band100} />
+                    <HitRateCell value={player.hitRates.band105} />
+                    <HitRateCell value={player.hitRates.band110} />
+                  </tr>
+
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={100} className="bg-neutral-950/95 px-6 pb-4 pt-4">
+                        <InlineDropdown player={player} />
                       </td>
-
-                      <BodyCell value={player.min} dim />
-                      <BodyCell value={player.max} />
-                      <BodyCell value={player.avg.toFixed(1)} />
-                      <BodyCell value={player.total} strong wide />
-                      <HitRateCell value={player.hitRates.band90} />
-                      <HitRateCell value={player.hitRates.band95} />
-                      <HitRateCell value={player.hitRates.band100} />
-                      <HitRateCell value={player.hitRates.band105} />
-                      <HitRateCell value={player.hitRates.band110} />
                     </tr>
-
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={100} className="bg-neutral-950/95 px-6 pb-4 pt-3">
-                          <InlineDropdown player={player} />
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="border-t border-neutral-900/80 bg-black/90 py-4 text-center">
-        <Button
-          variant="outline"
-          className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
-        >
-          Show 20 more rows
-        </Button>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Mobile Table (card per player + same dropdown content)
-// -----------------------------------------------------------------------------
-
-type MobileTableProps = {
-  players: PlayerRow[];
-  expandedId: number | null;
-  onToggleExpand: (id: number) => void;
-};
-
-const MobileTable: React.FC<MobileTableProps> = ({ players, expandedId, onToggleExpand }) => {
-  return (
-    <>
-      {players.map((player, index) => {
-        const isExpanded = expandedId === player.id;
-        const last5 = player.rounds.slice(-5);
-        const last5Avg =
-          last5.length > 0
-            ? Math.round((last5.reduce((a, b) => a + b, 0) / last5.length) * 10) / 10
-            : 0;
-
-        return (
-          <div
-            key={player.id}
-            className="rounded-2xl border border-neutral-800/85 bg-neutral-950/95 p-4 text-xs text-neutral-100"
-          >
-            {/* Header row */}
-            <button
-              type="button"
-              onClick={() => onToggleExpand(player.id)}
-              className="flex w-full items-center gap-3"
-            >
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/90 text-[10px] text-neutral-300">
-                {index + 1}
-              </span>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-medium text-neutral-50">{player.name}</span>
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-yellow-300" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-neutral-400" />
-                  )}
-                </div>
-                <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
-                  <span className="uppercase tracking-[0.16em]">
-                    {player.team} • {player.role}
-                  </span>
-                  <span>
-                    {player.min}–{player.max} • L5 {last5Avg.toFixed(1)}
-                  </span>
-                </div>
-              </div>
-            </button>
-
-            {/* Inline dropdown */}
-            {isExpanded && (
-              <div className="mt-3">
-                <InlineDropdown player={player} mobile />
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </>
   );
 };
 
@@ -517,28 +450,22 @@ const MobileTable: React.FC<MobileTableProps> = ({ players, expandedId, onToggle
 // Inline dropdown (Option A: CI top-right, sparkline + AI summary)
 // -----------------------------------------------------------------------------
 
-const InlineDropdown: React.FC<{ player: PlayerRow; mobile?: boolean }> = ({
-  player,
-  mobile = false,
-}) => {
+const InlineDropdown: React.FC<{ player: PlayerRow }> = ({ player }) => {
   return (
     <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 p-4 shadow-[0_0_40px_rgba(0,0,0,0.65)]">
       {/* Main analysis card */}
       <div className="relative overflow-hidden rounded-xl border border-neutral-800/80 bg-gradient-to-br from-neutral-900 via-neutral-950 to-black p-4">
-        <div className="pointer-events-none absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.12),_transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.12),_transparent_60%)] opacity-30" />
         <div className="relative flex flex-col gap-4">
           {/* Top row: text left, CI top-right */}
-          <div
-            className={`flex ${
-              mobile ? "flex-col gap-3" : "flex-row items-start justify-between gap-6"
-            }`}
-          >
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <div className="max-w-md">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
                 Recent scoring window
               </div>
               <p className="mt-1 text-[11px] text-neutral-300 leading-snug">
-                Snapshot of consistency and ceiling across the most recent rounds in this lens.
+                Snapshot of consistency and ceiling across the most recent rounds in this scoring
+                lens.
               </p>
             </div>
 
@@ -591,7 +518,7 @@ const InlineDropdown: React.FC<{ player: PlayerRow; mobile?: boolean }> = ({
 };
 
 // -----------------------------------------------------------------------------
-// Shared header & body cells (T1 widths)
+// Shared header & body cells (T1 widths + nowrap)
 // -----------------------------------------------------------------------------
 
 type HeaderCellProps = {
@@ -602,7 +529,7 @@ type HeaderCellProps = {
 
 const HeaderCell: React.FC<HeaderCellProps> = ({ label, wide, accent }) => (
   <th
-    className={`border-b border-neutral-800/80 px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+    className={`whitespace-nowrap border-b border-neutral-800/80 px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] ${
       accent ? "text-emerald-300" : "text-neutral-400"
     } ${wide ? "min-w-[60px]" : "min-w-[46px]"}`}
   >
@@ -619,7 +546,7 @@ type BodyCellProps = {
 
 const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, wide }) => (
   <td
-    className={`border-l border-neutral-900/80 px-2 py-2.5 text-center text-[11px] ${
+    className={`whitespace-nowrap border-l border-neutral-900/80 px-2 py-2.5 text-center text-[11px] ${
       dim ? "text-neutral-400" : "text-neutral-100"
     } ${strong ? "font-semibold text-neutral-50" : ""} ${
       wide ? "min-w-[60px]" : "min-w-[46px]"
@@ -648,7 +575,7 @@ const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => {
       : "text-emerald-100";
 
   return (
-    <td className="border-l border-neutral-900/80 px-2 py-2.5 text-center text-[11px] min-w-[52px]">
+    <td className="whitespace-nowrap border-l border-neutral-900/80 px-2 py-2.5 text-center text-[11px] min-w-[52px]">
       <span
         className={`inline-flex min-w-[48px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${text}`}
       >
