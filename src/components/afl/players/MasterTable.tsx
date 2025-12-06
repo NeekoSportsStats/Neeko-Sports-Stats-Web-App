@@ -1,9 +1,10 @@
 // src/components/afl/players/MasterTable.tsx
 
 import React, { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Lock, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Sparkles, Search } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 // -----------------------------------------------------------------------------
 // Types & config
@@ -17,7 +18,7 @@ type PlayerRow = {
   team: string;
   role: string;
   orScore: number;
-  rounds: number[]; // R1–R23 for the current stat lens (mock for now)
+  rounds: number[]; // base fantasy-like series; transformed per lens
 };
 
 const ROUND_LABELS = [
@@ -95,7 +96,7 @@ const buildMockPlayers = (): PlayerRow[] => {
         ? 85
         : index < 30
         ? 90
-        : 95; // just to have some tiers
+        : 95; // tiers
 
     const rounds = ROUND_LABELS.map(() => {
       const jitter = Math.round(Math.random() * 18 - 9);
@@ -116,11 +117,33 @@ const buildMockPlayers = (): PlayerRow[] => {
 const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
 
 // -----------------------------------------------------------------------------
-// Helpers
+// Helpers — lens-adjusted rounds, summaries & hit-rates
 // -----------------------------------------------------------------------------
 
-function computeSummary(player: PlayerRow) {
-  const rounds = player.rounds;
+function getLensAdjustedRounds(player: PlayerRow, lens: StatLens): number[] {
+  const base = player.rounds;
+
+  if (lens === "Fantasy") {
+    return base;
+  }
+
+  if (lens === "Disposals") {
+    // Lower, tighter distribution derived from fantasy-like scores
+    return base.map((v) => {
+      const disp = Math.round((v - 40) / 2);
+      return Math.max(5, Math.min(disp, 40));
+    });
+  }
+
+  // Goals: small integer 0–5 derived from base
+  return base.map((v) => {
+    const g = Math.round((v - 70) / 20);
+    return Math.max(0, Math.min(g, 5));
+  });
+}
+
+function computeSummary(player: PlayerRow, lens: StatLens) {
+  const rounds = getLensAdjustedRounds(player, lens);
   const min = Math.min(...rounds);
   const max = Math.max(...rounds);
   const total = rounds.reduce((sum, v) => sum + v, 0);
@@ -142,7 +165,7 @@ function computeSummary(player: PlayerRow) {
 
 function computeHitRates(player: PlayerRow, lens: StatLens): number[] {
   const config = STAT_CONFIG[lens];
-  const rounds = player.rounds;
+  const rounds = getLensAdjustedRounds(player, lens);
   return config.thresholds.map((t) => {
     const count = rounds.filter((v) => v >= t).length;
     return Math.round((count / rounds.length) * 100);
@@ -151,7 +174,7 @@ function computeHitRates(player: PlayerRow, lens: StatLens): number[] {
 
 function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
   const hitRates = computeHitRates(player, lens);
-  const { volatilityRange } = computeSummary(player);
+  const { volatilityRange } = computeSummary(player, lens);
 
   const floorRate = hitRates[0] ?? 0;
   const ceilingRate = hitRates[hitRates.length - 1] ?? 0;
@@ -168,18 +191,36 @@ function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
 // -----------------------------------------------------------------------------
 
 export const MasterTable: React.FC = () => {
+  const { isPremium } = useAuth();
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
   const [compactMode, setCompactMode] = useState(false);
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(20);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const config = STAT_CONFIG[selectedStat];
   const players = MOCK_PLAYERS;
+
+  const filteredPlayers = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q || !isPremium) return players; // search is Neeko+ only
+    return players.filter((p) => {
+      const name = p.name.toLowerCase();
+      const team = p.team.toLowerCase();
+      const role = p.role.toLowerCase();
+      return (
+        name.includes(q) ||
+        team.includes(q) ||
+        role.includes(q)
+      );
+    });
+  }, [players, searchTerm, isPremium]);
+
   const visiblePlayers = useMemo(
-    () => players.slice(0, visibleCount),
-    [players, visibleCount]
+    () => filteredPlayers.slice(0, visibleCount),
+    [filteredPlayers, visibleCount]
   );
-  const hasMoreRows = visibleCount < players.length;
+  const hasMoreRows = visibleCount < filteredPlayers.length;
 
   const handleToggleExpand = (id: number) => {
     setExpandedPlayerId((prev) => (prev === id ? null : id));
@@ -187,7 +228,7 @@ export const MasterTable: React.FC = () => {
 
   const handleShowMore = () => {
     if (!hasMoreRows) return;
-    setVisibleCount((prev) => Math.min(prev + 20, players.length));
+    setVisibleCount((prev) => Math.min(prev + 20, filteredPlayers.length));
   };
 
   return (
@@ -224,6 +265,38 @@ export const MasterTable: React.FC = () => {
 
         {/* Controls */}
         <div className="flex flex-col gap-4 md:items-end">
+          {/* Search (Neeko input style) */}
+          <div className="w-full md:w-72">
+            <div className="relative">
+              <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-xs text-neutral-200">
+                <Search className="h-3.5 w-3.5 text-neutral-500" />
+                <input
+                  type="text"
+                  value={isPremium ? searchTerm : ""}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={!isPremium}
+                  placeholder={
+                    isPremium
+                      ? "Search players, teams, roles..."
+                      : "Search players — Neeko+ only"
+                  }
+                  className={`flex-1 bg-transparent text-[11px] outline-none placeholder:text-neutral-500 ${
+                    !isPremium ? "cursor-not-allowed text-neutral-500" : ""
+                  }`}
+                />
+                {!isPremium && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
+                    <Lock className="h-3 w-3 text-yellow-300" />
+                    Neeko+
+                  </span>
+                )}
+              </div>
+              {!isPremium && (
+                <div className="pointer-events-none absolute inset-0 rounded-full bg-black/25" />
+              )}
+            </div>
+          </div>
+
           {/* Stat selector */}
           <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
             {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
@@ -283,8 +356,8 @@ export const MasterTable: React.FC = () => {
         {/* Gated blur info for rows > 20 */}
         {visibleCount > 20 && (
           <div className="mt-4 text-center text-[11px] text-neutral-500">
-            Rows <span className="font-semibold text-neutral-300">21–40</span>{" "}
-            are shown with blurred mock data. In production, this will be gated
+            Rows <span className="font-semibold text-neutral-300">21+</span> are
+            shown with blurred mock data. In production, this will be gated
             behind a Neeko+ subscription using <code>isPremium</code>.
           </div>
         )}
@@ -420,8 +493,9 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
             {players.map((player, index) => {
               const isExpanded = expandedPlayerId === player.id;
               const isPremiumBlurred = index >= 20; // rows 21+ blurred
+              const lensRounds = getLensAdjustedRounds(player, selectedStat);
               const hitRates = computeHitRates(player, selectedStat);
-              const summary = computeSummary(player);
+              const summary = computeSummary(player, selectedStat);
               const confidence = computeConfidenceScore(player, selectedStat);
 
               return (
@@ -467,7 +541,7 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
                       {/* Numbers */}
                       <div className="flex flex-1 items-center text-center text-[11px]">
                         <BodyCell value={player.orScore} />
-                        {player.rounds.map((score, idx) => (
+                        {lensRounds.map((score, idx) => (
                           <BodyCell key={idx} value={score} />
                         ))}
                         <BodyCell value={summary.min} dim />
@@ -557,7 +631,7 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
             {players.map((player, index) => {
               const isExpanded = expandedPlayerId === player.id;
               const isPremiumBlurred = index >= 20;
-              const summary = computeSummary(player);
+              const summary = computeSummary(player, selectedStat);
               const hitRates = computeHitRates(player, selectedStat);
 
               return (
@@ -659,7 +733,7 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
   selectedStat,
 }) => {
   const config = STAT_CONFIG[selectedStat];
-  const summary = computeSummary(player);
+  const summary = computeSummary(player, selectedStat);
   const confidence = computeConfidenceScore(player, selectedStat);
   const hitRates = computeHitRates(player, selectedStat);
 
@@ -816,8 +890,9 @@ const MobileTable: React.FC<MobileTableProps> = ({
       {players.map((player, index) => {
         const isExpanded = expandedPlayerId === player.id;
         const isPremiumBlurred = index >= 20;
-        const summary = computeSummary(player);
+        const summary = computeSummary(player, selectedStat);
         const hitRates = computeHitRates(player, selectedStat);
+        const lensRounds = getLensAdjustedRounds(player, selectedStat);
 
         return (
           <div key={player.id} className="relative">
@@ -877,14 +952,14 @@ const MobileTable: React.FC<MobileTableProps> = ({
                     <div>
                       <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-400">
                         <span className="uppercase tracking-[0.16em]">
-                          Round ledger
+                          Round ledger — {config.label}
                         </span>
                         <span>
                           L5: {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
                         </span>
                       </div>
                       <div className="flex gap-1 overflow-x-auto pb-1">
-                        {player.rounds.map((score, idx) => (
+                        {lensRounds.map((score, idx) => (
                           <div
                             key={idx}
                             className="min-w-[46px] rounded-md bg-neutral-900/90 px-2 py-1 text-center text-[10px]"
@@ -905,7 +980,8 @@ const MobileTable: React.FC<MobileTableProps> = ({
                       <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-neutral-400">
                         <span>Recent form sparkline</span>
                         <span className="text-neutral-500">
-                          Range {summary.lastWindow.length > 0
+                          Range{" "}
+                          {summary.lastWindow.length > 0
                             ? `${Math.min(...summary.lastWindow)}–${Math.max(
                                 ...summary.lastWindow
                               )}`
