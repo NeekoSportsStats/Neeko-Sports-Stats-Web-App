@@ -1,6 +1,6 @@
 // src/components/afl/players/MasterTable.tsx
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, Lock, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -88,9 +88,18 @@ const STAT_CONFIG: Record<
 // -----------------------------------------------------------------------------
 
 const buildMockPlayers = (): PlayerRow[] => {
-  return Array.from({ length: 40 }).map((_, index) => {
+  // More players so "Show 20 more" can be clicked multiple times in mock
+  return Array.from({ length: 80 }).map((_, index) => {
     const base =
-      index < 10 ? 80 : index < 20 ? 85 : index < 30 ? 90 : 95;
+      index < 10
+        ? 80
+        : index < 20
+        ? 85
+        : index < 40
+        ? 90
+        : index < 60
+        ? 92
+        : 94;
 
     const rounds = ROUND_LABELS.map(() => {
       const jitter = Math.round(Math.random() * 18 - 9);
@@ -150,7 +159,7 @@ function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
 
   const floorRate = hitRates[0] ?? 0;
   const ceilingRate = hitRates[hitRates.length - 1] ?? 0;
-  const volatilityPenalty = Math.min(volatilityRange * 3, 45);
+  const volatilityPenalty = Math.min(volatilityRange * 3, 45); // bigger range → bigger penalty
 
   const raw =
     0.45 * floorRate + 0.35 * ceilingRate + 0.2 * (100 - volatilityPenalty);
@@ -168,24 +177,23 @@ export const MasterTable: React.FC = () => {
   const [compactMode, setCompactMode] = useState(false);
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(20);
-  const [search, setSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const config = STAT_CONFIG[selectedStat];
   const players = MOCK_PLAYERS;
 
-  const filteredPlayers = useMemo(() => {
-    if (!search.trim() || !isPremium) {
-      return players;
-    }
+  // Reset visible rows when search or stat lens changes
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [searchTerm, selectedStat]);
 
-    const q = search.toLowerCase();
-    return players.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.team.toLowerCase().includes(q) ||
-        p.role.toLowerCase().includes(q)
+  const filteredPlayers = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return players;
+    return players.filter((p) =>
+      p.name.toLowerCase().includes(query)
     );
-  }, [players, search, isPremium]);
+  }, [players, searchTerm]);
 
   const visiblePlayers = useMemo(
     () => filteredPlayers.slice(0, visibleCount),
@@ -199,7 +207,10 @@ export const MasterTable: React.FC = () => {
   };
 
   const handleShowMore = () => {
-    setVisibleCount((prev) => Math.min(prev + 20, filteredPlayers.length));
+    if (!hasMoreRows) return;
+    setVisibleCount((prev) =>
+      Math.min(prev + 20, filteredPlayers.length)
+    );
   };
 
   return (
@@ -232,33 +243,32 @@ export const MasterTable: React.FC = () => {
               only.
             </p>
           </div>
-        </div>
 
-        {/* Right controls column */}
-        <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
-          {/* Search (Neeko+ only) */}
-          <div className="w-full md:w-64">
+          {/* Search bar (Neeko+ locked) */}
+          <div className="mt-3 max-w-xs">
             <div className="relative">
               <input
                 type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={isPremium ? "Search players..." : "Search (Neeko+)"}
                 disabled={!isPremium}
-                className={`w-full rounded-full border px-4 py-2.5 text-sm bg-black/70 border-neutral-700/70 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-yellow-400/70 ${
-                  !isPremium ? "opacity-40 cursor-not-allowed" : ""
-                }`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={
+                  isPremium
+                    ? "Search players by name…"
+                    : "Search players (Neeko+ only)"
+                }
+                className="w-full rounded-full border border-neutral-700/70 bg-black/80 px-3 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-yellow-400 disabled:cursor-not-allowed disabled:opacity-70"
               />
-              {!isPremium && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/70 backdrop-blur-sm">
-                  <span className="text-[11px] font-medium text-yellow-300">
-                    Neeko+ only
-                  </span>
-                </div>
-              )}
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1 text-[10px] text-neutral-400">
+                <Lock className="h-3 w-3 text-yellow-300" />
+                <span>Neeko+</span>
+              </div>
             </div>
           </div>
+        </div>
 
+        {/* Controls */}
+        <div className="flex flex-col gap-4 md:items-end">
           {/* Stat selector */}
           <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
             {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
@@ -284,7 +294,7 @@ export const MasterTable: React.FC = () => {
           </div>
 
           {/* Compact toggle — hidden on mobile */}
-          <div className="hidden items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300 sm:flex">
+          <div className="hidden sm:flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
             <span className="font-medium text-neutral-100">Full grid</span>
             <Switch
               checked={compactMode}
@@ -314,11 +324,14 @@ export const MasterTable: React.FC = () => {
           />
         )}
 
-        {/* Gated blur info for rows > 20 */}
-        {visibleCount > 20 && (
+        {/* Info text about blurred rows */}
+        {filteredPlayers.length > 20 && (
           <div className="mt-4 text-center text-[11px] text-neutral-500">
-            Rows <span className="font-semibold text-neutral-300">21–40</span>{" "}
-            are shown with blurred mock data. In production, this will be gated
+            Rows{" "}
+            <span className="font-semibold text-neutral-300">
+              21+
+            </span>{" "}
+            are shown with blurred mock data here. In production this will gate
             behind a Neeko+ subscription using <code>isPremium</code>.
           </div>
         )}
@@ -331,7 +344,9 @@ export const MasterTable: React.FC = () => {
               onClick={handleShowMore}
               className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
             >
-              Show 20 more rows
+              {visibleCount <= 20
+                ? "Show 20 more rows"
+                : "Show 20 more rows"}
             </Button>
           </div>
         )}
@@ -353,7 +368,9 @@ export const MasterTable: React.FC = () => {
               onClick={handleShowMore}
               className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-[11px] text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
             >
-              Show 20 more rows
+              {visibleCount <= 20
+                ? "Show 20 more rows"
+                : "Show 20 more rows"}
             </Button>
           </div>
         )}
@@ -453,12 +470,13 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
           <div className="divide-y divide-neutral-900/80">
             {players.map((player, index) => {
               const isExpanded = expandedPlayerId === player.id;
-              const isPremiumBlurred = index >= 20;
+              const isPremiumBlurred = index >= 20; // rows 21+ blurred
               const hitRates = computeHitRates(player, selectedStat);
               const summary = computeSummary(player);
 
               return (
                 <div key={player.id} className="relative">
+                  {/* Main row + expansion in a blur-able wrapper */}
                   <div
                     className={
                       isPremiumBlurred
@@ -469,7 +487,9 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
                     {/* Main row */}
                     <div
                       className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                        isExpanded
+                          ? "bg-neutral-900/75"
+                          : "hover:bg-neutral-900/55"
                       }`}
                     >
                       {/* Player cell */}
@@ -506,13 +526,14 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
                         <BodyCell value={summary.max} />
                         <BodyCell value={summary.avg.toFixed(1)} />
                         <BodyCell value={summary.total} strong wide />
+
                         {hitRates.map((value, idx) => (
                           <HitRateCell key={idx} value={value} />
                         ))}
                       </div>
                     </div>
 
-                    {/* Expanded analytics */}
+                    {/* Drop-down analytics */}
                     {isExpanded && (
                       <DesktopExpandedRow
                         player={player}
@@ -602,7 +623,9 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
                   >
                     <div
                       className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
-                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                        isExpanded
+                          ? "bg-neutral-900/75"
+                          : "hover:bg-neutral-900/55"
                       }`}
                     >
                       {/* Player cell */}
@@ -938,9 +961,9 @@ const MobileTable: React.FC<MobileTableProps> = ({
                         <span className="text-neutral-500">
                           Range{" "}
                           {summary.lastWindow.length > 0
-                            ? `${Math.min(...summary.lastWindow)}–${Math.max(
+                            ? `${Math.min(
                                 ...summary.lastWindow
-                              )}`
+                              )}–${Math.max(...summary.lastWindow)}`
                             : "-"}{" "}
                           {config.valueUnitShort}
                         </span>
@@ -963,7 +986,9 @@ const MobileTable: React.FC<MobileTableProps> = ({
                       <div className="rounded-lg border border-yellow-400/35 bg-gradient-to-b from-yellow-500/15 via-black to-black px-3 py-2 text-[11px] text-neutral-200">
                         <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-yellow-100">
                           <span>Confidence Index</span>
-                          <span>{computeConfidenceScore(player, selectedStat)}%</span>
+                          <span>
+                            {computeConfidenceScore(player, selectedStat)}%
+                          </span>
                         </div>
                         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-900">
                           <div
@@ -1035,9 +1060,9 @@ const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, wide }) => (
   <div
     className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-2.5 text-[11px] ${
       wide ? "min-w-[72px]" : "min-w-[52px]"
-    } ${
-      dim ? "text-neutral-400" : "text-neutral-100"
-    } ${strong ? "font-semibold text-neutral-50" : ""}`}
+    } ${dim ? "text-neutral-400" : "text-neutral-100"} ${
+      strong ? "font-semibold text-neutral-50" : ""
+    }`}
   >
     {value}
   </div>
@@ -1165,7 +1190,7 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values, small }) => {
       (i / Math.max(values.length - 1, 1)) * (width - paddingX * 2);
     const y =
       paddingY +
-      (1 - (v - min) / range) * (height - paddingY * 2);
+      (1 - (v - min) / range) * (height - paddingY * 2); // invert y
     return { x, y };
   });
 
@@ -1181,7 +1206,7 @@ const MiniSparkline: React.FC<MiniSparklineProps> = ({ values, small }) => {
       className="h-20 w-full text-yellow-300"
       preserveAspectRatio="none"
     >
-      {/* baseline */}
+      {/* background grid line */}
       <line
         x1={paddingX}
         x2={width - paddingX}
