@@ -6,14 +6,14 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
 // -----------------------------------------------------------------------------
-// Types & mock data (swap for Supabase later)
+// Types & mock data
 // -----------------------------------------------------------------------------
 
 type StatLens = "Fantasy" | "Disposals" | "Goals";
 
 type StatBands = {
-  label: string;
-  thresholds: number[]; // 5 thresholds, low → high
+  label: string;          // unit label (e.g. "pts", "disp", "goals")
+  thresholds: number[];   // 5 thresholds, low → high
 };
 
 const STAT_BANDS: Record<StatLens, StatBands> = {
@@ -32,7 +32,7 @@ const STAT_BANDS: Record<StatLens, StatBands> = {
 };
 
 type HitRates = {
-  bands: number[]; // % for each threshold
+  bands: number[]; // one % per threshold
 };
 
 type PlayerRow = {
@@ -40,7 +40,7 @@ type PlayerRow = {
   name: string;
   team: string;
   role: string;
-  fantasy: number[]; // R1–R23
+  fantasy: number[];
   disposals: number[];
   goals: number[];
 };
@@ -74,7 +74,7 @@ const MOCK_PLAYERS: PlayerRow[] = Array.from({ length: 40 }).map((_, idx) => {
 });
 
 // -----------------------------------------------------------------------------
-// Helpers
+// Helper functions
 // -----------------------------------------------------------------------------
 
 const getRoundsForLens = (player: PlayerRow, lens: StatLens): number[] => {
@@ -114,16 +114,15 @@ const calcRecentWindow = (rounds: number[]) => {
 };
 
 const calcConfidenceIndex = (hitRates: HitRates, volatility: number) => {
-  // crude but feels believable: favour higher bands, penalise volatility
   const [b1, b2, b3, b4, b5] = hitRates.bands;
   const raw =
-    b1 * 0.1 + // lowest band
-    b2 * 0.15 +
-    b3 * 0.25 +
-    b4 * 0.25 +
-    b5 * 0.25;
+    (b1 || 0) * 0.1 +
+    (b2 || 0) * 0.15 +
+    (b3 || 0) * 0.25 +
+    (b4 || 0) * 0.25 +
+    (b5 || 0) * 0.25;
 
-  const volPenalty = Math.min(volatility / 50, 0.4); // cap penalty
+  const volPenalty = Math.min(volatility / 50, 0.4);
   const ci = Math.round(raw * (1 - volPenalty));
   return Math.max(40, Math.min(ci, 99));
 };
@@ -131,7 +130,7 @@ const calcConfidenceIndex = (hitRates: HitRates, volatility: number) => {
 const formatPct = (v: number) => `${v.toFixed(0)}%`;
 
 // -----------------------------------------------------------------------------
-// SVG sparkline (S4 – full mini chart)
+// Sparkline (Option A — Clean Pro Line Chart)
 // -----------------------------------------------------------------------------
 
 type SparklineProps = {
@@ -150,7 +149,7 @@ const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
   const points = recent.map((v, idx) => {
     const x = (idx / Math.max(recent.length - 1, 1)) * 100;
     const norm = (v - min) / range;
-    const y = 36 - norm * 26; // padding top/bottom
+    const y = 34 - norm * 24; // padding top/bottom
     return { x, y, value: v };
   });
 
@@ -163,7 +162,7 @@ const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-[10px] text-neutral-400">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="uppercase tracking-[0.16em] text-neutral-300">
             Recent form sparkline
           </span>
@@ -172,23 +171,21 @@ const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
           </span>
         </div>
         <span className="text-neutral-400">
-          Last {recent.length} rounds ·{" "}
+          Last {recent.length} ·{" "}
           <span className="text-yellow-200 font-medium">
-            {recent.reduce((s, v) => s + v, 0) / recent.length || 0
-              ? (recent.reduce((s, v) => s + v, 0) / recent.length).toFixed(1)
-              : "0.0"}
+            {(recent.reduce((s, v) => s + v, 0) / recent.length).toFixed(1)}
           </span>{" "}
           avg
         </span>
       </div>
 
-      <div className="relative h-28 w-full overflow-hidden rounded-md border border-yellow-500/20 bg-gradient-to-b from-neutral-900 via-black to-black">
+      <div className="relative h-24 w-full overflow-hidden rounded-md border border-yellow-500/20 bg-gradient-to-b from-neutral-900 via-black to-black">
         <svg
           viewBox="0 0 100 40"
           preserveAspectRatio="none"
           className="h-full w-full"
         >
-          {/* grid lines */}
+          {/* soft grid */}
           {[0, 1, 2, 3].map((g) => (
             <line
               key={g}
@@ -200,7 +197,7 @@ const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
               strokeWidth={0.25}
             />
           ))}
-          {/* vertical guides */}
+          {/* vertical hints */}
           {points.map((p, idx) => (
             <line
               key={`v-${idx}`}
@@ -208,23 +205,21 @@ const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
               x2={p.x}
               y1={6}
               y2={36}
-              stroke="rgba(148,163,184,0.16)"
+              stroke="rgba(148,163,184,0.14)"
               strokeWidth={0.25}
             />
           ))}
           {/* area fill */}
           <path
-            d={`${path} L ${points[points.length - 1].x} 40 L ${
-              points[0].x
-            } 40 Z`}
-            fill="rgba(250,204,21,0.10)"
+            d={`${path} L ${points[points.length - 1].x} 40 L ${points[0].x} 40 Z`}
+            fill="rgba(250,204,21,0.12)"
           />
           {/* main line */}
           <path
             d={path}
             fill="none"
-            stroke="rgba(250,204,21,0.9)"
-            strokeWidth={1.4}
+            stroke="rgba(250,204,21,0.95)"
+            strokeWidth={1.5}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
@@ -234,7 +229,7 @@ const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
               key={`p-${idx}`}
               cx={p.x}
               cy={p.y}
-              r={0.7}
+              r={0.9}
               fill="rgba(250,250,250,0.95)"
             />
           ))}
@@ -256,7 +251,10 @@ export const MasterTable: React.FC = () => {
 
   const bandConfig = STAT_BANDS[selectedStat];
 
-  const players = useMemo(() => MOCK_PLAYERS.slice(0, visibleCount), [visibleCount]);
+  const visiblePlayers = useMemo(
+    () => MOCK_PLAYERS.slice(0, visibleCount),
+    [visibleCount]
+  );
 
   const handleToggleExpand = (id: number) => {
     setExpandedPlayerId((prev) => (prev === id ? null : id));
@@ -266,18 +264,20 @@ export const MasterTable: React.FC = () => {
     setVisibleCount((prev) => Math.min(prev + 20, MOCK_PLAYERS.length));
   };
 
-  const hitRateLegend = useMemo(
+  const hitRateLabels = useMemo(
     () =>
-      bandConfig.thresholds.map((t) => `${t}${bandConfig.label === "goals" ? "+" : "+"}`),
+      bandConfig.thresholds.map((t) =>
+        bandConfig.label === "goals" ? `${t}+` : `${t}+`
+      ),
     [bandConfig]
   );
 
   return (
     <section
       id="master-table"
-      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/15 bg-gradient-to-b from-neutral-950 via-neutral-950/90 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-8"
+      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/18 bg-gradient-to-b from-neutral-950 via-neutral-950/95 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-8"
     >
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
@@ -293,31 +293,25 @@ export const MasterTable: React.FC = () => {
               <span className="font-semibold text-yellow-200/90">
                 {selectedStat.toLowerCase()}
               </span>{" "}
-              output, totals and hit-rates across key thresholds — ordered by total
-              output.
+              output, totals and hit-rates across key thresholds — ordered by
+              total output.
             </p>
             <p className="mt-1 max-w-xl text-[11px] text-neutral-400">
-              Hit-rate bands automatically adjust to the selected stat lens. For example:{" "}
-              <span className="font-medium text-neutral-300">
-                Fantasy {STAT_BANDS.Fantasy.thresholds[0]}+
-              </span>
-              ,{" "}
-              <span className="font-medium text-neutral-300">
-                Disposals {STAT_BANDS.Disposals.thresholds[0]}+
-              </span>{" "}
-              and{" "}
-              <span className="font-medium text-neutral-300">
-                Goals {STAT_BANDS.Goals.thresholds[0]}+.
-              </span>{" "}
-              Team &amp; Round filters are Neeko+ only.
+              Hit-rate bands automatically adjust to the selected stat lens. For
+              example: Fantasy {STAT_BANDS.Fantasy.thresholds[0]}+{" "}
+              {STAT_BANDS.Fantasy.label}, Disposals{" "}
+              {STAT_BANDS.Disposals.thresholds[0]}+{" "}
+              {STAT_BANDS.Disposals.label} and Goals{" "}
+              {STAT_BANDS.Goals.thresholds[0]}+ {STAT_BANDS.Goals.label}. Team &amp;
+              Round filters are Neeko+ only.
             </p>
           </div>
         </div>
 
-        {/* Controls */}
+        {/* CONTROLS */}
         <div className="flex flex-col gap-4 md:items-end">
           {/* Stat selector */}
-          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
+          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/80 px-2 py-1 text-xs text-neutral-200">
             {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
               <button
                 key={stat}
@@ -334,63 +328,82 @@ export const MasterTable: React.FC = () => {
             ))}
           </div>
 
-          {/* Team / Round filters (locked) */}
+          {/* Locked filters */}
           <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-neutral-300">
             <LockedFilter label="Team" value="All teams" />
             <LockedFilter label="Round" value="All rounds" />
           </div>
 
           {/* Compact toggle */}
-          <div className="flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
+          <div className="flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/80 px-3 py-1.5 text-[11px] text-neutral-300">
             <span className="hidden text-neutral-400 sm:inline">View</span>
-            <span className="font-medium text-neutral-100">Full grid</span>
+            <span
+              className={`font-medium ${
+                !compactMode ? "text-yellow-100" : "text-neutral-300"
+              }`}
+            >
+              Full grid
+            </span>
             <Switch
               checked={compactMode}
               onCheckedChange={setCompactMode}
               className="data-[state=checked]:bg-yellow-400"
             />
-            <span className="font-medium text-neutral-100">Compact</span>
+            <span
+              className={`font-medium ${
+                compactMode ? "text-yellow-100" : "text-neutral-300"
+              }`}
+            >
+              Compact
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Desktop / large-table layout */}
-      <div className="mt-8 hidden md:block">
-        {compactMode ? (
-          <DesktopCompactTable
-            players={players}
-            lens={selectedStat}
-            bandConfig={bandConfig}
-            hitRateLegend={hitRateLegend}
-            expandedPlayerId={expandedPlayerId}
-            onToggleExpand={handleToggleExpand}
-          />
-        ) : (
-          <DesktopFullTable
-            players={players}
-            lens={selectedStat}
-            bandConfig={bandConfig}
-            hitRateLegend={hitRateLegend}
-            expandedPlayerId={expandedPlayerId}
-            onToggleExpand={handleToggleExpand}
-          />
+      {/* TABLE (shared for desktop + mobile, with horizontal + vertical scroll) */}
+      <div className="mt-8 rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
+        <div className="relative max-h-[620px] overflow-auto">
+          {compactMode ? (
+            <CompactTable
+              players={visiblePlayers}
+              lens={selectedStat}
+              bandConfig={bandConfig}
+              hitRateLabels={hitRateLabels}
+              expandedPlayerId={expandedPlayerId}
+              onToggleExpand={handleToggleExpand}
+            />
+          ) : (
+            <FullTable
+              players={visiblePlayers}
+              lens={selectedStat}
+              bandConfig={bandConfig}
+              hitRateLabels={hitRateLabels}
+              expandedPlayerId={expandedPlayerId}
+              onToggleExpand={handleToggleExpand}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Bottom CTA + Show more */}
+      <div className="mt-10 flex flex-col items-center gap-3 text-center">
+        {visibleCount < MOCK_PLAYERS.length && (
+          <Button
+            variant="outline"
+            onClick={handleShowMore}
+            className="mb-2 rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+          >
+            Show 20 more rows
+          </Button>
         )}
-      </div>
 
-      {/* Mobile layout */}
-      <div className="mt-6 space-y-3 md:hidden">
-        <MobileCards players={players} lens={selectedStat} bandConfig={bandConfig} />
-      </div>
-
-      {/* Bottom CTA */}
-      <div className="mt-16 flex flex-col items-center gap-3 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
           <Sparkles className="h-3 w-3" />
           <span>Neeko+ Master Grid</span>
         </div>
         <p className="max-w-xl text-xs text-neutral-300/90">
-          Unlock full-season ledgers, advanced hit-rate bands and deep role filters for every
-          player.
+          Unlock full-season ledgers, advanced hit-rate bands and deep role
+          filters for every player.
         </p>
         <Button
           size="lg"
@@ -399,19 +412,6 @@ export const MasterTable: React.FC = () => {
           Unlock Neeko+ Insights
         </Button>
       </div>
-
-      {/* Show more (shared for desktop + mobile) */}
-      {visibleCount < MOCK_PLAYERS.length && (
-        <div className="mt-6 text-center">
-          <Button
-            variant="outline"
-            onClick={handleShowMore}
-            className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
-          >
-            Show 20 more rows
-          </Button>
-        </div>
-      )}
     </section>
   );
 };
@@ -426,8 +426,10 @@ type LockedFilterProps = {
 };
 
 const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => (
-  <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/75 px-3 py-1">
-    <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">{label}</span>
+  <div className="flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/75 px-3 py-1">
+    <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+      {label}
+    </span>
     <span className="text-[11px] text-neutral-100">{value}</span>
     <span className="inline-flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-0.5 text-[10px] text-neutral-300">
       <Lock className="h-3 w-3 text-yellow-300" />
@@ -437,256 +439,242 @@ const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => (
 );
 
 // -----------------------------------------------------------------------------
-// Desktop tables
+// Tables
 // -----------------------------------------------------------------------------
 
-type DesktopTableBaseProps = {
+type TableBaseProps = {
   players: PlayerRow[];
   lens: StatLens;
   bandConfig: StatBands;
-  hitRateLegend: string[];
+  hitRateLabels: string[];
   expandedPlayerId: number | null;
   onToggleExpand: (id: number) => void;
 };
 
-const DesktopFullTable: React.FC<DesktopTableBaseProps> = ({
+const FullTable: React.FC<TableBaseProps> = ({
   players,
   lens,
   bandConfig,
-  hitRateLegend,
+  hitRateLabels,
   expandedPlayerId,
   onToggleExpand,
 }) => {
   const thresholds = bandConfig.thresholds;
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
-      <div className="relative max-h-[620px] overflow-auto">
-        <table className="min-w-[1200px] border-separate border-spacing-0">
-          <thead className="sticky top-0 z-40 bg-black/95 backdrop-blur-sm">
-            <tr>
-              {/* Player header */}
-              <th
-                scope="col"
-                className="sticky left-0 z-50 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
+    <table className="min-w-[1200px] border-separate border-spacing-0">
+      <thead className="sticky top-0 z-40 bg-black/95 backdrop-blur-sm">
+        <tr>
+          <th
+            scope="col"
+            className="sticky left-0 z-50 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
+          >
+            Player
+          </th>
+          <HeaderCell label="OR" />
+          {ROUND_LABELS.map((label) => (
+            <HeaderCell key={label} label={label} />
+          ))}
+          <HeaderCell label="Min" />
+          <HeaderCell label="Max" />
+          <HeaderCell label="Avg" />
+          <HeaderCell label="Total" wide />
+          {hitRateLabels.map((label, idx) => (
+            <HeaderCell key={idx} label={label} accent />
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {players.map((player, idx) => {
+          const rounds = getRoundsForLens(player, lens);
+          const summary = calcSummary(rounds);
+          const hitRates = calcHitRates(rounds, thresholds);
+          const recent = calcRecentWindow(rounds);
+          const ci = calcConfidenceIndex(hitRates, recent.volatility);
+          const isExpanded = expandedPlayerId === player.id;
+
+          return (
+            <React.Fragment key={player.id}>
+              <tr
+                className={`text-xs text-neutral-100 transition-colors ${
+                  isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                }`}
               >
-                Player
-              </th>
-              <HeaderCell align="center" label="OR" />
-              {ROUND_LABELS.map((label) => (
-                <HeaderCell key={label} align="center" label={label} />
-              ))}
-              <HeaderCell align="center" label="Min" />
-              <HeaderCell align="center" label="Max" />
-              <HeaderCell align="center" label="Avg" />
-              <HeaderCell align="center" label="Total" wide />
-              {thresholds.map((t, idx) => (
-                <HeaderCell
-                  key={t}
-                  align="center"
-                  label={`${hitRateLegend[idx]}`}
-                  accent
-                />
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {players.map((player, idx) => {
-              const rounds = getRoundsForLens(player, lens);
-              const summary = calcSummary(rounds);
-              const hitRates = calcHitRates(rounds, thresholds);
-              const recent = calcRecentWindow(rounds);
-              const ci = calcConfidenceIndex(hitRates, recent.volatility);
-              const isExpanded = expandedPlayerId === player.id;
-
-              return (
-                <React.Fragment key={player.id}>
-                  <tr
-                    className={`text-xs text-neutral-100 transition-colors ${
-                      isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                    }`}
+                {/* Player cell */}
+                <td className="sticky left-0 z-30 w-64 border-b border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/85 px-4 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onToggleExpand(player.id)}
+                    className="flex w-full items-center gap-3 text-left"
                   >
-                    {/* Player cell */}
-                    <td className="sticky left-0 z-30 w-64 border-b border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/85 px-4 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => onToggleExpand(player.id)}
-                        className="flex w-full items-center gap-3 text-left"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                          {idx + 1}
-                        </span>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
-                          </span>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                        )}
-                      </button>
-                    </td>
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                      {idx + 1}
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-medium text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                        {player.team} • {player.role}
+                      </span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                    ) : (
+                      <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                    )}
+                  </button>
+                </td>
 
-                    {/* OR + rounds */}
-                    <BodyCell value={Math.round(summary.avg)} />
-                    {rounds.map((score, rIdx) => (
-                      <BodyCell key={rIdx} value={score} />
-                    ))}
-                    <BodyCell value={summary.min} dim />
-                    <BodyCell value={summary.max} />
-                    <BodyCell value={summary.avg.toFixed(1)} />
-                    <BodyCell value={summary.total} strong />
-                    {hitRates.bands.map((v, bIdx) => (
-                      <HitRateCell key={bIdx} value={v} />
-                    ))}
-                  </tr>
+                {/* OR + rounds */}
+                <BodyCell value={Math.round(summary.avg)} />
+                {rounds.map((score, rIdx) => (
+                  <BodyCell key={rIdx} value={score} />
+                ))}
+                <BodyCell value={summary.min} dim />
+                <BodyCell value={summary.max} />
+                <BodyCell value={summary.avg.toFixed(1)} />
+                <BodyCell value={summary.total} strong />
+                {hitRates.bands.map((v, bIdx) => (
+                  <HitRateCell key={bIdx} value={v} />
+                ))}
+              </tr>
 
-                  {isExpanded && (
-                    <tr className="bg-neutral-950/98">
-                      <td
-                        colSpan={2 + ROUND_LABELS.length + 4 + bandConfig.thresholds.length}
-                        className="border-t border-neutral-900/80 px-6 py-5"
-                      >
-                        <ExpandedRowContent
-                          player={player}
-                          lens={lens}
-                          rounds={rounds}
-                          hitRates={hitRates}
-                          recent={recent}
-                          ci={ci}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              {isExpanded && (
+                <tr className="bg-neutral-950/98">
+                  <td
+                    colSpan={
+                      1 + // OR
+                      ROUND_LABELS.length +
+                      4 + // min/max/avg/total
+                      bandConfig.thresholds.length
+                    }
+                    className="border-t border-neutral-900/80 px-6 py-5"
+                  >
+                    <ExpandedRowContent
+                      player={player}
+                      lens={lens}
+                      rounds={rounds}
+                      hitRates={hitRates}
+                      recent={recent}
+                      ci={ci}
+                    />
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </tbody>
+    </table>
   );
 };
 
-const DesktopCompactTable: React.FC<DesktopTableBaseProps> = ({
+const CompactTable: React.FC<TableBaseProps> = ({
   players,
   lens,
   bandConfig,
-  hitRateLegend,
+  hitRateLabels,
   expandedPlayerId,
   onToggleExpand,
 }) => {
   const thresholds = bandConfig.thresholds;
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
-      <div className="relative max-h-[620px] overflow-auto">
-        <table className="min-w-[900px] border-separate border-spacing-0">
-          <thead className="sticky top-0 z-40 bg-black/95 backdrop-blur-sm">
-            <tr>
-              <th
-                scope="col"
-                className="sticky left-0 z-50 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
+    <table className="min-w-[900px] border-separate border-spacing-0">
+      <thead className="sticky top-0 z-40 bg-black/95 backdrop-blur-sm">
+        <tr>
+          <th
+            scope="col"
+            className="sticky left-0 z-50 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
+          >
+            Player
+          </th>
+          <HeaderCell label="Min" />
+          <HeaderCell label="Max" />
+          <HeaderCell label="Avg" />
+          <HeaderCell label="Total" wide />
+          {hitRateLabels.map((label, idx) => (
+            <HeaderCell key={idx} label={label} accent />
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {players.map((player, idx) => {
+          const rounds = getRoundsForLens(player, lens);
+          const summary = calcSummary(rounds);
+          const hitRates = calcHitRates(rounds, thresholds);
+          const recent = calcRecentWindow(rounds);
+          const ci = calcConfidenceIndex(hitRates, recent.volatility);
+          const isExpanded = expandedPlayerId === player.id;
+
+          return (
+            <React.Fragment key={player.id}>
+              <tr
+                className={`text-xs text-neutral-100 transition-colors ${
+                  isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                }`}
               >
-                Player
-              </th>
-              <HeaderCell align="center" label="Min" />
-              <HeaderCell align="center" label="Max" />
-              <HeaderCell align="center" label="Avg" />
-              <HeaderCell align="center" label="Total" wide />
-              {thresholds.map((t, idx) => (
-                <HeaderCell
-                  key={t}
-                  align="center"
-                  label={`${hitRateLegend[idx]}`}
-                  accent
-                />
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {players.map((player, idx) => {
-              const rounds = getRoundsForLens(player, lens);
-              const summary = calcSummary(rounds);
-              const hitRates = calcHitRates(rounds, thresholds);
-              const recent = calcRecentWindow(rounds);
-              const ci = calcConfidenceIndex(hitRates, recent.volatility);
-              const isExpanded = expandedPlayerId === player.id;
-
-              return (
-                <React.Fragment key={player.id}>
-                  <tr
-                    className={`text-xs text-neutral-100 transition-colors ${
-                      isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                    }`}
+                <td className="sticky left-0 z-30 w-64 border-b border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/85 px-4 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onToggleExpand(player.id)}
+                    className="flex w-full items-center gap-3 text-left"
                   >
-                    <td className="sticky left-0 z-30 w-64 border-b border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/85 px-4 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => onToggleExpand(player.id)}
-                        className="flex w-full items-center gap-3 text-left"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                          {idx + 1}
-                        </span>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
-                          </span>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                        )}
-                      </button>
-                    </td>
-                    <BodyCell value={summary.min} dim />
-                    <BodyCell value={summary.max} />
-                    <BodyCell value={summary.avg.toFixed(1)} />
-                    <BodyCell value={summary.total} strong />
-                    {hitRates.bands.map((v, bIdx) => (
-                      <HitRateCell key={bIdx} value={v} />
-                    ))}
-                  </tr>
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                      {idx + 1}
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-medium text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                        {player.team} • {player.role}
+                      </span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                    ) : (
+                      <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                    )}
+                  </button>
+                </td>
+                <BodyCell value={summary.min} dim />
+                <BodyCell value={summary.max} />
+                <BodyCell value={summary.avg.toFixed(1)} />
+                <BodyCell value={summary.total} strong />
+                {hitRates.bands.map((v, bIdx) => (
+                  <HitRateCell key={bIdx} value={v} />
+                ))}
+              </tr>
 
-                  {isExpanded && (
-                    <tr className="bg-neutral-950/98">
-                      <td
-                        colSpan={4 + bandConfig.thresholds.length + 1}
-                        className="border-t border-neutral-900/80 px-6 py-5"
-                      >
-                        <ExpandedRowContent
-                          player={player}
-                          lens={lens}
-                          rounds={rounds}
-                          hitRates={hitRates}
-                          recent={recent}
-                          ci={ci}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              {isExpanded && (
+                <tr className="bg-neutral-950/98">
+                  <td
+                    colSpan={4 + bandConfig.thresholds.length}
+                    className="border-t border-neutral-900/80 px-6 py-5"
+                  >
+                    <ExpandedRowContent
+                      player={player}
+                      lens={lens}
+                      rounds={rounds}
+                      hitRates={hitRates}
+                      recent={recent}
+                      ci={ci}
+                    />
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </tbody>
+    </table>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Expanded dropdown content (desktop)
+// Expanded dropdown content
 // -----------------------------------------------------------------------------
 
 type ExpandedRowContentProps = {
@@ -707,11 +695,15 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
   ci,
 }) => {
   const statLabel =
-    lens === "Fantasy" ? "fantasy points" : lens === "Disposals" ? "disposals" : "goals";
+    lens === "Fantasy"
+      ? "fantasy points"
+      : lens === "Disposals"
+      ? "disposals"
+      : "goals";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      {/* Left column: scoring window + sparkline + AI summary */}
+      {/* Left: scoring window + sparkline + AI summary */}
       <div className="space-y-4">
         {/* Recent scoring window */}
         <div className="rounded-xl border border-neutral-800/80 bg-gradient-to-r from-neutral-900/95 via-neutral-900/90 to-black/95 p-4">
@@ -719,8 +711,7 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
             Recent scoring window
           </div>
           <p className="text-[11px] text-neutral-300">
-            Snapshot of consistency and ceiling across the most recent rounds in this scoring
-            lens.
+            Snapshot of consistency and ceiling across the most recent rounds in this scoring lens.
           </p>
           <div className="mt-3 grid grid-cols-3 gap-3 text-[11px] text-neutral-200">
             <div>
@@ -786,16 +777,15 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
         </div>
       </div>
 
-      {/* Right column: Confidence index + hit-rate bands summary */}
+      {/* Right: confidence + hit-rate profile */}
       <div className="space-y-4">
-        <div className="rounded-xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/16 via-black to-black p-4 shadow-[0_0_30px_rgba(250,204,21,0.45)]">
+        <div className="rounded-xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/18 via-black to-black p-4 shadow-[0_0_30px_rgba(250,204,21,0.45)]">
           <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-50">
             <span>Confidence index</span>
             <span>{ci}%</span>
           </div>
           <p className="mt-2 text-[11px] text-neutral-100/90 leading-snug">
-            Blends hit-rate consistency, volatility spread and number of recent games played in
-            this scoring lens.
+            Blends hit-rate consistency, volatility spread and games played in this scoring lens.
           </p>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
             <div
@@ -838,130 +828,21 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
 };
 
 // -----------------------------------------------------------------------------
-// Mobile cards
-// -----------------------------------------------------------------------------
-
-type MobileCardsProps = {
-  players: PlayerRow[];
-  lens: StatLens;
-  bandConfig: StatBands;
-};
-
-const MobileCards: React.FC<MobileCardsProps> = ({ players, lens, bandConfig }) => {
-  const thresholds = bandConfig.thresholds;
-
-  return (
-    <>
-      {players.map((player, idx) => {
-        const rounds = getRoundsForLens(player, lens);
-        const summary = calcSummary(rounds);
-        const hitRates = calcHitRates(rounds, thresholds);
-        const recent = calcRecentWindow(rounds);
-
-        return (
-          <div
-            key={player.id}
-            className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 p-4 text-xs text-neutral-100"
-          >
-            {/* Header */}
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/90 text-[10px] text-neutral-300">
-                {idx + 1}
-              </span>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-medium text-neutral-50">{player.name}</span>
-                  <span className="text-[11px] text-yellow-200">
-                    {summary.avg.toFixed(1)} avg
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
-                  <span className="uppercase tracking-[0.16em]">
-                    {player.team} • {player.role}
-                  </span>
-                  <span>
-                    {summary.min}–{summary.max} • {summary.total} total
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hit-rate bands */}
-            <div className="mt-3 grid grid-cols-5 gap-1 text-[10px]">
-              {hitRates.bands.map((v, idx2) => (
-                <HitRatePill
-                  key={idx2}
-                  label={bandLabelForIndex(idx2, lens)}
-                  value={v}
-                />
-              ))}
-            </div>
-
-            {/* Round ledger mini-scroll */}
-            <div className="mt-3">
-              <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-400">
-                <span className="uppercase tracking-[0.16em]">Round ledger</span>
-                <span>
-                  L5:{" "}
-                  <span className="text-yellow-200">
-                    {recent.avg.toFixed(1)}
-                  </span>
-                </span>
-              </div>
-              <div className="flex gap-1 overflow-x-auto pb-1">
-                {rounds.map((score, rIdx) => (
-                  <div
-                    key={rIdx}
-                    className="min-w-[46px] rounded-md bg-neutral-900/90 px-2 py-1 text-center text-[10px]"
-                  >
-                    <div className="text-[9px] text-neutral-500">
-                      {ROUND_LABELS[rIdx]}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-neutral-100">{score}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sparkline */}
-            <div className="mt-3">
-              <Sparkline rounds={rounds} lens={lens} />
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Shared cells
+// Shared cells & colour helpers
 // -----------------------------------------------------------------------------
 
 type HeaderCellProps = {
   label: string;
-  align?: "left" | "center" | "right";
   wide?: boolean;
   accent?: boolean;
 };
 
-const HeaderCell: React.FC<HeaderCellProps> = ({
-  label,
-  align = "center",
-  wide,
-  accent,
-}) => (
+const HeaderCell: React.FC<HeaderCellProps> = ({ label, wide, accent }) => (
   <th
     scope="col"
-    className={`border-b border-neutral-800/80 px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400 ${
+    className={`whitespace-nowrap border-b border-neutral-800/80 px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] ${
       wide ? "min-w-[72px]" : "min-w-[52px]"
-    } ${accent ? "text-emerald-300" : ""} ${
-      align === "left"
-        ? "text-left"
-        : align === "right"
-        ? "text-right"
-        : "text-center"
-    }`}
+    } ${accent ? "text-emerald-300" : "text-neutral-400"} text-center`}
   >
     {label}
   </th>
@@ -975,7 +856,7 @@ type BodyCellProps = {
 
 const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong }) => (
   <td
-    className={`border-b border-neutral-900/85 px-2 py-2.5 text-center text-[11px] ${
+    className={`whitespace-nowrap border-b border-neutral-900/85 px-2 py-2.5 text-center text-[11px] ${
       dim ? "text-neutral-400" : "text-neutral-100"
     } ${strong ? "font-semibold text-neutral-50" : ""}`}
   >
@@ -988,7 +869,7 @@ type HitRateCellProps = {
 };
 
 const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => (
-  <td className="border-b border-neutral-900/85 px-2 py-2.5 text-center">
+  <td className="whitespace-nowrap border-b border-neutral-900/85 px-2 py-2.5 text-center">
     <span
       className={`inline-flex min-w-[44px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${hitRateChipColour(
         value
@@ -998,24 +879,6 @@ const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => (
     </span>
   </td>
 );
-
-type HitRatePillProps = {
-  label: string;
-  value: number;
-};
-
-const HitRatePill: React.FC<HitRatePillProps> = ({ label, value }) => (
-  <div className="flex flex-col items-center justify-center rounded-lg bg-neutral-900/90 px-2 py-1 text-[10px]">
-    <span className="text-[9px] text-neutral-500">{label}</span>
-    <span className={`mt-0.5 text-[11px] font-semibold ${hitRateTextColour(value)}`}>
-      {formatPct(value)}
-    </span>
-  </div>
-);
-
-// -----------------------------------------------------------------------------
-// Colour helpers for hit-rates
-// -----------------------------------------------------------------------------
 
 const hitRateChipColour = (v: number) => {
   if (v >= 85) return "bg-emerald-500/20 text-emerald-300";
