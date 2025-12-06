@@ -1,10 +1,9 @@
 // src/components/afl/players/MasterTable.tsx
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Lock, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
 
 // -----------------------------------------------------------------------------
 // Types & config
@@ -18,7 +17,7 @@ type PlayerRow = {
   team: string;
   role: string;
   orScore: number;
-  rounds: number[]; // R1–R23 for the current stat lens (mock for now)
+  roundsByLens: Record<StatLens, number[]>; // separate arrays per lens
 };
 
 const ROUND_LABELS = [
@@ -87,32 +86,36 @@ const STAT_CONFIG: Record<
 // Mock data — SQL-friendly shape for later swap to Supabase
 // -----------------------------------------------------------------------------
 
-const buildMockPlayers = (): PlayerRow[] => {
-  // More players so "Show 20 more" can be clicked multiple times in mock
-  return Array.from({ length: 80 }).map((_, index) => {
-    const base =
-      index < 10
-        ? 80
-        : index < 20
-        ? 85
-        : index < 40
-        ? 90
-        : index < 60
-        ? 92
-        : 94;
+const buildRounds = (base: number, jitterRange: number) => {
+  return ROUND_LABELS.map(() => {
+    const jitter = Math.round(Math.random() * jitterRange - jitterRange / 2);
+    return Math.max(0, base + jitter);
+  });
+};
 
-    const rounds = ROUND_LABELS.map(() => {
-      const jitter = Math.round(Math.random() * 18 - 9);
-      return base + jitter;
-    });
+const buildMockPlayers = (): PlayerRow[] => {
+  return Array.from({ length: 40 }).map((_, index) => {
+    // Tiered bases so each lens feels different but still believable
+    const fantasyBase =
+      index < 10 ? 105 : index < 20 ? 98 : index < 30 ? 92 : 86;
+    const disposalsBase =
+      index < 10 ? 27 : index < 20 ? 24 : index < 30 ? 21 : 18;
+    const goalsBase =
+      index < 10 ? 2.1 : index < 20 ? 1.6 : index < 30 ? 1.1 : 0.7;
+
+    const roundsByLens: Record<StatLens, number[]> = {
+      Fantasy: buildRounds(fantasyBase, 22),
+      Disposals: buildRounds(disposalsBase, 8),
+      Goals: buildRounds(goalsBase, 3),
+    };
 
     return {
       id: index + 1,
       name: `Player ${index + 1}`,
       team: ["GEEL", "CARL", "RICH", "ESS", "COLL", "NMFC"][index % 6],
       role: ["MID", "RUC", "FWD", "DEF"][index % 4],
-      orScore: base + 10,
-      rounds,
+      orScore: fantasyBase + 8,
+      roundsByLens,
     };
   });
 };
@@ -123,8 +126,24 @@ const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
 // Helpers
 // -----------------------------------------------------------------------------
 
-function computeSummary(player: PlayerRow) {
-  const rounds = player.rounds;
+function getRounds(player: PlayerRow, lens: StatLens): number[] {
+  return player.roundsByLens[lens] ?? [];
+}
+
+function computeSummary(player: PlayerRow, lens: StatLens) {
+  const rounds = getRounds(player, lens);
+  if (!rounds.length) {
+    return {
+      min: 0,
+      max: 0,
+      total: 0,
+      avg: 0,
+      lastWindow: [] as number[],
+      l5Avg: 0,
+      volatilityRange: 0,
+    };
+  }
+
   const min = Math.min(...rounds);
   const max = Math.max(...rounds);
   const total = rounds.reduce((sum, v) => sum + v, 0);
@@ -146,7 +165,9 @@ function computeSummary(player: PlayerRow) {
 
 function computeHitRates(player: PlayerRow, lens: StatLens): number[] {
   const config = STAT_CONFIG[lens];
-  const rounds = player.rounds;
+  const rounds = getRounds(player, lens);
+  if (!rounds.length) return config.thresholds.map(() => 0);
+
   return config.thresholds.map((t) => {
     const count = rounds.filter((v) => v >= t).length;
     return Math.round((count / rounds.length) * 100);
@@ -155,7 +176,7 @@ function computeHitRates(player: PlayerRow, lens: StatLens): number[] {
 
 function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
   const hitRates = computeHitRates(player, lens);
-  const { volatilityRange } = computeSummary(player);
+  const { volatilityRange } = computeSummary(player, lens);
 
   const floorRate = hitRates[0] ?? 0;
   const ceilingRate = hitRates[hitRates.length - 1] ?? 0;
@@ -172,35 +193,25 @@ function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
 // -----------------------------------------------------------------------------
 
 export const MasterTable: React.FC = () => {
-  const { isPremium } = useAuth();
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
   const [compactMode, setCompactMode] = useState(false);
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(20);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // visually present, logically ignored for free users
 
   const config = STAT_CONFIG[selectedStat];
-  const players = MOCK_PLAYERS;
 
-  // Reset visible rows when search or stat lens changes
-  useEffect(() => {
-    setVisibleCount(20);
-  }, [searchTerm, selectedStat]);
-
-  const filteredPlayers = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return players;
-    return players.filter((p) =>
-      p.name.toLowerCase().includes(query)
-    );
-  }, [players, searchTerm]);
+  // In future this can actually filter; for now search is Neeko+ only (disabled)
+  const players = useMemo(() => {
+    return MOCK_PLAYERS;
+  }, []);
 
   const visiblePlayers = useMemo(
-    () => filteredPlayers.slice(0, visibleCount),
-    [filteredPlayers, visibleCount]
+    () => players.slice(0, visibleCount),
+    [players, visibleCount]
   );
 
-  const hasMoreRows = visibleCount < filteredPlayers.length;
+  const hasMoreRows = visibleCount < players.length;
 
   const handleToggleExpand = (id: number) => {
     setExpandedPlayerId((prev) => (prev === id ? null : id));
@@ -208,9 +219,7 @@ export const MasterTable: React.FC = () => {
 
   const handleShowMore = () => {
     if (!hasMoreRows) return;
-    setVisibleCount((prev) =>
-      Math.min(prev + 20, filteredPlayers.length)
-    );
+    setVisibleCount((prev) => Math.min(prev + 20, players.length));
   };
 
   return (
@@ -218,8 +227,9 @@ export const MasterTable: React.FC = () => {
       id="master-table"
       className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/15 bg-gradient-to-b from-neutral-950 via-neutral-950/90 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-6 lg:px-8"
     >
-      {/* Header */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+      {/* Header + search + controls */}
+      <div className="space-y-6">
+        {/* Title + body copy */}
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
             <Sparkles className="h-3 w-3" />
@@ -243,65 +253,63 @@ export const MasterTable: React.FC = () => {
               only.
             </p>
           </div>
-
-          {/* Search bar (Neeko+ locked) */}
-          <div className="mt-3 max-w-xs">
-            <div className="relative">
-              <input
-                type="text"
-                disabled={!isPremium}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={
-                  isPremium
-                    ? "Search players by name…"
-                    : "Search players (Neeko+ only)"
-                }
-                className="w-full rounded-full border border-neutral-700/70 bg-black/80 px-3 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-yellow-400 disabled:cursor-not-allowed disabled:opacity-70"
-              />
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1 text-[10px] text-neutral-400">
-                <Lock className="h-3 w-3 text-yellow-300" />
-                <span>Neeko+</span>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col gap-4 md:items-end">
-          {/* Stat selector */}
-          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
-            {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
-              <button
-                key={stat}
-                type="button"
-                onClick={() => setSelectedStat(stat)}
-                className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
-                  selectedStat === stat
-                    ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
-                    : "text-neutral-300 hover:bg-neutral-800/80"
-                }`}
-              >
-                {stat}
-              </button>
-            ))}
-          </div>
-
-          {/* Team / Round filters (locked) */}
-          <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-neutral-300">
-            <LockedFilter label="Team" value="All teams" />
-            <LockedFilter label="Round" value="All rounds" />
-          </div>
-
-          {/* Compact toggle — hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
-            <span className="font-medium text-neutral-100">Full grid</span>
-            <Switch
-              checked={compactMode}
-              onCheckedChange={setCompactMode}
-              className="data-[state=checked]:bg-yellow-400"
+        {/* Search bar (Neeko+ only) */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-xl">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled
+              placeholder="Search players (Neeko+ only)"
+              className="w-full rounded-full border border-neutral-700/80 bg-black/80 px-4 py-2.5 pr-32 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-yellow-400/60 disabled:cursor-not-allowed disabled:opacity-70"
             />
-            <span className="font-medium text-neutral-100">Compact</span>
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+              <span className="inline-flex items-center gap-1 rounded-full border border-neutral-700/80 bg-neutral-900/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                <Lock className="h-3 w-3" />
+                <span>Neeko+ only</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Right-side controls */}
+          <div className="flex flex-col gap-3 md:items-end">
+            {/* Stat selector */}
+            <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
+              {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
+                <button
+                  key={stat}
+                  type="button"
+                  onClick={() => setSelectedStat(stat)}
+                  className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
+                    selectedStat === stat
+                      ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
+                      : "text-neutral-300 hover:bg-neutral-800/80"
+                  }`}
+                >
+                  {stat}
+                </button>
+              ))}
+            </div>
+
+            {/* Team / Round filters (locked) */}
+            <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-neutral-300">
+              <LockedFilter label="Team" value="All teams" />
+              <LockedFilter label="Round" value="All rounds" />
+            </div>
+
+            {/* Compact toggle — hidden on mobile */}
+            <div className="hidden items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300 sm:flex">
+              <span className="font-medium text-neutral-100">Full grid</span>
+              <Switch
+                checked={compactMode}
+                onCheckedChange={setCompactMode}
+                className="data-[state=checked]:bg-yellow-400"
+              />
+              <span className="font-medium text-neutral-100">Compact</span>
+            </div>
           </div>
         </div>
       </div>
@@ -324,14 +332,11 @@ export const MasterTable: React.FC = () => {
           />
         )}
 
-        {/* Info text about blurred rows */}
-        {filteredPlayers.length > 20 && (
+        {/* Info note when rows beyond 20 are visible */}
+        {visibleCount > 20 && (
           <div className="mt-4 text-center text-[11px] text-neutral-500">
-            Rows{" "}
-            <span className="font-semibold text-neutral-300">
-              21+
-            </span>{" "}
-            are shown with blurred mock data here. In production this will gate
+            Rows <span className="font-semibold text-neutral-300">21–40</span>{" "}
+            are shown with blurred mock data. In production, this will be gated
             behind a Neeko+ subscription using <code>isPremium</code>.
           </div>
         )}
@@ -344,9 +349,7 @@ export const MasterTable: React.FC = () => {
               onClick={handleShowMore}
               className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
             >
-              {visibleCount <= 20
-                ? "Show 20 more rows"
-                : "Show 20 more rows"}
+              {visibleCount <= 20 ? "Show 20 more rows" : "Show remaining rows"}
             </Button>
           </div>
         )}
@@ -368,9 +371,7 @@ export const MasterTable: React.FC = () => {
               onClick={handleShowMore}
               className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-[11px] text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
             >
-              {visibleCount <= 20
-                ? "Show 20 more rows"
-                : "Show 20 more rows"}
+              {visibleCount <= 20 ? "Show 20 more rows" : "Show remaining rows"}
             </Button>
           </div>
         )}
@@ -472,7 +473,9 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
               const isExpanded = expandedPlayerId === player.id;
               const isPremiumBlurred = index >= 20; // rows 21+ blurred
               const hitRates = computeHitRates(player, selectedStat);
-              const summary = computeSummary(player);
+              const summary = computeSummary(player, selectedStat);
+              const confidence = computeConfidenceScore(player, selectedStat);
+              const rounds = getRounds(player, selectedStat);
 
               return (
                 <div key={player.id} className="relative">
@@ -519,7 +522,7 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
                       {/* Numbers */}
                       <div className="flex flex-1 items-center text-center text-[11px]">
                         <BodyCell value={player.orScore} />
-                        {player.rounds.map((score, idx) => (
+                        {rounds.map((score, idx) => (
                           <BodyCell key={idx} value={score} />
                         ))}
                         <BodyCell value={summary.min} dim />
@@ -538,6 +541,7 @@ const DesktopFullTable: React.FC<DesktopTableProps> = ({
                       <DesktopExpandedRow
                         player={player}
                         selectedStat={selectedStat}
+                        confidence={confidence}
                       />
                     )}
                   </div>
@@ -609,7 +613,7 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
             {players.map((player, index) => {
               const isExpanded = expandedPlayerId === player.id;
               const isPremiumBlurred = index >= 20;
-              const summary = computeSummary(player);
+              const summary = computeSummary(player, selectedStat);
               const hitRates = computeHitRates(player, selectedStat);
 
               return (
@@ -668,6 +672,10 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
                       <DesktopExpandedRow
                         player={player}
                         selectedStat={selectedStat}
+                        confidence={computeConfidenceScore(
+                          player,
+                          selectedStat
+                        )}
                       />
                     )}
                   </div>
@@ -706,20 +714,21 @@ const DesktopCompactTable: React.FC<DesktopTableProps> = ({
 type ExpandedRowProps = {
   player: PlayerRow;
   selectedStat: StatLens;
+  confidence: number;
 };
 
 const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
   player,
   selectedStat,
+  confidence,
 }) => {
   const config = STAT_CONFIG[selectedStat];
-  const summary = computeSummary(player);
-  const confidence = computeConfidenceScore(player, selectedStat);
+  const summary = computeSummary(player, selectedStat);
   const hitRates = computeHitRates(player, selectedStat);
 
   const lastWindow = summary.lastWindow;
-  const windowMin = Math.min(...lastWindow);
-  const windowMax = Math.max(...lastWindow);
+  const windowMin = lastWindow.length ? Math.min(...lastWindow) : 0;
+  const windowMax = lastWindow.length ? Math.max(...lastWindow) : 0;
   const volatilityRange = summary.volatilityRange;
 
   const volatilityLabel =
@@ -870,8 +879,10 @@ const MobileTable: React.FC<MobileTableProps> = ({
       {players.map((player, index) => {
         const isExpanded = expandedPlayerId === player.id;
         const isPremiumBlurred = index >= 20;
-        const summary = computeSummary(player);
+        const summary = computeSummary(player, selectedStat);
         const hitRates = computeHitRates(player, selectedStat);
+        const confidence = computeConfidenceScore(player, selectedStat);
+        const rounds = getRounds(player, selectedStat);
 
         return (
           <div key={player.id} className="relative">
@@ -934,11 +945,12 @@ const MobileTable: React.FC<MobileTableProps> = ({
                           Round ledger
                         </span>
                         <span>
-                          L5: {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
+                          L5: {summary.l5Avg.toFixed(1)}{" "}
+                          {config.valueUnitShort}
                         </span>
                       </div>
                       <div className="flex gap-1 overflow-x-auto pb-1">
-                        {player.rounds.map((score, idx) => (
+                        {rounds.map((score, idx) => (
                           <div
                             key={idx}
                             className="min-w-[46px] rounded-md bg-neutral-900/90 px-2 py-1 text-center text-[10px]"
@@ -986,19 +998,12 @@ const MobileTable: React.FC<MobileTableProps> = ({
                       <div className="rounded-lg border border-yellow-400/35 bg-gradient-to-b from-yellow-500/15 via-black to-black px-3 py-2 text-[11px] text-neutral-200">
                         <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-yellow-100">
                           <span>Confidence Index</span>
-                          <span>
-                            {computeConfidenceScore(player, selectedStat)}%
-                          </span>
+                          <span>{confidence}%</span>
                         </div>
                         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-900">
                           <div
                             className="h-full rounded-full bg-lime-400"
-                            style={{
-                              width: `${computeConfidenceScore(
-                                player,
-                                selectedStat
-                              )}%`,
-                            }}
+                            style={{ width: `${confidence}%` }}
                           />
                         </div>
                       </div>
@@ -1060,9 +1065,9 @@ const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, wide }) => (
   <div
     className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-2.5 text-[11px] ${
       wide ? "min-w-[72px]" : "min-w-[52px]"
-    } ${dim ? "text-neutral-400" : "text-neutral-100"} ${
-      strong ? "font-semibold text-neutral-50" : ""
-    }`}
+    } ${
+      dim ? "text-neutral-400" : "text-neutral-100"
+    } ${strong ? "font-semibold text-neutral-50" : ""}`}
   >
     {value}
   </div>
