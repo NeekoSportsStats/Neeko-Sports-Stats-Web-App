@@ -6,278 +6,196 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
 // -----------------------------------------------------------------------------
-// Types & mock data
+// Types & config
 // -----------------------------------------------------------------------------
 
 type StatLens = "Fantasy" | "Disposals" | "Goals";
-
-type StatBands = {
-  label: string;          // unit label (e.g. "pts", "disp", "goals")
-  thresholds: number[];   // 5 thresholds, low → high
-};
-
-const STAT_BANDS: Record<StatLens, StatBands> = {
-  Fantasy: {
-    label: "pts",
-    thresholds: [90, 100, 110, 120, 130],
-  },
-  Disposals: {
-    label: "disp",
-    thresholds: [20, 25, 30, 35, 40],
-  },
-  Goals: {
-    label: "goals",
-    thresholds: [1, 2, 3, 4, 5],
-  },
-};
-
-type HitRates = {
-  bands: number[]; // one % per threshold
-};
 
 type PlayerRow = {
   id: number;
   name: string;
   team: string;
   role: string;
-  fantasy: number[];
-  disposals: number[];
-  goals: number[];
+  orScore: number;
+  rounds: number[]; // R1–R23 for the current stat lens (mock for now)
 };
 
-const ROUND_LABELS = Array.from({ length: 23 }).map((_, i) => `R${i + 1}`);
+const ROUND_LABELS = [
+  "R1",
+  "R2",
+  "R3",
+  "R4",
+  "R5",
+  "R6",
+  "R7",
+  "R8",
+  "R9",
+  "R10",
+  "R11",
+  "R12",
+  "R13",
+  "R14",
+  "R15",
+  "R16",
+  "R17",
+  "R18",
+  "R19",
+  "R20",
+  "R21",
+  "R22",
+  "R23",
+];
 
-const generateRounds = (length: number, base: number, spread: number) =>
-  Array.from({ length }).map(
-    () => base + Math.round((Math.random() - 0.5) * spread * 2)
-  );
-
-const MOCK_PLAYERS: PlayerRow[] = Array.from({ length: 40 }).map((_, idx) => {
-  const baseFantasy = 80 + (idx % 10);
-  const fantasy = generateRounds(23, baseFantasy, 15);
-
-  const baseDisposals = 18 + (idx % 6);
-  const disposals = generateRounds(23, baseDisposals, 6);
-
-  const baseGoals = (idx % 4) === 0 ? 2 : 1;
-  const goals = generateRounds(23, baseGoals, 2).map((v) => Math.max(0, v));
-
-  return {
-    id: idx + 1,
-    name: `Player ${idx + 1}`,
-    team: ["GEEL", "CARL", "RICH", "ESS", "COLL", "NMFC"][idx % 6],
-    role: ["MID", "RUC", "FWD", "DEF"][idx % 4],
-    fantasy,
-    disposals,
-    goals,
-  };
-});
-
-// -----------------------------------------------------------------------------
-// Helper functions
-// -----------------------------------------------------------------------------
-
-const getRoundsForLens = (player: PlayerRow, lens: StatLens): number[] => {
-  if (lens === "Fantasy") return player.fantasy;
-  if (lens === "Disposals") return player.disposals;
-  return player.goals;
+const STAT_CONFIG: Record<
+  StatLens,
+  {
+    label: string;
+    descriptionSuffix: string;
+    hitRateLabels: string[];
+    thresholds: number[];
+    valueUnitShort: string;
+  }
+> = {
+  Fantasy: {
+    label: "fantasy",
+    descriptionSuffix:
+      "For example: Fantasy 90+ pts, Disposals 15+ disp and Goals 1+ goals.",
+    hitRateLabels: ["90+", "100+", "110+", "120+", "130+"],
+    thresholds: [90, 100, 110, 120, 130],
+    valueUnitShort: "pts",
+  },
+  Disposals: {
+    label: "disposals",
+    descriptionSuffix:
+      "For example: Fantasy 90+ pts, Disposals 15+ disp and Goals 1+ goals.",
+    hitRateLabels: ["15+", "20+", "25+", "30+", "35+"],
+    thresholds: [15, 20, 25, 30, 35],
+    valueUnitShort: "disp",
+  },
+  Goals: {
+    label: "goals",
+    descriptionSuffix:
+      "For example: Fantasy 90+ pts, Disposals 15+ disp and Goals 1+ goals.",
+    hitRateLabels: ["1+", "2+", "3+", "4+", "5+"],
+    thresholds: [1, 2, 3, 4, 5],
+    valueUnitShort: "g",
+  },
 };
 
-const calcSummary = (rounds: number[]) => {
+// -----------------------------------------------------------------------------
+// Mock data — SQL-friendly shape for later swap to Supabase
+// -----------------------------------------------------------------------------
+
+const buildMockPlayers = (): PlayerRow[] => {
+  return Array.from({ length: 40 }).map((_, index) => {
+    const base =
+      index < 10
+        ? 80
+        : index < 20
+        ? 85
+        : index < 30
+        ? 90
+        : 95; // just to have some tiers
+
+    const rounds = ROUND_LABELS.map(() => {
+      const jitter = Math.round(Math.random() * 18 - 9);
+      return base + jitter;
+    });
+
+    return {
+      id: index + 1,
+      name: `Player ${index + 1}`,
+      team: ["GEEL", "CARL", "RICH", "ESS", "COLL", "NMFC"][index % 6],
+      role: ["MID", "RUC", "FWD", "DEF"][index % 4],
+      orScore: base + 10,
+      rounds,
+    };
+  });
+};
+
+const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+
+function computeSummary(player: PlayerRow) {
+  const rounds = player.rounds;
   const min = Math.min(...rounds);
   const max = Math.max(...rounds);
-  const total = rounds.reduce((s, v) => s + v, 0);
-  const avg = total / rounds.length;
-  return { min, max, total, avg };
-};
+  const total = rounds.reduce((sum, v) => sum + v, 0);
+  const avg = Math.round((total / rounds.length) * 10) / 10;
 
-const calcHitRates = (rounds: number[], thresholds: number[]): HitRates => {
-  const len = rounds.length || 1;
-  const bands = thresholds.map((t) => {
-    const count = rounds.filter((r) => r >= t).length;
-    return Math.round((count / len) * 100);
+  const lastWindow = rounds.slice(-8);
+  const l5 = rounds.slice(-5);
+  const l5Avg =
+    l5.length > 0
+      ? Math.round((l5.reduce((a, b) => a + b, 0) / l5.length) * 10) / 10
+      : 0;
+
+  const lastMin = Math.min(...lastWindow);
+  const lastMax = Math.max(...lastWindow);
+  const volatilityRange = lastMax - lastMin;
+
+  return { min, max, total, avg, lastWindow, l5Avg, volatilityRange };
+}
+
+function computeHitRates(player: PlayerRow, lens: StatLens): number[] {
+  const config = STAT_CONFIG[lens];
+  const rounds = player.rounds;
+  return config.thresholds.map((t) => {
+    const count = rounds.filter((v) => v >= t).length;
+    return Math.round((count / rounds.length) * 100);
   });
-  return { bands };
-};
+}
 
-const calcRecentWindow = (rounds: number[]) => {
-  const window = rounds.slice(-8);
-  const { min, max, total, avg } = calcSummary(window);
-  const volatility = max - min;
-  return {
-    window,
-    min,
-    max,
-    avg,
-    volatility,
-  };
-};
+function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
+  const hitRates = computeHitRates(player, lens);
+  const { volatilityRange } = computeSummary(player);
 
-const calcConfidenceIndex = (hitRates: HitRates, volatility: number) => {
-  const [b1, b2, b3, b4, b5] = hitRates.bands;
+  const floorRate = hitRates[0] ?? 0;
+  const ceilingRate = hitRates[hitRates.length - 1] ?? 0;
+  const volatilityPenalty = Math.min(volatilityRange * 3, 45); // bigger range → bigger penalty
+
   const raw =
-    (b1 || 0) * 0.1 +
-    (b2 || 0) * 0.15 +
-    (b3 || 0) * 0.25 +
-    (b4 || 0) * 0.25 +
-    (b5 || 0) * 0.25;
+    0.45 * floorRate + 0.35 * ceilingRate + 0.2 * (100 - volatilityPenalty);
 
-  const volPenalty = Math.min(volatility / 50, 0.4);
-  const ci = Math.round(raw * (1 - volPenalty));
-  return Math.max(40, Math.min(ci, 99));
-};
-
-const formatPct = (v: number) => `${v.toFixed(0)}%`;
-
-// -----------------------------------------------------------------------------
-// Sparkline (Option A — Clean Pro Line Chart)
-// -----------------------------------------------------------------------------
-
-type SparklineProps = {
-  rounds: number[];
-  lens: StatLens;
-};
-
-const Sparkline: React.FC<SparklineProps> = ({ rounds, lens }) => {
-  const recent = rounds.slice(-8);
-  if (recent.length === 0) return null;
-
-  const min = Math.min(...recent);
-  const max = Math.max(...recent);
-  const range = max - min || 1;
-
-  const points = recent.map((v, idx) => {
-    const x = (idx / Math.max(recent.length - 1, 1)) * 100;
-    const norm = (v - min) / range;
-    const y = 34 - norm * 24; // padding top/bottom
-    return { x, y, value: v };
-  });
-
-  const path = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(" ");
-
-  const band = STAT_BANDS[lens];
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-[10px] text-neutral-400">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="uppercase tracking-[0.16em] text-neutral-300">
-            Recent form sparkline
-          </span>
-          <span className="text-neutral-500">
-            Range {min}–{max} {band.label}
-          </span>
-        </div>
-        <span className="text-neutral-400">
-          Last {recent.length} ·{" "}
-          <span className="text-yellow-200 font-medium">
-            {(recent.reduce((s, v) => s + v, 0) / recent.length).toFixed(1)}
-          </span>{" "}
-          avg
-        </span>
-      </div>
-
-      <div className="relative h-24 w-full overflow-hidden rounded-md border border-yellow-500/20 bg-gradient-to-b from-neutral-900 via-black to-black">
-        <svg
-          viewBox="0 0 100 40"
-          preserveAspectRatio="none"
-          className="h-full w-full"
-        >
-          {/* soft grid */}
-          {[0, 1, 2, 3].map((g) => (
-            <line
-              key={g}
-              x1={0}
-              x2={100}
-              y1={8 + g * 8}
-              y2={8 + g * 8}
-              stroke="rgba(148,163,184,0.16)"
-              strokeWidth={0.25}
-            />
-          ))}
-          {/* vertical hints */}
-          {points.map((p, idx) => (
-            <line
-              key={`v-${idx}`}
-              x1={p.x}
-              x2={p.x}
-              y1={6}
-              y2={36}
-              stroke="rgba(148,163,184,0.14)"
-              strokeWidth={0.25}
-            />
-          ))}
-          {/* area fill */}
-          <path
-            d={`${path} L ${points[points.length - 1].x} 40 L ${points[0].x} 40 Z`}
-            fill="rgba(250,204,21,0.12)"
-          />
-          {/* main line */}
-          <path
-            d={path}
-            fill="none"
-            stroke="rgba(250,204,21,0.95)"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          {/* points */}
-          {points.map((p, idx) => (
-            <circle
-              key={`p-${idx}`}
-              cx={p.x}
-              cy={p.y}
-              r={0.9}
-              fill="rgba(250,250,250,0.95)"
-            />
-          ))}
-        </svg>
-      </div>
-    </div>
-  );
-};
+  return Math.max(0, Math.min(100, Math.round(raw)));
+}
 
 // -----------------------------------------------------------------------------
 // Main component
 // -----------------------------------------------------------------------------
 
 export const MasterTable: React.FC = () => {
-  const [compactMode, setCompactMode] = useState(false);
-  const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(null);
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
+  const [compactMode, setCompactMode] = useState(false);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(20);
 
-  const bandConfig = STAT_BANDS[selectedStat];
-
+  const config = STAT_CONFIG[selectedStat];
+  const players = MOCK_PLAYERS;
   const visiblePlayers = useMemo(
-    () => MOCK_PLAYERS.slice(0, visibleCount),
-    [visibleCount]
+    () => players.slice(0, visibleCount),
+    [players, visibleCount]
   );
+  const hasMoreRows = visibleCount < players.length;
 
   const handleToggleExpand = (id: number) => {
     setExpandedPlayerId((prev) => (prev === id ? null : id));
   };
 
   const handleShowMore = () => {
-    setVisibleCount((prev) => Math.min(prev + 20, MOCK_PLAYERS.length));
+    if (!hasMoreRows) return;
+    setVisibleCount((prev) => Math.min(prev + 20, players.length));
   };
-
-  const hitRateLabels = useMemo(
-    () =>
-      bandConfig.thresholds.map((t) =>
-        bandConfig.label === "goals" ? `${t}+` : `${t}+`
-      ),
-    [bandConfig]
-  );
 
   return (
     <section
       id="master-table"
-      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/18 bg-gradient-to-b from-neutral-950 via-neutral-950/95 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-8"
+      className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/15 bg-gradient-to-b from-neutral-950 via-neutral-950/90 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-6 lg:px-8"
     >
-      {/* HEADER */}
+      {/* Header */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
@@ -291,27 +209,23 @@ export const MasterTable: React.FC = () => {
             <p className="mt-2 max-w-2xl text-sm text-neutral-300/90">
               Every player&apos;s round-by-round{" "}
               <span className="font-semibold text-yellow-200/90">
-                {selectedStat.toLowerCase()}
+                {config.label}
               </span>{" "}
               output, totals and hit-rates across key thresholds — ordered by
               total output.
             </p>
             <p className="mt-1 max-w-xl text-[11px] text-neutral-400">
-              Hit-rate bands automatically adjust to the selected stat lens. For
-              example: Fantasy {STAT_BANDS.Fantasy.thresholds[0]}+{" "}
-              {STAT_BANDS.Fantasy.label}, Disposals{" "}
-              {STAT_BANDS.Disposals.thresholds[0]}+{" "}
-              {STAT_BANDS.Disposals.label} and Goals{" "}
-              {STAT_BANDS.Goals.thresholds[0]}+ {STAT_BANDS.Goals.label}. Team &amp;
-              Round filters are Neeko+ only.
+              Hit-rate bands automatically adjust to the selected stat lens.{" "}
+              {config.descriptionSuffix} Team &amp; Round filters are Neeko+
+              only.
             </p>
           </div>
         </div>
 
-        {/* CONTROLS */}
+        {/* Controls */}
         <div className="flex flex-col gap-4 md:items-end">
           {/* Stat selector */}
-          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/80 px-2 py-1 text-xs text-neutral-200">
+          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
             {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
               <button
                 key={stat}
@@ -328,75 +242,91 @@ export const MasterTable: React.FC = () => {
             ))}
           </div>
 
-          {/* Locked filters */}
+          {/* Team / Round filters (locked) */}
           <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-neutral-300">
             <LockedFilter label="Team" value="All teams" />
             <LockedFilter label="Round" value="All rounds" />
           </div>
 
           {/* Compact toggle */}
-          <div className="flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/80 px-3 py-1.5 text-[11px] text-neutral-300">
+          <div className="flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
             <span className="hidden text-neutral-400 sm:inline">View</span>
-            <span
-              className={`font-medium ${
-                !compactMode ? "text-yellow-100" : "text-neutral-300"
-              }`}
-            >
-              Full grid
-            </span>
+            <span className="font-medium text-neutral-100">Full grid</span>
             <Switch
               checked={compactMode}
               onCheckedChange={setCompactMode}
               className="data-[state=checked]:bg-yellow-400"
             />
-            <span
-              className={`font-medium ${
-                compactMode ? "text-yellow-100" : "text-neutral-300"
-              }`}
-            >
-              Compact
-            </span>
+            <span className="font-medium text-neutral-100">Compact</span>
           </div>
         </div>
       </div>
 
-      {/* TABLE (shared for desktop + mobile, with horizontal + vertical scroll) */}
-      <div className="mt-8 rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
-        <div className="relative max-h-[620px] overflow-auto">
-          {compactMode ? (
-            <CompactTable
-              players={visiblePlayers}
-              lens={selectedStat}
-              bandConfig={bandConfig}
-              hitRateLabels={hitRateLabels}
-              expandedPlayerId={expandedPlayerId}
-              onToggleExpand={handleToggleExpand}
-            />
-          ) : (
-            <FullTable
-              players={visiblePlayers}
-              lens={selectedStat}
-              bandConfig={bandConfig}
-              hitRateLabels={hitRateLabels}
-              expandedPlayerId={expandedPlayerId}
-              onToggleExpand={handleToggleExpand}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Bottom CTA + Show more */}
-      <div className="mt-10 flex flex-col items-center gap-3 text-center">
-        {visibleCount < MOCK_PLAYERS.length && (
-          <Button
-            variant="outline"
-            onClick={handleShowMore}
-            className="mb-2 rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
-          >
-            Show 20 more rows
-          </Button>
+      {/* Desktop table */}
+      <div className="mt-8 hidden md:block">
+        {compactMode ? (
+          <DesktopCompactTable
+            players={visiblePlayers}
+            selectedStat={selectedStat}
+            expandedPlayerId={expandedPlayerId}
+            onToggleExpand={handleToggleExpand}
+          />
+        ) : (
+          <DesktopFullTable
+            players={visiblePlayers}
+            selectedStat={selectedStat}
+            expandedPlayerId={expandedPlayerId}
+            onToggleExpand={handleToggleExpand}
+          />
         )}
 
+        {/* Gated blur info for rows > 20 */}
+        {visibleCount > 20 && (
+          <div className="mt-4 text-center text-[11px] text-neutral-500">
+            Rows <span className="font-semibold text-neutral-300">21–40</span>{" "}
+            are shown with blurred mock data. In production, this will be gated
+            behind a Neeko+ subscription using <code>isPremium</code>.
+          </div>
+        )}
+
+        {/* Show more rows */}
+        {hasMoreRows && (
+          <div className="border-t border-neutral-900/80 bg-black/90 py-4 text-center">
+            <Button
+              variant="outline"
+              onClick={handleShowMore}
+              className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+            >
+              {visibleCount <= 20 ? "Show 20 more rows" : "Show remaining rows"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile stacked layout */}
+      <div className="mt-8 space-y-4 md:hidden">
+        <MobileTable
+          players={visiblePlayers}
+          selectedStat={selectedStat}
+          expandedPlayerId={expandedPlayerId}
+          onToggleExpand={handleToggleExpand}
+        />
+
+        {hasMoreRows && (
+          <div className="mt-2 text-center">
+            <Button
+              variant="outline"
+              onClick={handleShowMore}
+              className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-[11px] text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+            >
+              {visibleCount <= 20 ? "Show 20 more rows" : "Show remaining rows"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom CTA */}
+      <div className="mt-16 flex flex-col items-center gap-3 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
           <Sparkles className="h-3 w-3" />
           <span>Neeko+ Master Grid</span>
@@ -426,7 +356,7 @@ type LockedFilterProps = {
 };
 
 const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => (
-  <div className="flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/75 px-3 py-1">
+  <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/75 px-3 py-1">
     <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
       {label}
     </span>
@@ -439,387 +369,148 @@ const LockedFilter: React.FC<LockedFilterProps> = ({ label, value }) => (
 );
 
 // -----------------------------------------------------------------------------
-// Tables
+// Desktop Full Table
 // -----------------------------------------------------------------------------
 
-type TableBaseProps = {
+type DesktopTableProps = {
   players: PlayerRow[];
-  lens: StatLens;
-  bandConfig: StatBands;
-  hitRateLabels: string[];
+  selectedStat: StatLens;
   expandedPlayerId: number | null;
   onToggleExpand: (id: number) => void;
 };
 
-const FullTable: React.FC<TableBaseProps> = ({
+const DesktopFullTable: React.FC<DesktopTableProps> = ({
   players,
-  lens,
-  bandConfig,
-  hitRateLabels,
+  selectedStat,
   expandedPlayerId,
   onToggleExpand,
 }) => {
-  const thresholds = bandConfig.thresholds;
+  const config = STAT_CONFIG[selectedStat];
 
   return (
-    <table className="min-w-[1200px] border-separate border-spacing-0">
-      <thead className="sticky top-0 z-40 bg-black/95 backdrop-blur-sm">
-        <tr>
-          <th
-            scope="col"
-            className="sticky left-0 z-50 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
-          >
-            Player
-          </th>
-          <HeaderCell label="OR" />
-          {ROUND_LABELS.map((label) => (
-            <HeaderCell key={label} label={label} />
-          ))}
-          <HeaderCell label="Min" />
-          <HeaderCell label="Max" />
-          <HeaderCell label="Avg" />
-          <HeaderCell label="Total" wide />
-          {hitRateLabels.map((label, idx) => (
-            <HeaderCell key={idx} label={label} accent />
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {players.map((player, idx) => {
-          const rounds = getRoundsForLens(player, lens);
-          const summary = calcSummary(rounds);
-          const hitRates = calcHitRates(rounds, thresholds);
-          const recent = calcRecentWindow(rounds);
-          const ci = calcConfidenceIndex(hitRates, recent.volatility);
-          const isExpanded = expandedPlayerId === player.id;
+    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/90">
+      <div className="overflow-x-auto">
+        <div className="min-w-[1200px]">
+          {/* Sticky header */}
+          <div className="sticky top-0 z-30 flex bg-black/95 backdrop-blur-sm">
+            {/* Player header */}
+            <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 border-b border-neutral-800/80 bg-black px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+              <span className="w-6 text-[10px] text-neutral-500">#</span>
+              <span>Player</span>
+            </div>
 
-          return (
-            <React.Fragment key={player.id}>
-              <tr
-                className={`text-xs text-neutral-100 transition-colors ${
-                  isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                }`}
-              >
-                {/* Player cell */}
-                <td className="sticky left-0 z-30 w-64 border-b border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/85 px-4 py-2.5">
-                  <button
-                    type="button"
-                    onClick={() => onToggleExpand(player.id)}
-                    className="flex w-full items-center gap-3 text-left"
-                  >
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                      {idx + 1}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-[13px] font-medium text-neutral-50">
-                        {player.name}
-                      </span>
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                        {player.team} • {player.role}
-                      </span>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                    ) : (
-                      <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                    )}
-                  </button>
-                </td>
+            {/* Rounds header */}
+            <div className="flex flex-1 border-b border-neutral-800/80 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+              <HeaderCell label="OR" />
+              {ROUND_LABELS.map((label) => (
+                <HeaderCell key={label} label={label} />
+              ))}
+              <HeaderCell label="Min" />
+              <HeaderCell label="Max" />
+              <HeaderCell label="Avg" />
+              <HeaderCell label="Total" wide />
+              {config.hitRateLabels.map((label) => (
+                <HeaderCell key={label} label={label} accent />
+              ))}
+            </div>
+          </div>
 
-                {/* OR + rounds */}
-                <BodyCell value={Math.round(summary.avg)} />
-                {rounds.map((score, rIdx) => (
-                  <BodyCell key={rIdx} value={score} />
-                ))}
-                <BodyCell value={summary.min} dim />
-                <BodyCell value={summary.max} />
-                <BodyCell value={summary.avg.toFixed(1)} />
-                <BodyCell value={summary.total} strong />
-                {hitRates.bands.map((v, bIdx) => (
-                  <HitRateCell key={bIdx} value={v} />
-                ))}
-              </tr>
+          {/* Body */}
+          <div className="divide-y divide-neutral-900/80">
+            {players.map((player, index) => {
+              const isExpanded = expandedPlayerId === player.id;
+              const isPremiumBlurred = index >= 20; // rows 21+ blurred
+              const hitRates = computeHitRates(player, selectedStat);
+              const summary = computeSummary(player);
+              const confidence = computeConfidenceScore(player, selectedStat);
 
-              {isExpanded && (
-                <tr className="bg-neutral-950/98">
-                  <td
-                    colSpan={
-                      1 + // OR
-                      ROUND_LABELS.length +
-                      4 + // min/max/avg/total
-                      bandConfig.thresholds.length
+              return (
+                <div key={player.id} className="relative">
+                  {/* Main row + expansion in a blur-able wrapper */}
+                  <div
+                    className={
+                      isPremiumBlurred
+                        ? "pointer-events-none blur-[1.5px] brightness-[0.7]"
+                        : ""
                     }
-                    className="border-t border-neutral-900/80 px-6 py-5"
                   >
-                    <ExpandedRowContent
-                      player={player}
-                      lens={lens}
-                      rounds={rounds}
-                      hitRates={hitRates}
-                      recent={recent}
-                      ci={ci}
-                    />
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-};
-
-const CompactTable: React.FC<TableBaseProps> = ({
-  players,
-  lens,
-  bandConfig,
-  hitRateLabels,
-  expandedPlayerId,
-  onToggleExpand,
-}) => {
-  const thresholds = bandConfig.thresholds;
-
-  return (
-    <table className="min-w-[900px] border-separate border-spacing-0">
-      <thead className="sticky top-0 z-40 bg-black/95 backdrop-blur-sm">
-        <tr>
-          <th
-            scope="col"
-            className="sticky left-0 z-50 w-64 border-b border-neutral-800/80 bg-black/95 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300"
-          >
-            Player
-          </th>
-          <HeaderCell label="Min" />
-          <HeaderCell label="Max" />
-          <HeaderCell label="Avg" />
-          <HeaderCell label="Total" wide />
-          {hitRateLabels.map((label, idx) => (
-            <HeaderCell key={idx} label={label} accent />
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {players.map((player, idx) => {
-          const rounds = getRoundsForLens(player, lens);
-          const summary = calcSummary(rounds);
-          const hitRates = calcHitRates(rounds, thresholds);
-          const recent = calcRecentWindow(rounds);
-          const ci = calcConfidenceIndex(hitRates, recent.volatility);
-          const isExpanded = expandedPlayerId === player.id;
-
-          return (
-            <React.Fragment key={player.id}>
-              <tr
-                className={`text-xs text-neutral-100 transition-colors ${
-                  isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
-                }`}
-              >
-                <td className="sticky left-0 z-30 w-64 border-b border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/85 px-4 py-2.5">
-                  <button
-                    type="button"
-                    onClick={() => onToggleExpand(player.id)}
-                    className="flex w-full items-center gap-3 text-left"
-                  >
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                      {idx + 1}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-[13px] font-medium text-neutral-50">
-                        {player.name}
-                      </span>
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                        {player.team} • {player.role}
-                      </span>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                    ) : (
-                      <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                    )}
-                  </button>
-                </td>
-                <BodyCell value={summary.min} dim />
-                <BodyCell value={summary.max} />
-                <BodyCell value={summary.avg.toFixed(1)} />
-                <BodyCell value={summary.total} strong />
-                {hitRates.bands.map((v, bIdx) => (
-                  <HitRateCell key={bIdx} value={v} />
-                ))}
-              </tr>
-
-              {isExpanded && (
-                <tr className="bg-neutral-950/98">
-                  <td
-                    colSpan={4 + bandConfig.thresholds.length}
-                    className="border-t border-neutral-900/80 px-6 py-5"
-                  >
-                    <ExpandedRowContent
-                      player={player}
-                      lens={lens}
-                      rounds={rounds}
-                      hitRates={hitRates}
-                      recent={recent}
-                      ci={ci}
-                    />
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Expanded dropdown content
-// -----------------------------------------------------------------------------
-
-type ExpandedRowContentProps = {
-  player: PlayerRow;
-  lens: StatLens;
-  rounds: number[];
-  hitRates: HitRates;
-  recent: ReturnType<typeof calcRecentWindow>;
-  ci: number;
-};
-
-const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
-  player,
-  lens,
-  rounds,
-  hitRates,
-  recent,
-  ci,
-}) => {
-  const statLabel =
-    lens === "Fantasy"
-      ? "fantasy points"
-      : lens === "Disposals"
-      ? "disposals"
-      : "goals";
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      {/* Left: scoring window + sparkline + AI summary */}
-      <div className="space-y-4">
-        {/* Recent scoring window */}
-        <div className="rounded-xl border border-neutral-800/80 bg-gradient-to-r from-neutral-900/95 via-neutral-900/90 to-black/95 p-4">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-300">
-            Recent scoring window
-          </div>
-          <p className="text-[11px] text-neutral-300">
-            Snapshot of consistency and ceiling across the most recent rounds in this scoring lens.
-          </p>
-          <div className="mt-3 grid grid-cols-3 gap-3 text-[11px] text-neutral-200">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                L5 avg
-              </div>
-              <div className="mt-1 text-sm font-semibold text-yellow-200">
-                {recent.avg.toFixed(1)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                Best / Worst
-              </div>
-              <div className="mt-1 text-sm">
-                <span className="text-emerald-300 font-semibold">{recent.max}</span>{" "}
-                <span className="text-neutral-500">/</span>{" "}
-                <span className="text-red-300 font-semibold">{recent.min}</span>
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                Volatility
-              </div>
-              <div className="mt-1 text-sm">
-                {recent.volatility <= 10 && (
-                  <span className="text-emerald-300 font-semibold">Low</span>
-                )}
-                {recent.volatility > 10 && recent.volatility <= 20 && (
-                  <span className="text-yellow-300 font-semibold">Moderate</span>
-                )}
-                {recent.volatility > 20 && (
-                  <span className="text-red-300 font-semibold">High</span>
-                )}
-                <span className="ml-1 text-neutral-400 text-[11px]">
-                  ({recent.volatility.toFixed(0)} range)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <Sparkline rounds={rounds} lens={lens} />
-          </div>
-        </div>
-
-        {/* AI summary */}
-        <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/80 px-4 py-3 shadow-inner">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-200">
-            AI Performance Summary
-          </div>
-          <p className="text-[11px] text-neutral-300 leading-snug">
-            Role expectations and scoring trends indicate{" "}
-            <span className="font-medium text-neutral-50">
-              {recent.volatility <= 10
-                ? "strong stability with a reliable floor"
-                : recent.volatility <= 20
-                ? "solid output with manageable risk"
-                : "impact scoring with elevated volatility"}
-            </span>{" "}
-            for {player.name} in {statLabel} over the upcoming rounds.
-          </p>
-        </div>
-      </div>
-
-      {/* Right: confidence + hit-rate profile */}
-      <div className="space-y-4">
-        <div className="rounded-xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/18 via-black to-black p-4 shadow-[0_0_30px_rgba(250,204,21,0.45)]">
-          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-50">
-            <span>Confidence index</span>
-            <span>{ci}%</span>
-          </div>
-          <p className="mt-2 text-[11px] text-neutral-100/90 leading-snug">
-            Blends hit-rate consistency, volatility spread and games played in this scoring lens.
-          </p>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
-            <div
-              className="h-full rounded-full bg-lime-400"
-              style={{ width: `${ci}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-[10px] text-neutral-400">
-            <span>Floor security</span>
-            <span>Ceiling access</span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/80 p-4 text-[11px] text-neutral-200">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-            Hit-rate profile
-          </div>
-          <div className="space-y-1.5">
-            {hitRates.bands.map((v, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-2">
-                <span className="text-neutral-400">
-                  {bandLabelForIndex(idx, lens)}
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-neutral-800">
+                    {/* Main row */}
                     <div
-                      className={`h-full rounded-full ${hitRateBarColour(v)}`}
-                      style={{ width: `${v}%` }}
-                    />
+                      className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
+                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                      }`}
+                    >
+                      {/* Player cell */}
+                      <button
+                        type="button"
+                        onClick={() => onToggleExpand(player.id)}
+                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
+                      >
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                          {index + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] font-medium text-neutral-50">
+                            {player.name}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                            {player.team} • {player.role}
+                          </span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                        ) : (
+                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                        )}
+                      </button>
+
+                      {/* Numbers */}
+                      <div className="flex flex-1 items-center text-center text-[11px]">
+                        <BodyCell value={player.orScore} />
+                        {player.rounds.map((score, idx) => (
+                          <BodyCell key={idx} value={score} />
+                        ))}
+                        <BodyCell value={summary.min} dim />
+                        <BodyCell value={summary.max} />
+                        <BodyCell value={summary.avg.toFixed(1)} />
+                        <BodyCell value={summary.total} strong wide />
+
+                        {hitRates.map((value, idx) => (
+                          <HitRateCell key={idx} value={value} />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Drop-down analytics */}
+                    {isExpanded && (
+                      <DesktopExpandedRow
+                        player={player}
+                        selectedStat={selectedStat}
+                      />
+                    )}
                   </div>
-                  <span className={hitRateTextColour(v)}>{formatPct(v)}</span>
+
+                  {/* Premium blur overlay */}
+                  {isPremiumBlurred && (
+                    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/80 via-black/85 to-black/95">
+                      <div className="space-y-3 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-black/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                          <Sparkles className="h-3 w-3" />
+                          <span>Neeko+ Master Grid</span>
+                        </div>
+                        <p className="mx-auto max-w-sm text-xs text-neutral-200">
+                          Unlock full-season ledgers and detailed hit-rate
+                          profiles for every player beyond the top 20.
+                        </p>
+                        <Button className="rounded-full bg-yellow-400 px-6 py-1.5 text-xs font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.9)] hover:bg-yellow-300">
+                          Unlock Neeko+ Insights
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -828,7 +519,461 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
 };
 
 // -----------------------------------------------------------------------------
-// Shared cells & colour helpers
+// Desktop Compact Table – summary cols but same dropdown
+// -----------------------------------------------------------------------------
+
+const DesktopCompactTable: React.FC<DesktopTableProps> = ({
+  players,
+  selectedStat,
+  expandedPlayerId,
+  onToggleExpand,
+}) => {
+  const config = STAT_CONFIG[selectedStat];
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/90">
+      <div className="overflow-x-auto">
+        <div className="min-w-[900px]">
+          {/* Sticky header */}
+          <div className="sticky top-0 z-30 flex bg-black/95 backdrop-blur-sm">
+            <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 border-b border-neutral-800/80 bg-black px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
+              <span className="w-6 text-[10px] text-neutral-500">#</span>
+              <span>Player</span>
+            </div>
+
+            <div className="flex flex-1 border-b border-neutral-800/80 text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+              <HeaderCell label="Min" />
+              <HeaderCell label="Max" />
+              <HeaderCell label="Avg" />
+              <HeaderCell label="Total" wide />
+              {config.hitRateLabels.map((label) => (
+                <HeaderCell key={label} label={label} accent />
+              ))}
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="divide-y divide-neutral-900/80">
+            {players.map((player, index) => {
+              const isExpanded = expandedPlayerId === player.id;
+              const isPremiumBlurred = index >= 20;
+              const summary = computeSummary(player);
+              const hitRates = computeHitRates(player, selectedStat);
+
+              return (
+                <div key={player.id} className="relative">
+                  <div
+                    className={
+                      isPremiumBlurred
+                        ? "pointer-events-none blur-[1.5px] brightness-[0.7]"
+                        : ""
+                    }
+                  >
+                    <div
+                      className={`group flex text-xs text-neutral-100 transition-colors duration-150 ${
+                        isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/55"
+                      }`}
+                    >
+                      {/* Player cell */}
+                      <button
+                        type="button"
+                        onClick={() => onToggleExpand(player.id)}
+                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
+                      >
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+                          {index + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] font-medium text-neutral-50">
+                            {player.name}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                            {player.team} • {player.role}
+                          </span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
+                        ) : (
+                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                        )}
+                      </button>
+
+                      {/* Summary cols */}
+                      <div className="flex flex-1 items-center text-center text-[11px]">
+                        <BodyCell value={summary.min} dim />
+                        <BodyCell value={summary.max} />
+                        <BodyCell value={summary.avg.toFixed(1)} />
+                        <BodyCell value={summary.total} strong wide />
+                        {hitRates.map((value, idx) => (
+                          <HitRateCell key={idx} value={value} />
+                        ))}
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <DesktopExpandedRow
+                        player={player}
+                        selectedStat={selectedStat}
+                      />
+                    )}
+                  </div>
+
+                  {isPremiumBlurred && (
+                    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/80 via-black/85 to-black/95">
+                      <div className="space-y-3 text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-black/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                          <Sparkles className="h-3 w-3" />
+                          <span>Neeko+ Master Grid</span>
+                        </div>
+                        <p className="mx-auto max-w-sm text-xs text-neutral-200">
+                          Unlock full compact grid and AI-driven summaries for
+                          every player beyond the top 20.
+                        </p>
+                        <Button className="rounded-full bg-yellow-400 px-6 py-1.5 text-xs font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.9)] hover:bg-yellow-300">
+                          Unlock Neeko+ Insights
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Desktop expanded area (line chart + CI + AI summary + hit-rate profile)
+// -----------------------------------------------------------------------------
+
+type ExpandedRowProps = {
+  player: PlayerRow;
+  selectedStat: StatLens;
+};
+
+const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
+  player,
+  selectedStat,
+}) => {
+  const config = STAT_CONFIG[selectedStat];
+  const summary = computeSummary(player);
+  const confidence = computeConfidenceScore(player, selectedStat);
+  const hitRates = computeHitRates(player, selectedStat);
+
+  const lastWindow = summary.lastWindow;
+  const windowMin = Math.min(...lastWindow);
+  const windowMax = Math.max(...lastWindow);
+  const volatilityRange = summary.volatilityRange;
+
+  const volatilityLabel =
+    volatilityRange <= 8 ? "Low" : volatilityRange <= 14 ? "Medium" : "High";
+
+  return (
+    <div className="border-t border-neutral-900/80 bg-gradient-to-b from-neutral-950 via-neutral-950 to-black px-6 pb-6 pt-4 lg:px-8">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)]">
+        {/* Left: recent scoring window + sparkline */}
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black p-5 shadow-[0_0_40px_rgba(0,0,0,0.7)]">
+            <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+              <span>Recent scoring window</span>
+              <span className="text-neutral-500">
+                Last {lastWindow.length} •{" "}
+                <span className="text-yellow-200">
+                  {summary.l5Avg.toFixed(1)} {config.valueUnitShort} L5 avg
+                </span>
+              </span>
+            </div>
+
+            <div className="mb-4 grid gap-3 text-[11px] text-neutral-300 sm:grid-cols-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                  L5 avg
+                </div>
+                <div className="mt-1 text-sm font-semibold text-yellow-200">
+                  {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                  Best / Worst
+                </div>
+                <div className="mt-1 text-sm font-semibold text-neutral-100">
+                  {windowMax} / {windowMin}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                  Volatility
+                </div>
+                <div className="mt-1 text-sm font-semibold text-emerald-300">
+                  {volatilityLabel}{" "}
+                  <span className="text-[11px] font-normal text-neutral-400">
+                    ({volatilityRange} range)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Mini line chart */}
+            <div className="rounded-xl border border-yellow-500/20 bg-gradient-to-b from-yellow-500/10 via-neutral-950 to-black px-4 py-3">
+              <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                <span>Recent form sparkline</span>
+                <span className="text-neutral-500">
+                  Range {windowMin}–{windowMax} {config.valueUnitShort}
+                </span>
+              </div>
+              <MiniSparkline values={lastWindow} />
+            </div>
+          </div>
+
+          {/* AI Summary */}
+          <div className="rounded-2xl border border-neutral-800/80 bg-neutral-900/80 px-5 py-4 text-[11px] text-neutral-300 shadow-inner">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+              AI Performance Summary
+            </div>
+            <p className="leading-snug">
+              Role expectations and scoring trends indicate{" "}
+              <span className="font-semibold text-neutral-50">
+                stable usage with moderate volatility
+              </span>{" "}
+              in this scoring lens. Hit-rate profile suggests a reliable floor
+              with occasional ceiling games.
+            </p>
+          </div>
+        </div>
+
+        {/* Right: confidence + hit-rate profile */}
+        <div className="space-y-4">
+          {/* Confidence Index */}
+          <div className="rounded-2xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/18 via-black to-black p-5 shadow-[0_0_30px_rgba(250,204,21,0.75)]">
+            <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-yellow-100">
+              <span>Confidence Index</span>
+              <span>{confidence}%</span>
+            </div>
+            <p className="text-[11px] text-neutral-200">
+              Blends hit-rate consistency, volatility spread and games played in
+              this scoring lens.
+            </p>
+
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
+              <div
+                className="h-full rounded-full bg-lime-400"
+                style={{ width: `${confidence}%` }}
+              />
+            </div>
+
+            <div className="mt-2 flex justify-between text-[10px] text-neutral-400">
+              <span>Floor security</span>
+              <span>Ceiling access</span>
+            </div>
+          </div>
+
+          {/* Hit-rate profile */}
+          <div className="rounded-2xl border border-neutral-800/80 bg-neutral-900/80 px-5 py-4 text-[11px] text-neutral-200">
+            <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+              Hit-rate profile
+            </div>
+            <div className="space-y-2.5">
+              {hitRates.map((value, idx) => (
+                <HitRateProfileBar
+                  key={config.hitRateLabels[idx]}
+                  label={config.hitRateLabels[idx]}
+                  value={value}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Mobile layout
+// -----------------------------------------------------------------------------
+
+type MobileTableProps = {
+  players: PlayerRow[];
+  selectedStat: StatLens;
+  expandedPlayerId: number | null;
+  onToggleExpand: (id: number) => void;
+};
+
+const MobileTable: React.FC<MobileTableProps> = ({
+  players,
+  selectedStat,
+  expandedPlayerId,
+  onToggleExpand,
+}) => {
+  const config = STAT_CONFIG[selectedStat];
+
+  return (
+    <>
+      {players.map((player, index) => {
+        const isExpanded = expandedPlayerId === player.id;
+        const isPremiumBlurred = index >= 20;
+        const summary = computeSummary(player);
+        const hitRates = computeHitRates(player, selectedStat);
+
+        return (
+          <div key={player.id} className="relative">
+            <div
+              className={
+                isPremiumBlurred
+                  ? "pointer-events-none blur-[1.5px] brightness-[0.7]"
+                  : ""
+              }
+            >
+              <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 p-4 text-xs text-neutral-100">
+                {/* Header row */}
+                <button
+                  type="button"
+                  onClick={() => onToggleExpand(player.id)}
+                  className="flex w-full items-center gap-3 text-left"
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/90 text-[10px] text-neutral-300">
+                    {index + 1}
+                  </span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="text-[11px] text-yellow-200">
+                        {summary.avg.toFixed(1)} {config.valueUnitShort} avg
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
+                      <span className="uppercase tracking-[0.16em]">
+                        {player.team} • {player.role}
+                      </span>
+                      <span>
+                        {summary.min}–{summary.max} • {summary.total} total
+                      </span>
+                    </div>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-yellow-300" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-neutral-500" />
+                  )}
+                </button>
+
+                {/* Hit-rate row */}
+                <div className="mt-3 grid grid-cols-5 gap-1 text-[10px]">
+                  {config.hitRateLabels.map((label, idx) => (
+                    <HitRatePill key={label} label={label} value={hitRates[idx]} />
+                  ))}
+                </div>
+
+                {/* Expand content */}
+                {isExpanded && (
+                  <div className="mt-4 space-y-3">
+                    {/* Rounds scroller */}
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-400">
+                        <span className="uppercase tracking-[0.16em]">
+                          Round ledger
+                        </span>
+                        <span>
+                          L5: {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
+                        </span>
+                      </div>
+                      <div className="flex gap-1 overflow-x-auto pb-1">
+                        {player.rounds.map((score, idx) => (
+                          <div
+                            key={idx}
+                            className="min-w-[46px] rounded-md bg-neutral-900/90 px-2 py-1 text-center text-[10px]"
+                          >
+                            <div className="text-[9px] text-neutral-500">
+                              {ROUND_LABELS[idx]}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-neutral-100">
+                              {score}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mini sparkline */}
+                    <div className="rounded-xl border border-yellow-500/20 bg-gradient-to-b from-yellow-500/10 via-neutral-950 to-black px-3 py-2">
+                      <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                        <span>Recent form sparkline</span>
+                        <span className="text-neutral-500">
+                          Range {summary.lastWindow.length > 0
+                            ? `${Math.min(...summary.lastWindow)}–${Math.max(
+                                ...summary.lastWindow
+                              )}`
+                            : "-"}{" "}
+                          {config.valueUnitShort}
+                        </span>
+                      </div>
+                      <MiniSparkline values={summary.lastWindow} small />
+                    </div>
+
+                    {/* AI summary & CI compact */}
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-neutral-800/70 bg-neutral-900/80 px-3 py-2 text-[11px] text-neutral-300">
+                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-200">
+                          AI Performance Summary
+                        </div>
+                        <p className="leading-snug">
+                          Quick AI read on role, form stability and scoring
+                          outlook.
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg border border-yellow-400/35 bg-gradient-to-b from-yellow-500/15 via-black to-black px-3 py-2 text-[11px] text-neutral-200">
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-yellow-100">
+                          <span>Confidence Index</span>
+                          <span>{computeConfidenceScore(player, selectedStat)}%</span>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-900">
+                          <div
+                            className="h-full rounded-full bg-lime-400"
+                            style={{
+                              width: `${computeConfidenceScore(
+                                player,
+                                selectedStat
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isPremiumBlurred && (
+              <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-black/80 via-black/85 to-black/95">
+                <div className="space-y-3 text-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-black/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                    <Sparkles className="h-3 w-3" />
+                    <span>Neeko+ Master Grid</span>
+                  </div>
+                  <p className="mx-auto max-w-xs text-[11px] text-neutral-200">
+                    Additional players beyond the top 20 are blurred here and
+                    will be fully unlocked for Neeko+ members.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Shared table cells
 // -----------------------------------------------------------------------------
 
 type HeaderCellProps = {
@@ -838,73 +983,213 @@ type HeaderCellProps = {
 };
 
 const HeaderCell: React.FC<HeaderCellProps> = ({ label, wide, accent }) => (
-  <th
-    scope="col"
-    className={`whitespace-nowrap border-b border-neutral-800/80 px-2 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+  <div
+    className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-3 ${
       wide ? "min-w-[72px]" : "min-w-[52px]"
-    } ${accent ? "text-emerald-300" : "text-neutral-400"} text-center`}
+    } ${accent ? "text-emerald-300" : ""}`}
   >
     {label}
-  </th>
+  </div>
 );
 
 type BodyCellProps = {
   value: number | string;
   dim?: boolean;
   strong?: boolean;
+  wide?: boolean;
 };
 
-const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong }) => (
-  <td
-    className={`whitespace-nowrap border-b border-neutral-900/85 px-2 py-2.5 text-center text-[11px] ${
+const BodyCell: React.FC<BodyCellProps> = ({ value, dim, strong, wide }) => (
+  <div
+    className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-2.5 text-[11px] ${
+      wide ? "min-w-[72px]" : "min-w-[52px]"
+    } ${
       dim ? "text-neutral-400" : "text-neutral-100"
     } ${strong ? "font-semibold text-neutral-50" : ""}`}
   >
     {value}
-  </td>
+  </div>
 );
 
+// Hit-rate % with red → green gradient
 type HitRateCellProps = {
   value: number;
 };
 
-const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => (
-  <td className="whitespace-nowrap border-b border-neutral-900/85 px-2 py-2.5 text-center">
-    <span
-      className={`inline-flex min-w-[44px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${hitRateChipColour(
-        value
-      )}`}
+const HitRateCell: React.FC<HitRateCellProps> = ({ value }) => {
+  let color = "";
+  let bg = "";
+
+  if (value < 15) {
+    color = "text-red-400";
+    bg = "bg-red-500/12";
+  } else if (value < 30) {
+    color = "text-orange-400";
+    bg = "bg-orange-500/12";
+  } else if (value < 60) {
+    color = "text-yellow-300";
+    bg = "bg-yellow-500/12";
+  } else if (value < 90) {
+    color = "text-green-400";
+    bg = "bg-green-500/12";
+  } else {
+    color = "text-lime-300";
+    bg = "bg-lime-400/12";
+  }
+
+  return (
+    <div className="flex min-w-[52px] items-center justify-center border-l border-neutral-900/85 px-2 py-2.5">
+      <span
+        className={`inline-flex min-w-[44px] items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${color}`}
+      >
+        {value}%
+      </span>
+    </div>
+  );
+};
+
+type HitRatePillProps = {
+  label: string;
+  value: number;
+};
+
+const HitRatePill: React.FC<HitRatePillProps> = ({ label, value }) => {
+  let color = "";
+  if (value < 15) color = "text-red-400";
+  else if (value < 30) color = "text-orange-400";
+  else if (value < 60) color = "text-yellow-300";
+  else if (value < 90) color = "text-green-400";
+  else color = "text-lime-300";
+
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg bg-neutral-900/90 px-2 py-1 text-[10px]">
+      <span className="text-[9px] text-neutral-500">{label}</span>
+      <span className={`mt-0.5 text-[11px] font-semibold ${color}`}>
+        {value}%
+      </span>
+    </div>
+  );
+};
+
+type HitRateProfileBarProps = {
+  label: string;
+  value: number;
+};
+
+const HitRateProfileBar: React.FC<HitRateProfileBarProps> = ({
+  label,
+  value,
+}) => {
+  let barColor = "bg-red-500/70";
+  if (value >= 90) barColor = "bg-lime-400";
+  else if (value >= 60) barColor = "bg-green-400/80";
+  else if (value >= 30) barColor = "bg-yellow-400/80";
+  else if (value >= 15) barColor = "bg-orange-400/80";
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-10 text-[10px] text-neutral-400">{label}</div>
+      <div className="flex-1 rounded-full bg-neutral-800/90">
+        <div
+          className={`h-2 rounded-full ${barColor}`}
+          style={{ width: `${Math.max(value, 3)}%` }}
+        />
+      </div>
+      <div className="w-10 text-right text-[10px] text-neutral-300">
+        {value}%
+      </div>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Mini sparkline (SVG)
+// -----------------------------------------------------------------------------
+
+type MiniSparklineProps = {
+  values: number[];
+  small?: boolean;
+};
+
+const MiniSparkline: React.FC<MiniSparklineProps> = ({ values, small }) => {
+  if (!values || values.length === 0) {
+    return (
+      <div className="h-16 rounded-md bg-neutral-950/80" aria-hidden="true" />
+    );
+  }
+
+  const width = 260;
+  const height = small ? 60 : 90;
+  const paddingX = 8;
+  const paddingY = 8;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  const points = values.map((v, i) => {
+    const x =
+      paddingX +
+      (i / Math.max(values.length - 1, 1)) * (width - paddingX * 2);
+    const y =
+      paddingY +
+      (1 - (v - min) / range) * (height - paddingY * 2); // invert y
+    return { x, y };
+  });
+
+  const pathD = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+    .join(" ");
+
+  const last = points[points.length - 1];
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="h-20 w-full text-yellow-300"
+      preserveAspectRatio="none"
     >
-      {formatPct(value)}
-    </span>
-  </td>
-);
-
-const hitRateChipColour = (v: number) => {
-  if (v >= 85) return "bg-emerald-500/20 text-emerald-300";
-  if (v >= 70) return "bg-emerald-500/10 text-emerald-200";
-  if (v >= 50) return "bg-amber-500/10 text-amber-200";
-  return "bg-neutral-800 text-neutral-300";
-};
-
-const hitRateTextColour = (v: number) => {
-  if (v >= 85) return "text-emerald-300";
-  if (v >= 70) return "text-emerald-200";
-  if (v >= 50) return "text-amber-200";
-  return "text-neutral-300";
-};
-
-const hitRateBarColour = (v: number) => {
-  if (v >= 85) return "bg-emerald-400";
-  if (v >= 70) return "bg-emerald-300";
-  if (v >= 50) return "bg-amber-300";
-  return "bg-neutral-500";
-};
-
-const bandLabelForIndex = (idx: number, lens: StatLens) => {
-  const cfg = STAT_BANDS[lens];
-  const val = cfg.thresholds[idx];
-  return `${val}${cfg.label === "goals" ? "+" : "+"}`;
+      {/* background grid line */}
+      <line
+        x1={paddingX}
+        x2={width - paddingX}
+        y1={height - paddingY}
+        y2={height - paddingY}
+        stroke="rgba(148,163,184,0.3)"
+        strokeWidth={0.5}
+      />
+      {/* line */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+      {/* last value marker */}
+      {last && (
+        <>
+          <line
+            x1={last.x}
+            x2={last.x}
+            y1={paddingY}
+            y2={height - paddingY}
+            stroke="rgba(148,163,184,0.35)"
+            strokeWidth={0.75}
+            strokeDasharray="2 3"
+          />
+          <circle
+            cx={last.x}
+            cy={last.y}
+            r={3}
+            fill="#ffffff"
+            stroke="currentColor"
+            strokeWidth={1}
+          />
+        </>
+      )}
+    </svg>
+  );
 };
 
 export default MasterTable;
