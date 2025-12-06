@@ -10,6 +10,12 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 // -----------------------------------------------------------------------------
 // Types & config
@@ -22,7 +28,9 @@ type PlayerRow = {
   name: string;
   team: string;
   role: string;
-  rounds: number[]; // OR + R1–R23 (24 values)
+  roundsFantasy: number[];
+  roundsDisposals: number[];
+  roundsGoals: number[];
 };
 
 const ROUND_LABELS = [
@@ -81,9 +89,6 @@ const STAT_CONFIG: Record<
   },
 };
 
-const TOTAL_COLUMNS =
-  1 + ROUND_LABELS.length + 4 + STAT_CONFIG.Fantasy.hitRateLabels.length;
-
 const INITIAL_VISIBLE = 20;
 const PAGE_SIZE = 20;
 
@@ -91,14 +96,33 @@ const PAGE_SIZE = 20;
 // Mock data – SQL-friendly shape to swap for Supabase later
 // -----------------------------------------------------------------------------
 
-const buildMockPlayers = (): PlayerRow[] =>
-  Array.from({ length: 40 }).map((_, index) => {
-    const base =
-      index < 10 ? 80 : index < 20 ? 85 : index < 30 ? 90 : 95; // tiers
+const getRoundsForLens = (player: PlayerRow, lens: StatLens) => {
+  if (lens === "Fantasy") return player.roundsFantasy;
+  if (lens === "Disposals") return player.roundsDisposals;
+  return player.roundsGoals;
+};
 
-    const rounds = ROUND_LABELS.map(() => {
-      const jitter = Math.round(Math.random() * 18 - 9);
-      return base + jitter;
+const buildMockPlayers = (): PlayerRow[] =>
+  Array.from({ length: 60 }).map((_, index) => {
+    const fantasyBase =
+      index < 10 ? 80 : index < 20 ? 85 : index < 40 ? 90 : 95;
+
+    const makeSeries = (base: number, jitterRange: number) =>
+      ROUND_LABELS.map(() => {
+        const jitter = Math.round(Math.random() * jitterRange * 2 - jitterRange);
+        return base + jitter;
+      });
+
+    const roundsFantasy = makeSeries(fantasyBase, 9);
+    const roundsDisposals = makeSeries(
+      Math.max(18, fantasyBase - 30 + (index % 5)),
+      5
+    );
+
+    const roundsGoals = ROUND_LABELS.map(() => {
+      const raw =
+        Math.round((fantasyBase - 70) / 12) + Math.round(Math.random() * 2) - 1;
+      return Math.min(Math.max(raw, 0), 6);
     });
 
     return {
@@ -106,7 +130,9 @@ const buildMockPlayers = (): PlayerRow[] =>
       name: `Player ${index + 1}`,
       team: ["GEEL", "CARL", "ESS", "COLL", "RICH", "NMFC"][index % 6],
       role: ["MID", "RUC", "FWD", "DEF"][index % 4],
-      rounds,
+      roundsFantasy,
+      roundsDisposals,
+      roundsGoals,
     };
   });
 
@@ -116,8 +142,8 @@ const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
 // Helpers
 // -----------------------------------------------------------------------------
 
-function computeSummary(player: PlayerRow) {
-  const rounds = player.rounds;
+function computeSummary(player: PlayerRow, lens: StatLens) {
+  const rounds = getRoundsForLens(player, lens);
   const min = Math.min(...rounds);
   const max = Math.max(...rounds);
   const total = rounds.reduce((sum, v) => sum + v, 0);
@@ -149,7 +175,7 @@ function computeSummary(player: PlayerRow) {
 
 function computeHitRates(player: PlayerRow, lens: StatLens) {
   const { thresholds } = STAT_CONFIG[lens];
-  const rounds = player.rounds;
+  const rounds = getRoundsForLens(player, lens);
   return thresholds.map((t) => {
     const count = rounds.filter((v) => v >= t).length;
     return Math.round((count / rounds.length) * 100);
@@ -158,7 +184,7 @@ function computeHitRates(player: PlayerRow, lens: StatLens) {
 
 function computeConfidenceScore(player: PlayerRow, lens: StatLens) {
   const hitRates = computeHitRates(player, lens);
-  const { volatilityRange } = computeSummary(player);
+  const { volatilityRange } = computeSummary(player, lens);
 
   const floorRate = hitRates[0] ?? 0;
   const ceilingRate = hitRates[hitRates.length - 1] ?? 0;
@@ -180,11 +206,15 @@ export const MasterTable: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [compactMode, setCompactMode] = useState(false);
 
+  // mobile insights panel
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobilePlayer, setMobilePlayer] = useState<PlayerRow | null>(null);
+
   const players = MOCK_PLAYERS; // swap for Supabase query later
 
   const filteredPlayers = useMemo(() => players, [players]);
   const visiblePlayers = useMemo(
-    () => filteredPlayers.slice(0, visibleCount),
+    () => filteredPlayers.slice(0, Math.min(visibleCount, filteredPlayers.length)),
     [filteredPlayers, visibleCount]
   );
   const hasMoreRows = visibleCount < filteredPlayers.length;
@@ -196,10 +226,19 @@ export const MasterTable: React.FC = () => {
   };
 
   const handleShowMore = () => {
-    if (!hasMoreRows) return;
     setVisibleCount((prev) =>
       Math.min(prev + PAGE_SIZE, filteredPlayers.length)
     );
+  };
+
+  const handleOpenMobileInsights = (player: PlayerRow) => {
+    setMobilePlayer(player);
+    setMobileOpen(true);
+  };
+
+  const handleMobileSheetChange = (open: boolean) => {
+    setMobileOpen(open);
+    if (!open) setMobilePlayer(null);
   };
 
   return (
@@ -207,7 +246,7 @@ export const MasterTable: React.FC = () => {
       id="master-table"
       className="relative mt-16 mb-24 rounded-[32px] border border-yellow-500/15 bg-gradient-to-b from-neutral-950 via-neutral-950/90 to-black px-4 py-8 shadow-[0_40px_160px_rgba(0,0,0,0.9)] sm:px-6 lg:px-8"
     >
-      {/* Header & controls */}
+      {/* Header & Controls */}
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
@@ -323,10 +362,9 @@ export const MasterTable: React.FC = () => {
         </div>
       </div>
 
-      {/* TABLE WRAPPER – desktop + mobile (horizontal scroll only) */}
-      <div className="mt-8 rounded-3xl border border-neutral-800/80 bg-neutral-950/95">
+      {/* DESKTOP TABLE ------------------------------------------------------- */}
+      <div className="mt-8 hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95 md:block">
         <div className="w-full overflow-x-auto">
-          {/* min-w keeps structure on narrow phones; table itself can still grow */}
           <table className="min-w-[1040px] border-separate border-spacing-0 text-[11px] text-neutral-100 md:min-w-full">
             <thead>
               <tr className="sticky top-0 z-20 bg-black/95 backdrop-blur-sm">
@@ -342,13 +380,14 @@ export const MasterTable: React.FC = () => {
                 </th>
 
                 {/* Round headers */}
-                {ROUND_LABELS.map((label) => (
-                  <HeaderCell key={label} label={label} />
-                ))}
+                {!compactMode &&
+                  ROUND_LABELS.map((label) => (
+                    <HeaderCell key={label} label={label} />
+                  ))}
 
                 {/* Summary */}
-                <HeaderCell label="Min" />
-                <HeaderCell label="Max" />
+                {!compactMode && <HeaderCell label="Min" />}
+                {!compactMode && <HeaderCell label="Max" />}
                 <HeaderCell label="Avg" />
                 <HeaderCell label="Total" wide />
 
@@ -362,8 +401,9 @@ export const MasterTable: React.FC = () => {
             <tbody className="divide-y divide-neutral-900/80">
               {visiblePlayers.map((player, index) => {
                 const isExpanded = expandedPlayerId === player.id;
-                const isPremiumBlurred = index >= 20; // keep blur after top 20 visible rows
-                const summary = computeSummary(player);
+                const isPremiumBlurred = index >= 20;
+                const rounds = getRoundsForLens(player, selectedStat);
+                const summary = computeSummary(player, selectedStat);
                 const hitRates = computeHitRates(player, selectedStat);
                 const confidence = computeConfidenceScore(
                   player,
@@ -419,27 +459,33 @@ export const MasterTable: React.FC = () => {
                       </td>
 
                       {/* Round values */}
-                      {player.rounds.map((score, idx) => (
+                      {!compactMode &&
+                        rounds.map((score, idx) => (
+                          <BodyCell
+                            key={idx}
+                            value={score}
+                            compact={compactMode}
+                            blurClass={blurClass}
+                          />
+                        ))}
+
+                      {/* Summary */}
+                      {!compactMode && (
                         <BodyCell
-                          key={idx}
-                          value={score}
+                          value={summary.min}
+                          dim
                           compact={compactMode}
                           blurClass={blurClass}
                         />
-                      ))}
+                      )}
+                      {!compactMode && (
+                        <BodyCell
+                          value={summary.max}
+                          compact={compactMode}
+                          blurClass={blurClass}
+                        />
+                      )}
 
-                      {/* Summary */}
-                      <BodyCell
-                        value={summary.min}
-                        dim
-                        compact={compactMode}
-                        blurClass={blurClass}
-                      />
-                      <BodyCell
-                        value={summary.max}
-                        compact={compactMode}
-                        blurClass={blurClass}
-                      />
                       <BodyCell
                         value={summary.avg.toFixed(1)}
                         compact={compactMode}
@@ -464,18 +510,18 @@ export const MasterTable: React.FC = () => {
                       ))}
                     </tr>
 
-                    {/* Expanded analytics row */}
+                    {/* Expanded analytics row (desktop only) */}
                     {isExpanded && (
                       <tr className="bg-gradient-to-b from-neutral-950 via-neutral-950 to-black">
                         <td
-                          colSpan={TOTAL_COLUMNS}
+                          colSpan={1000}
                           className={`border-t border-neutral-900/80 px-4 pb-6 pt-4 sm:px-6 lg:px-8 ${
                             isPremiumBlurred
                               ? "blur-[3px] brightness-[0.65]"
                               : ""
                           }`}
                         >
-                          <DesktopExpandedRow
+                          <ExpandedInsights
                             player={player}
                             selectedStat={selectedStat}
                             confidence={confidence}
@@ -490,7 +536,7 @@ export const MasterTable: React.FC = () => {
           </table>
         </div>
 
-        {/* Show more rows – always outside scroll so it never "disappears" */}
+        {/* Show more rows – desktop */}
         {hasMoreRows && (
           <div className="border-t border-neutral-900/80 bg-black/90 py-4 text-center">
             <Button
@@ -499,6 +545,41 @@ export const MasterTable: React.FC = () => {
               className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
             >
               Show 20 more rows
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* MOBILE CARD LIST ---------------------------------------------------- */}
+      <div className="mt-8 md:hidden">
+        <div className="space-y-3">
+          {visiblePlayers.map((player, index) => {
+            const isPremiumBlurred = index >= 20;
+            const blurClass = isPremiumBlurred
+              ? "blur-[3px] brightness-[0.65]"
+              : "";
+
+            return (
+              <MobilePlayerCard
+                key={player.id}
+                player={player}
+                index={index}
+                selectedStat={selectedStat}
+                blurClass={blurClass}
+                onOpen={() => handleOpenMobileInsights(player)}
+              />
+            );
+          })}
+        </div>
+
+        {hasMoreRows && (
+          <div className="mt-4 text-center">
+            <Button
+              variant="outline"
+              onClick={handleShowMore}
+              className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
+            >
+              Show 20 more players
             </Button>
           </div>
         )}
@@ -521,27 +602,59 @@ export const MasterTable: React.FC = () => {
           Unlock Neeko+ Insights
         </Button>
       </div>
+
+      {/* MOBILE BOTTOM SHEET ------------------------------------------------- */}
+      <Sheet open={mobileOpen} onOpenChange={handleMobileSheetChange}>
+        <SheetContent
+          side="bottom"
+          className="h-[85vh] rounded-t-[32px] border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-4 py-4"
+        >
+          {mobilePlayer && (
+            <>
+              <SheetHeader className="space-y-1">
+                <SheetTitle className="text-base font-semibold text-neutral-50">
+                  {mobilePlayer.name}
+                </SheetTitle>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+                  {mobilePlayer.team} • {mobilePlayer.role}
+                </div>
+              </SheetHeader>
+
+              <div className="mt-4 h-[calc(85vh-80px)] overflow-y-auto pb-6">
+                <ExpandedInsights
+                  player={mobilePlayer}
+                  selectedStat={selectedStat}
+                  confidence={computeConfidenceScore(
+                    mobilePlayer,
+                    selectedStat
+                  )}
+                />
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </section>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Desktop expanded row – sparkline + confidence + hit-rate profile + AI summary
+// Expanded insights layout – reused for desktop row + mobile bottom sheet
 // -----------------------------------------------------------------------------
 
-type ExpandedRowProps = {
+type ExpandedInsightsProps = {
   player: PlayerRow;
   selectedStat: StatLens;
   confidence: number;
 };
 
-const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
+const ExpandedInsights: React.FC<ExpandedInsightsProps> = ({
   player,
   selectedStat,
   confidence,
 }) => {
   const config = STAT_CONFIG[selectedStat];
-  const summary = computeSummary(player);
+  const summary = computeSummary(player, selectedStat);
   const hitRates = computeHitRates(player, selectedStat);
 
   const volatilityLabel =
@@ -666,6 +779,110 @@ const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Mobile premium card – gradient/glow, compact summary
+// -----------------------------------------------------------------------------
+
+type MobilePlayerCardProps = {
+  player: PlayerRow;
+  index: number;
+  selectedStat: StatLens;
+  blurClass?: string;
+  onOpen: () => void;
+};
+
+const MobilePlayerCard: React.FC<MobilePlayerCardProps> = ({
+  player,
+  index,
+  selectedStat,
+  blurClass = "",
+  onOpen,
+}) => {
+  const config = STAT_CONFIG[selectedStat];
+  const summary = computeSummary(player, selectedStat);
+  const hitRates = computeHitRates(player, selectedStat);
+
+  const topBand = hitRates[0] ?? 0;
+  const ceilingBand = hitRates[hitRates.length - 1] ?? 0;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-yellow-500/40 bg-gradient-to-br from-yellow-500/10 via-black to-black px-4 py-3 shadow-[0_0_40px_rgba(0,0,0,0.9)] ${blurClass}`}
+    >
+      {/* subtle glow */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-yellow-500/5 via-transparent to-yellow-500/5 opacity-60" />
+
+      <div className="relative z-10 flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
+              {index + 1}
+            </span>
+            <div className="flex flex-col">
+              <span className="text-[13px] font-semibold text-neutral-50">
+                {player.name}
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                {player.team} • {player.role}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-neutral-200">
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                {config.label} avg
+              </div>
+              <div className="mt-0.5 text-sm font-semibold text-yellow-200">
+                {summary.avg.toFixed(1)} {config.valueUnitShort}
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                Total
+              </div>
+              <div className="mt-0.5 text-sm font-semibold text-neutral-100">
+                {summary.total}
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                L5 avg
+              </div>
+              <div className="mt-0.5 text-xs font-medium text-neutral-100">
+                {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                Hit profile
+              </div>
+              <div className="mt-0.5 text-xs text-neutral-200">
+                <span className="font-semibold text-emerald-300">
+                  {topBand}%{" "}
+                </span>
+                {config.hitRateLabels[0]} floor •{" "}
+                <span className="font-semibold text-lime-300">
+                  {ceilingBand}%{" "}
+                </span>
+                {config.hitRateLabels[config.hitRateLabels.length - 1]} ceiling
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={onOpen}
+          className="rounded-full bg-yellow-400 px-3 py-1 text-[11px] font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)] hover:bg-yellow-300"
+        >
+          View insights
+        </Button>
       </div>
     </div>
   );
