@@ -1,1143 +1,1821 @@
-// src/components/afl/players/MasterTable.tsx
+// src/pages/sports/AFLPlayers.tsx
+// AFL Player Stats — Pro layout with freemium gating
+// v2 patches:
+// - Position Trends: MID + RUC free, FWD/DEF locked for free users
+// - Compare section blur lowered to expose more headers
+// - Stability Meter: 4 free cards, overlay starts higher over rows 3–4
+// - Master Table: heavy blur overlay for locked area; round columns OR, R1–R5
 
-import React, { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Lock, Sparkles } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, Fragment } from "react";
+import { Snowflake } from "lucide-react";
 
 // -----------------------------------------------------------------------------
-// Types & config
+// Minimal UI stubs — swap these to your real component library in your project
 // -----------------------------------------------------------------------------
+type ButtonProps = {
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+  type?: "button" | "submit";
+  disabled?: boolean;
+};
 
-type StatLens = "Fantasy" | "Disposals" | "Goals";
+const Button = ({
+  children,
+  onClick,
+  className = "",
+  type = "button",
+  disabled,
+}: ButtonProps) => (
+  <button
+    type={type}
+    onClick={onClick}
+    disabled={disabled}
+    className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+      disabled
+        ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+        : "bg-neutral-800 hover:bg-neutral-700 text-white"
+    } ${className}`}
+  >
+    {children}
+  </button>
+);
 
-type PlayerRow = {
+const ArrowLeftIcon = () => <span className="mr-1 text-xs">←</span>;
+
+const CrownIcon = () => (
+  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[11px] text-black shadow-sm ml-1">
+    👑
+  </span>
+);
+
+const LockIcon = () => (
+  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-yellow-400/70 bg-black/40 text-[10px] text-yellow-200 mr-1">
+    🔒
+  </span>
+);
+
+const FireIcon = () => (
+  <span className="ml-1 text-xs" role="img" aria-label="hot">
+    🔥
+  </span>
+);
+
+const ColdIcon = () => (
+  <span className="ml-1 text-xs" role="img" aria-label="cold">
+    ❄️
+  </span>
+);
+
+const WarningIcon = () => (
+  <span className="ml-1 text-xs" role="img" aria-label="risk">
+    ⚠️
+  </span>
+);
+
+// Stub auth — replace with your real useAuth()
+function useAuth() {
+  return { isPremium: false };
+}
+
+// Simple toast stub
+function showLockedToast(message: string) {
+  if (typeof window !== "undefined") {
+    window.alert(message);
+  } else {
+    console.log("LOCKED:", message);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Data types & helpers
+// -----------------------------------------------------------------------------
+type StatKey = "fantasy" | "disposals" | "goals";
+
+type Position = "MID" | "FWD" | "DEF" | "RUC";
+
+interface Player {
   id: number;
   name: string;
+  pos: Position;
   team: string;
-  role: string;
-  orScore: number;
-  rounds: number[]; // R1–R23 for the current stat lens (mock for now)
-};
+  rounds: number[]; // mock season series
+}
 
-const ROUND_LABELS = [
-  "R1","R2","R3","R4","R5","R6","R7","R8","R9","R10",
-  "R11","R12","R13","R14","R15","R16","R17","R18","R19",
-  "R20","R21","R22","R23",
+const ALL_TEAMS = [
+  "All Teams",
+  "COLL",
+  "ESS",
+  "SYD",
+  "CARL",
+  "GEEL",
+  "MELB",
+  "RICH",
 ];
 
-const STAT_CONFIG: Record<
-  StatLens,
-  {
-    label: string;
-    descriptionSuffix: string;
-    hitRateLabels: string[];
-    thresholds: number[];
-    valueUnitShort: string;
-  }
-> = {
-  Fantasy: {
-    label: "fantasy",
-    descriptionSuffix:
-      "For example: Fantasy 90+ pts, Disposals 15+ disp and Goals 1+ goals.",
-    hitRateLabels: ["90+", "100+", "110+", "120+", "130+"],
-    thresholds: [90, 100, 110, 120, 130],
-    valueUnitShort: "pts",
-  },
-  Disposals: {
-    label: "disposals",
-    descriptionSuffix:
-      "For example: Fantasy 90+ pts, Disposals 15+ disp and Goals 1+ goals.",
-    hitRateLabels: ["15+", "20+", "25+", "30+", "35+"],
-    thresholds: [15, 20, 25, 30, 35],
-    valueUnitShort: "disp",
-  },
-  Goals: {
-    label: "goals",
-    descriptionSuffix:
-      "For example: Fantasy 90+ pts, Disposals 15+ disp and Goals 1+ goals.",
-    hitRateLabels: ["1+", "2+", "3+", "4+", "5+"],
-    thresholds: [1, 2, 3, 4, 5],
-    valueUnitShort: "g",
-  },
-};
+const ALL_POSITIONS = ["All Positions", "MID", "FWD", "DEF", "RUC"];
 
-// -----------------------------------------------------------------------------
-// Mock Data — SQL-friendly shape for Supabase
-// -----------------------------------------------------------------------------
+const ALL_ROUND_FILTERS = [
+  "All Rounds",
+  "Opening Round",
+  "R1",
+  "R2",
+  "R3",
+  "R4",
+  "R5",
+];
 
-const buildMockPlayers = (): PlayerRow[] => {
-  return Array.from({ length: 40 }).map((_, index) => {
-    const base =
-      index < 10 ? 80 :
-      index < 20 ? 85 :
-      index < 30 ? 90 : 95;
+const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
 
-    const rounds = ROUND_LABELS.map(() => {
-      const jitter = Math.round(Math.random() * 18 - 9);
-      return base + jitter;
-    });
+const DASH_HOT_FREE = 6; // fully free in UI now
+// All selectable stat types for Compare Players
+const ALL_STATS = [
+  { key: "fantasy", label: "Fantasy Points" },
+  { key: "disposals", label: "Disposals" },
+  { key: "goals", label: "Goals" },
+  { key: "marks", label: "Marks" },
+  { key: "tackles", label: "Tackles" },
+  { key: "kicks", label: "Kicks" },
+  { key: "handballs", label: "Handballs" },
+  { key: "hitouts", label: "Hitouts" },
+];
 
+const DASH_COLD_FREE = 6; // fully free in UI now
+const AI_FREE = 3; // first 3 AI insights emphasised as free
+const RISERS_FREE = 6; // risers now visually free; constant kept for future use
+const STABILITY_FREE = 6; // 6 free stability cards (2x3)
+const TABLE_FREE_ROWS = 25; // 25 free rows in master table
+
+const FREE_STAT_SET = new Set<StatKey>(["fantasy", "disposals", "goals"]);
+
+function generatePlayers(): Player[] {
+  return Array.from({ length: 120 }).map((_, i) => {
+    const base = 80 + (i % 15);
+    const posIndex = i % 4;
+    const pos: Position =
+      posIndex === 0
+        ? "MID"
+        : posIndex === 1
+        ? "FWD"
+        : posIndex === 2
+        ? "DEF"
+        : "RUC";
+    const team = ["COLL", "ESS", "SYD", "CARL"][i % 4];
+    const rounds = [
+      base - 10 + (i % 5), // OR
+      base - 5 + (i % 4), // R1
+      base + 3 - (i % 6), // R2
+      base + 8 - (i % 7), // R3
+      base + 1 + (i % 3), // R4
+      base + 4 - (i % 2), // R5
+    ];
     return {
-      id: index + 1,
-      name: `Player ${index + 1}`,
-      team: ["GEEL","CARL","RICH","ESS","COLL","NMFC"][index % 6],
-      role: ["MID","RUC","FWD","DEF"][index % 4],
-      orScore: base + 10,
+      id: i + 1,
+      name: `Player ${i + 1}`,
+      pos,
+      team,
       rounds,
     };
   });
-};
-
-const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
-
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-function computeSummary(player: PlayerRow) {
-  const rounds = player.rounds;
-  const min = Math.min(...rounds);
-  const max = Math.max(...rounds);
-  const total = rounds.reduce((sum, v) => sum + v, 0);
-  const avg = Math.round((total / rounds.length) * 10) / 10;
-
-  const lastWindow = rounds.slice(-8);
-  const l5 = rounds.slice(-5);
-  const l5Avg =
-    l5.length ? Math.round((l5.reduce((a,b) => a+b,0) / l5.length) * 10) / 10 : 0;
-
-  const lastMin = Math.min(...lastWindow);
-  const lastMax = Math.max(...lastWindow);
-  const volatilityRange = lastMax - lastMin;
-
-  return { min, max, total, avg, lastWindow, l5Avg, volatilityRange };
 }
 
-function computeHitRates(player: PlayerRow, lens: StatLens): number[] {
-  const { thresholds } = STAT_CONFIG[lens];
-  const rounds = player.rounds;
-  return thresholds.map((t) =>
-    Math.round((rounds.filter((v) => v >= t).length / rounds.length) * 100)
-  );
+const ALL_PLAYERS: Player[] = generatePlayers();
+
+function lastN(series: number[], n: number) {
+  return series.slice(-n);
 }
 
-function computeConfidenceScore(player: PlayerRow, lens: StatLens): number {
-  const hitRates = computeHitRates(player, lens);
-  const { volatilityRange } = computeSummary(player);
-
-  const floorRate = hitRates[0] ?? 0;
-  const ceilingRate = hitRates[hitRates.length - 1] ?? 0;
-  const volatilityPenalty = Math.min(volatilityRange * 3, 45);
-
-  const raw =
-    0.45 * floorRate +
-    0.35 * ceilingRate +
-    0.2 * (100 - volatilityPenalty);
-
-  return Math.max(0, Math.min(100, Math.round(raw)));
+function average(values: number[]): number {
+  if (!values.length) return 0;
+  return values.reduce((s, v) => s + v, 0) / values.length;
 }
 
-// -----------------------------------------------------------------------------
-// Main Component
-// -----------------------------------------------------------------------------
-
-export const MasterTable: React.FC = () => {
-  const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
-  const [compactMode, setCompactMode] = useState(false);
-  const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
-  const [visibleCount, setVisibleCount] = useState(20);
-
-  const config = STAT_CONFIG[selectedStat];
-  const players = MOCK_PLAYERS;
-
-  const visiblePlayers = useMemo(
-    () => players.slice(0, visibleCount),
-    [players, visibleCount]
-  );
-
-  const hasMoreRows = visibleCount < players.length;
-
-  const handleToggleExpand = (id: number) => {
-    setExpandedPlayerId((prev) => (prev === id ? null : id));
-  };
-
-  const handleShowMore = () => {
-    if (!hasMoreRows) return;
-    setVisibleCount((prev) => Math.min(prev + 20, players.length));
-  };
-
-  return (
-    <section
-      id="master-table"
-      className="
-        relative mt-16 mb-24 rounded-[32px]
-        border border-yellow-500/15
-        bg-gradient-to-b
-        from-neutral-950 via-neutral-950/90 to-black
-        px-4 py-8 sm:px-6 lg:px-8
-        shadow-[0_40px_160px_rgba(0,0,0,0.9)]
-      "
-    >
-      {/* --------------------------------------------------------------------- */}
-      {/* Header */}
-      {/* --------------------------------------------------------------------- */}
-
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-400/10 to-transparent px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
-            <Sparkles className="h-3 w-3" />
-            <span>Master Table</span>
-          </div>
-
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-neutral-50 text-balance">
-              Full-season player ledger & hit-rate grid
-            </h2>
-
-            <p className="mt-2 max-w-2xl text-sm text-neutral-300/90">
-              Every player’s round-by-round{" "}
-              <span className="font-semibold text-yellow-200/90">
-                {config.label}
-              </span>{" "}
-              output, totals and hit-rates across key thresholds — ordered by
-              total output.
-            </p>
-
-            <p className="mt-1 max-w-xl text-[11px] text-neutral-400">
-              Hit-rate bands automatically adjust to the selected stat lens.
-              {config.descriptionSuffix} Team & Round filters are Neeko+ only.
-            </p>
-          </div>
-        </div>
-
-        {/* ------------------------------------------------------------------- */}
-        {/* Controls */}
-        {/* ------------------------------------------------------------------- */}
-
-        <div className="flex flex-col gap-4 md:items-end">
-
-          {/* Stat selector */}
-          <div className="flex items-center gap-2 rounded-full border border-neutral-700/70 bg-black/70 px-2 py-1 text-xs text-neutral-200">
-            {(["Fantasy","Disposals","Goals"] as const).map((stat) => (
-              <button
-                key={stat}
-                onClick={() => setSelectedStat(stat)}
-                className={`
-                  rounded-full px-3 py-1 text-[11px] font-medium transition
-                  ${
-                    selectedStat === stat
-                      ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
-                      : "text-neutral-300 hover:bg-neutral-800/80"
-                  }
-                `}
-              >
-                {stat}
-              </button>
-            ))}
-          </div>
-
-          {/* Locked filters */}
-          <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-neutral-300">
-            <LockedFilter label="Team" value="All teams" />
-            <LockedFilter label="Round" value="All rounds" />
-          </div>
-
-          {/* Compact toggle — hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-3 rounded-full border border-neutral-700/70 bg-black/70 px-3 py-1.5 text-[11px] text-neutral-300">
-            <span className="font-medium text-neutral-100">Full grid</span>
-            <Switch
-              checked={compactMode}
-              onCheckedChange={setCompactMode}
-              className="data-[state=checked]:bg-yellow-400"
-            />
-            <span className="font-medium text-neutral-100">Compact</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
-// -----------------------------------------------------------------------------
-// Desktop Full Table
-// -----------------------------------------------------------------------------
-
-type DesktopTableProps = {
-  players: PlayerRow[];
-  selectedStat: StatLens;
-  expandedPlayerId: number | null;
-  onToggleExpand: (id: number) => void;
-};
-
-const DesktopFullTable: React.FC<DesktopTableProps> = ({
-  players,
-  selectedStat,
-  expandedPlayerId,
-  onToggleExpand,
-}) => {
-  const config = STAT_CONFIG[selectedStat];
-
-  return (
-    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/90 mt-8 hidden md:block">
-      <div className="overflow-x-auto">
-        <div className="min-w-[1200px]">
-
-          {/* Sticky Header */}
-          <div className="sticky top-0 z-30 flex bg-black/95 backdrop-blur-sm">
-
-            {/* Sticky Player Column Header */}
-            <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 
-              border-b border-neutral-800/80 bg-black px-4 py-3 
-              text-xs font-semibold uppercase tracking-[0.16em] text-neutral-300">
-              <span className="w-6 text-[10px] text-neutral-500">#</span>
-              <span>Player</span>
-            </div>
-
-            {/* Rounds Header */}
-            <div className="flex flex-1 border-b border-neutral-800/80 
-              text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-              <HeaderCell label="OR" />
-              {ROUND_LABELS.map((label) => (
-                <HeaderCell key={label} label={label} />
-              ))}
-              <HeaderCell label="Min" />
-              <HeaderCell label="Max" />
-              <HeaderCell label="Avg" />
-              <HeaderCell label="Total" wide />
-              {config.hitRateLabels.map((label) => (
-                <HeaderCell key={label} label={label} accent />
-              ))}
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="divide-y divide-neutral-900/80">
-            {players.map((player, index) => {
-              const isExpanded = expandedPlayerId === player.id;
-              const isBlurred = index >= 20; // rows after 20
-              const hitRates = computeHitRates(player, selectedStat);
-              const summary = computeSummary(player);
-              const confidence = computeConfidenceScore(player, selectedStat);
-
-              return (
-                <div key={player.id} className="relative">
-
-                  {/* Blurred Data Layer */}
-                  <div
-                    className={
-                      isBlurred
-                        ? "pointer-events-none blur-[2px] brightness-[0.7]"
-                        : ""
-                    }
-                  >
-                    {/* Main Row */}
-                    <div
-                      className={`group flex text-xs text-neutral-100 transition 
-                        ${isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/50"}`}
-                    >
-
-                      {/* Player Cell Button */}
-                      <button
-                        type="button"
-                        onClick={() => onToggleExpand(player.id)}
-                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 
-                        border-r border-neutral-900/80 bg-gradient-to-r 
-                        from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full 
-                          border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
-                          {index + 1}
-                        </span>
-
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
-                          </span>
-                        </div>
-
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
-                        )}
-                      </button>
-
-                      {/* Numeric Columns */}
-                      <div className="flex flex-1 items-center text-center text-[11px]">
-                        <BodyCell value={player.orScore} />
-                        {player.rounds.map((score, idx) => (
-                          <BodyCell key={idx} value={score} />
-                        ))}
-                        <BodyCell value={summary.min} dim />
-                        <BodyCell value={summary.max} />
-                        <BodyCell value={summary.avg.toFixed(1)} />
-                        <BodyCell value={summary.total} strong wide />
-
-                        {hitRates.map((value, idx) => (
-                          <HitRateCell key={idx} value={value} />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* EXPANDED ROW */}
-                    {isExpanded && (
-                      <DesktopExpandedRow
-                        player={player}
-                        selectedStat={selectedStat}
-                      />
-                    )}
-                  </div>
-
-                  {/* Blur Overlay UI */}
-                  {isBlurred && (
-                    <div className="pointer-events-auto absolute inset-0 z-30 
-                      flex items-center justify-center bg-gradient-to-b 
-                      from-black/85 via-black/90 to-black/95">
-                      <div className="space-y-3 text-center">
-                        <div className="inline-flex items-center gap-2 rounded-full 
-                          border border-yellow-500/50 bg-black/80 px-3 py-1 
-                          text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-                          <Sparkles className="h-3 w-3" />
-                          <span>Neeko+ Master Grid</span>
-                        </div>
-                        <p className="mx-auto max-w-sm text-xs text-neutral-200">
-                          Additional players beyond the top 20 are blurred and gated.
-                        </p>
-                        <Button className="rounded-full bg-yellow-400 px-6 py-1.5 
-                          text-xs font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.9)]
-                          hover:bg-yellow-300">
-                          Unlock Neeko+ Insights
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
-
-        {/* Desktop "Show more" */}
-        <div className="py-4 border-t border-neutral-900/80 bg-black/90 text-center">
-          {players.length >= 20 && players.length < 40 && (
-            <Button
-              variant="outline"
-              onClick={() => setVisibleCount((v) => Math.min(v + 20, 40))}
-              className="rounded-full border-neutral-700 bg-neutral-950/90 px-5 py-1.5 
-                text-xs text-neutral-200 hover:border-yellow-400 hover:bg-neutral-900"
-            >
-              Show more players
-            </Button>
-          )}
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Desktop Compact Table
-// -----------------------------------------------------------------------------
-
-const DesktopCompactTable: React.FC<DesktopTableProps> = ({
-  players,
-  selectedStat,
-  expandedPlayerId,
-  onToggleExpand,
-}) => {
-  const config = STAT_CONFIG[selectedStat];
-
-  return (
-    <div className="overflow-hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/90 mt-8 hidden md:block">
-      <div className="overflow-x-auto">
-        <div className="min-w-[900px]">
-
-          {/* Sticky header */}
-          <div className="sticky top-0 z-30 flex bg-black/95 backdrop-blur-sm">
-            <div className="sticky left-0 z-40 flex w-64 flex-shrink-0 items-center gap-3 
-              border-b border-neutral-800/80 bg-black px-4 py-3 text-xs font-semibold 
-              uppercase tracking-[0.16em] text-neutral-300">
-              <span className="w-6 text-[10px] text-neutral-500">#</span>
-              <span>Player</span>
-            </div>
-
-            <div className="flex flex-1 border-b border-neutral-800/80 
-              text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-              <HeaderCell label="Min" />
-              <HeaderCell label="Max" />
-              <HeaderCell label="Avg" />
-              <HeaderCell label="Total" wide />
-              {config.hitRateLabels.map((label) => (
-                <HeaderCell key={label} label={label} accent />
-              ))}
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="divide-y divide-neutral-900/80">
-            {players.map((player, index) => {
-              const isExpanded = expandedPlayerId === player.id;
-              const isBlurred = index >= 20;
-              const summary = computeSummary(player);
-              const hitRates = computeHitRates(player, selectedStat);
-
-              return (
-                <div key={player.id} className="relative">
-
-                  <div
-                    className={
-                      isBlurred
-                        ? "pointer-events-none blur-[2px] brightness-[0.7]"
-                        : ""
-                    }
-                  >
-                    {/* Row */}
-                    <div
-                      className={`group flex text-xs text-neutral-100 transition-colors 
-                        ${isExpanded ? "bg-neutral-900/75" : "hover:bg-neutral-900/50"}`}
-                    >
-
-                      {/* Player */}
-                      <button
-                        type="button"
-                        onClick={() => onToggleExpand(player.id)}
-                        className="sticky left-0 z-20 flex w-64 flex-shrink-0 items-center gap-3 
-                        border-r border-neutral-900/80 bg-gradient-to-r 
-                        from-black/98 via-black/94 to-black/80 px-4 py-2.5 text-left"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center 
-                          rounded-full border border-neutral-700/80 bg-neutral-950/80 
-                          text-[10px] text-neutral-300">
-                          {index + 1}
-                        </span>
-
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-medium text-neutral-50">
-                            {player.name}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                            {player.team} • {player.role}
-                          </span>
-                        </div>
-
-                        {isExpanded ? (
-                          <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
-                        ) : (
-                          <ChevronRight className="ml-auto h-4 w-4 text-neutral-500" />
-                        )}
-                      </button>
-
-                      {/* Summary Columns */}
-                      <div className="flex flex-1 items-center text-center text-[11px]">
-                        <BodyCell value={summary.min} dim />
-                        <BodyCell value={summary.max} />
-                        <BodyCell value={summary.avg.toFixed(1)} />
-                        <BodyCell value={summary.total} strong wide />
-                        {hitRates.map((value, idx) => (
-                          <HitRateCell key={idx} value={value} />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Expanded */}
-                    {isExpanded && (
-                      <DesktopExpandedRow
-                        player={player}
-                        selectedStat={selectedStat}
-                      />
-                    )}
-                  </div>
-
-                  {/* Blur overlay */}
-                  {isBlurred && (
-                    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center 
-                      justify-center bg-gradient-to-b from-black/80 via-black/85 to-black/95">
-                      <div className="space-y-3 text-center">
-                        <div className="inline-flex items-center gap-2 rounded-full 
-                          border border-yellow-500/50 bg-black/80 px-3 py-1 
-                          text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-                          <Sparkles className="h-3 w-3" />
-                          <span>Neeko+ Master Grid</span>
-                        </div>
-                        <p className="mx-auto max-w-sm text-xs text-neutral-200">
-                          Unlock full compact grid for all players.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
-      </div>
-    </div>
-  );
-};
-// -----------------------------------------------------------------------------
-// Desktop Expanded Row
-// -----------------------------------------------------------------------------
-
-type ExpandedRowProps = {
-  player: PlayerRow;
-  selectedStat: StatLens;
-};
-
-const DesktopExpandedRow: React.FC<ExpandedRowProps> = ({
-  player,
-  selectedStat,
-}) => {
-  const config = STAT_CONFIG[selectedStat];
-  const summary = computeSummary(player);
-  const hitRates = computeHitRates(player, selectedStat);
-  const confidence = computeConfidenceScore(player, selectedStat);
-
-  const lastWindow = summary.lastWindow;
-  const windowMin = Math.min(...lastWindow);
-  const windowMax = Math.max(...lastWindow);
-
-  const volatilityLabel =
-    summary.volatilityRange <= 8
-      ? "Low"
-      : summary.volatilityRange <= 14
-      ? "Medium"
-      : "High";
-
-  return (
-    <div className="border-t border-neutral-900/80 bg-gradient-to-b from-neutral-950 via-neutral-950 to-black px-6 pb-6 pt-4 lg:px-8">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.1fr)]">
-
-        {/* LEFT SIDE — Sparkline + Stats */}
-        <div className="space-y-4">
-
-          {/* Recent Window Card */}
-          <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black p-5 shadow-[0_0_40px_rgba(0,0,0,0.7)]">
-            {/* Labels */}
-            <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-              <span>Recent scoring window</span>
-              <span className="text-neutral-500">
-                Last {lastWindow.length} •{" "}
-                <span className="text-yellow-200">
-                  {summary.l5Avg.toFixed(1)} {config.valueUnitShort} L5 avg
-                </span>
-              </span>
-            </div>
-
-            {/* Stats grid */}
-            <div className="mb-4 grid gap-3 text-[11px] text-neutral-300 sm:grid-cols-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                  L5 avg
-                </div>
-                <div className="mt-1 text-sm font-semibold text-yellow-200">
-                  {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                  Best / Worst
-                </div>
-                <div className="mt-1 text-sm font-semibold text-neutral-100">
-                  {windowMax} / {windowMin}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                  Volatility
-                </div>
-                <div className="mt-1 text-sm font-semibold text-emerald-300">
-                  {volatilityLabel}{" "}
-                  <span className="text-[11px] font-normal text-neutral-400">
-                    ({summary.volatilityRange} range)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* SPARKLINE */}
-            <div className="rounded-xl border border-yellow-500/20 bg-gradient-to-b from-yellow-500/10 via-neutral-950 to-black px-4 py-3">
-              <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                <span>Recent form sparkline</span>
-                <span className="text-neutral-500">
-                  Range {windowMin}–{windowMax} {config.valueUnitShort}
-                </span>
-              </div>
-              <MiniSparkline values={lastWindow} />
-            </div>
-          </div>
-
-          {/* AI SUMMARY */}
-          <div className="rounded-2xl border border-neutral-800/80 bg-neutral-900/80 px-5 py-4 text-[11px] text-neutral-300 shadow-inner">
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-              AI Performance Summary
-            </div>
-            <p className="leading-snug">
-              Role expectations and scoring patterns indicate{" "}
-              <span className="font-semibold text-neutral-50">
-                stable usage with moderate volatility
-              </span>{" "}
-              in this stat lens. Hit-rate trends show a reliable floor with
-              periodic ceiling bursts.
-            </p>
-          </div>
-        </div>
-
-        {/* RIGHT SIDE — Confidence Index + Hit Rates */}
-        <div className="space-y-4">
-
-          {/* CONFIDENCE INDEX */}
-          <div className="rounded-2xl border border-yellow-400/35 bg-gradient-to-b from-yellow-500/18 via-black to-black p-5 shadow-[0_0_30px_rgba(250,204,21,0.75)]">
-            <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-yellow-100">
-              <span>Confidence Index</span>
-              <span>{confidence}%</span>
-            </div>
-            <p className="text-[11px] text-neutral-200">
-              Weighted blend of hit-rate stability, volatility range and
-              consistency in this scoring lens.
-            </p>
-
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-900">
-              <div
-                className="h-full rounded-full bg-lime-400"
-                style={{ width: `${confidence}%` }}
-              />
-            </div>
-
-            <div className="mt-2 flex justify-between text-[10px] text-neutral-400">
-              <span>Floor security</span>
-              <span>Ceiling access</span>
-            </div>
-          </div>
-
-          {/* HIT-RATE PROFILE */}
-          <div className="rounded-2xl border border-neutral-800/80 bg-neutral-900/80 px-5 py-4 text-[11px] text-neutral-200">
-            <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-              Hit-rate profile
-            </div>
-
-            <div className="space-y-2.5">
-              {hitRates.map((value, idx) => (
-                <HitRateProfileBar
-                  key={config.hitRateLabels[idx]}
-                  label={config.hitRateLabels[idx]}
-                  value={value}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Mobile Table
-// -----------------------------------------------------------------------------
-
-type MobileTableProps = {
-  players: PlayerRow[];
-  selectedStat: StatLens;
-  expandedPlayerId: number | null;
-  onToggleExpand: (id: number) => void;
-};
-
-const MobileTable: React.FC<MobileTableProps> = ({
-  players,
-  selectedStat,
-  expandedPlayerId,
-  onToggleExpand,
-}) => {
-  const config = STAT_CONFIG[selectedStat];
-
-  return (
-    <div className="space-y-4 md:hidden mt-8">
-      {players.map((player, index) => {
-        const isExpanded = expandedPlayerId === player.id;
-        const isBlurred = index >= 20;
-        const summary = computeSummary(player);
-        const hitRates = computeHitRates(player, selectedStat);
-
-        return (
-          <div key={player.id} className="relative">
-
-            {/* Blur wrapper */}
-            <div
-              className={
-                isBlurred ? "pointer-events-none blur-[2px] brightness-[0.7]" : ""
-              }
-            >
-              <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 p-4 text-xs text-neutral-100">
-
-                {/* HEADER */}
-                <button
-                  type="button"
-                  onClick={() => onToggleExpand(player.id)}
-                  className="flex w-full items-center gap-3 text-left"
-                >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full 
-                    border border-neutral-700/80 bg-neutral-950/90 text-[10px] text-neutral-300">
-                    {index + 1}
-                  </span>
-
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-neutral-50">
-                        {player.name}
-                      </span>
-                      <span className="text-[11px] text-yellow-200">
-                        {summary.avg.toFixed(1)} {config.valueUnitShort} avg
-                      </span>
-                    </div>
-
-                    <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
-                      <span className="uppercase tracking-[0.16em]">
-                        {player.team} • {player.role}
-                      </span>
-                      <span>
-                        {summary.min}–{summary.max} • {summary.total} total
-                      </span>
-                    </div>
-                  </div>
-
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-yellow-300" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-neutral-500" />
-                  )}
-                </button>
-
-                {/* HIT-RATE PILLS */}
-                <div className="mt-3 grid grid-cols-5 gap-1 text-[10px]">
-                  {config.hitRateLabels.map((label, idx) => (
-                    <HitRatePill key={label} label={label} value={hitRates[idx]} />
-                  ))}
-                </div>
-
-                {/* EXPANDED SECTION */}
-                {isExpanded && (
-                  <div className="mt-4 space-y-3">
-
-                    {/* ROUND LEDGER SCROLLER */}
-                    <div>
-                      <div className="mb-1 flex items-center justify-between text-[10px] text-neutral-400">
-                        <span className="uppercase tracking-[0.16em]">
-                          Round ledger
-                        </span>
-                        <span>
-                          L5: {summary.l5Avg.toFixed(1)} {config.valueUnitShort}
-                        </span>
-                      </div>
-
-                      <div className="flex gap-1 overflow-x-auto pb-1">
-                        {player.rounds.map((score, idx) => (
-                          <div
-                            key={idx}
-                            className="min-w-[46px] rounded-md bg-neutral-900/90 px-2 py-1 text-center"
-                          >
-                            <div className="text-[9px] text-neutral-500">
-                              {ROUND_LABELS[idx]}
-                            </div>
-                            <div className="mt-0.5 text-[11px] text-neutral-100">
-                              {score}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* SPARKLINE */}
-                    <div className="rounded-xl border border-yellow-500/20 bg-gradient-to-b from-yellow-500/10 via-neutral-950 to-black px-3 py-2">
-                      <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-neutral-400">
-                        <span>Recent form sparkline</span>
-                        <span className="text-neutral-500">
-                          Range{" "}
-                          {summary.lastWindow.length > 0
-                            ? `${Math.min(...summary.lastWindow)}–${Math.max(
-                                ...summary.lastWindow
-                              )}`
-                            : "-"}{" "}
-                          {config.valueUnitShort}
-                        </span>
-                      </div>
-
-                      <MiniSparkline values={summary.lastWindow} small />
-                    </div>
-
-                    {/* AI + CONFIDENCE */}
-                    <div className="space-y-3">
-
-                      {/* AI */}
-                      <div className="rounded-lg border border-neutral-800/70 bg-neutral-900/80 px-3 py-2 text-[11px] text-neutral-300">
-                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-200">
-                          AI Performance Summary
-                        </div>
-                        <p className="leading-snug">
-                          Quick AI read on role, stability and volatility.
-                        </p>
-                      </div>
-
-                      {/* CI */}
-                      <div className="rounded-lg border border-yellow-400/35 bg-gradient-to-b from-yellow-500/15 via-black to-black px-3 py-2 text-[11px] text-neutral-200">
-                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-yellow-100">
-                          <span>Confidence Index</span>
-                          <span>{confidence}%</span>
-                        </div>
-
-                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-900">
-                          <div
-                            className="h-full rounded-full bg-lime-400"
-                            style={{ width: `${confidence}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* BLUR OVERLAY */}
-            {isBlurred && (
-              <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center 
-                bg-gradient-to-b from-black/80 via-black/85 to-black/95">
-                <div className="space-y-3 text-center">
-                  <div className="inline-flex items-center gap-2 rounded-full 
-                    border border-yellow-500/50 bg-black/80 px-3 py-1 
-                    text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-                    <Sparkles className="h-3 w-3" />
-                    <span>Neeko+ Master Grid</span>
-                  </div>
-                  <p className="mx-auto max-w-xs text-[11px] text-neutral-200">
-                    Extra players are premium-only. Unlock full ledger access.
-                  </p>
-                </div>
-              </div>
-            )}
-
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Shared Table Cells + Colour Logic
-// -----------------------------------------------------------------------------
-
-const HeaderCell: React.FC<{ label: string; wide?: boolean; accent?: boolean }> =
-  ({ label, wide, accent }) => (
-    <div
-      className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-3 
-      ${wide ? "min-w-[72px]" : "min-w-[52px]"} 
-      ${accent ? "text-emerald-300" : ""}`}
-    >
-      {label}
-    </div>
-  );
-
-const BodyCell: React.FC<{
-  value: number | string;
-  dim?: boolean;
-  strong?: boolean;
-  wide?: boolean;
-}> = ({ value, dim, strong, wide }) => (
-  <div
-    className={`flex items-center justify-center border-l border-neutral-900/85 px-2 py-2.5 text-[11px]
-      ${wide ? "min-w-[72px]" : "min-w-[52px]"}
-      ${dim ? "text-neutral-400" : "text-neutral-100"}
-      ${strong ? "font-semibold text-neutral-50" : ""}`}
-  >
-    {value}
-  </div>
-);
-
-// HIT RATE CELL (red → orange → yellow → green → lime)
-const HitRateCell: React.FC<{ value: number }> = ({ value }) => {
-  let color = "";
-  let bg = "";
-
-  if (value < 15) {
-    color = "text-red-400";
-    bg = "bg-red-500/12";
-  } else if (value < 30) {
-    color = "text-orange-400";
-    bg = "bg-orange-500/12";
-  } else if (value < 60) {
-    color = "text-yellow-300";
-    bg = "bg-yellow-500/12";
-  } else if (value < 90) {
-    color = "text-green-400";
-    bg = "bg-green-500/12";
-  } else {
-    color = "text-lime-300";
-    bg = "bg-lime-400/12";
-  }
-
-  return (
-    <div className="flex min-w-[52px] items-center justify-center border-l border-neutral-900/85 px-2 py-2.5">
-      <span
-        className={`inline-flex min-w-[44px] items-center justify-center 
-          rounded-full px-2 py-0.5 text-[10px] font-semibold ${bg} ${color}`}
-      >
-        {value}%
-      </span>
-    </div>
-  );
-};
-
-// MOBILE HIT RATE PILL
-const HitRatePill: React.FC<{ label: string; value: number }> = ({
-  label,
-  value,
-}) => {
-  let color =
-    value < 15
-      ? "text-red-400"
-      : value < 30
-      ? "text-orange-400"
-      : value < 60
-      ? "text-yellow-300"
-      : value < 90
-      ? "text-green-400"
-      : "text-lime-300";
-
-  return (
-    <div className="flex flex-col items-center justify-center rounded-lg bg-neutral-900/90 px-2 py-1 text-[10px]">
-      <span className="text-[9px] text-neutral-500">{label}</span>
-      <span className={`mt-0.5 text-[11px] font-semibold ${color}`}>
-        {value}%
-      </span>
-    </div>
-  );
-};
-
-// HIT RATE PROFILE BAR
-const HitRateProfileBar: React.FC<{ label: string; value: number }> = ({
-  label,
-  value,
-}) => {
-  let barColor =
-    value >= 90
-      ? "bg-lime-400"
-      : value >= 60
-      ? "bg-green-400/80"
-      : value >= 30
-      ? "bg-yellow-400/80"
-      : value >= 15
-      ? "bg-orange-400/80"
-      : "bg-red-500/70";
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-10 text-[10px] text-neutral-400">{label}</div>
-      <div className="flex-1 rounded-full bg-neutral-800/90">
-        <div
-          className={`h-2 rounded-full ${barColor}`}
-          style={{ width: `${Math.max(value, 3)}%` }}
-        />
-      </div>
-      <div className="w-10 text-right text-[10px] text-neutral-300">
-        {value}%
-      </div>
-    </div>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// PRO MINI SPARKLINE SVG
-// -----------------------------------------------------------------------------
-
-const MiniSparkline: React.FC<{ values: number[]; small?: boolean }> = ({
+function stdDev(values: number[]): number {
+  if (values.length <= 1) return 0;
+  const avg = average(values);
+  const variance =
+    values.reduce((s, v) => s + (v - avg) * (v - avg), 0) /
+    (values.length - 1);
+  return Math.sqrt(variance);
+}
+
+function getSeriesForStat(p: Player, stat: StatKey): number[] {
+  const base = p.rounds;
+  if (stat === "fantasy") return base;
+  if (stat === "disposals")
+    return base.map((v, i) => Math.round(v / 1.6) + (i % 3) * 2);
+  if (stat === "goals")
+    return base.map((v, i) => Math.max(0, Math.round((v - 60) / 15)));
+  return base;
+}
+
+// Sparkline
+const TrendSparkline = ({
   values,
-  small,
+  height = 18,
+}: {
+  values: number[];
+  height?: number;
 }) => {
-  if (!values || values.length === 0)
-    return <div className="h-16 rounded-md bg-neutral-950/80" />;
-
-  const width = 260;
-  const height = small ? 60 : 90;
-  const padding = 8;
-
-  const min = Math.min(...values);
+  if (!values.length) return null;
   const max = Math.max(...values);
+  const min = Math.min(...values);
   const range = max - min || 1;
-
-  const pts = values.map((v, i) => {
-    const x =
-      padding +
-      (i / Math.max(values.length - 1, 1)) * (width - padding * 2);
-    const y =
-      padding + (1 - (v - min) / range) * (height - padding * 2);
-    return { x, y };
-  });
-
-  const pathD = pts
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+  const points = values
+    .map((v, i) => {
+      const x = (i / Math.max(values.length - 1, 1)) * 160;
+      const y = height - ((v - min) / range) * (height - 4);
+      return `${x},${y}`;
+    })
     .join(" ");
-
-  const last = pts[pts.length - 1];
-
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="h-20 w-full text-yellow-300"
-      preserveAspectRatio="none"
-    >
-      {/* bottom guide */}
-      <line
-        x1={padding}
-        x2={width - padding}
-        y1={height - padding}
-        y2={height - padding}
-        stroke="rgba(148,163,184,0.3)"
-        strokeWidth={0.5}
-      />
-
-      {/* main line */}
-      <path
-        d={pathD}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.6}
-        strokeLinecap="round"
-      />
-
-      {/* last value marker */}
-      {last && (
-        <>
-          <line
-            x1={last.x}
-            x2={last.x}
-            y1={padding}
-            y2={height - padding}
-            stroke="rgba(148,163,184,0.35)"
-            strokeWidth={0.75}
-            strokeDasharray="2 3"
-          />
-          <circle
-            cx={last.x}
-            cy={last.y}
-            r={3}
-            fill="#ffffff"
-            stroke="currentColor"
-            strokeWidth={1}
-          />
-        </>
-      )}
+    <svg width={160} height={height} className="overflow-visible">
+      <polyline fill="none" stroke="#22c55e" strokeWidth={2} points={points} />
+      {values.map((v, i) => {
+        const x = (i / Math.max(values.length - 1, 1)) * 160;
+        const y = height - ((v - min) / range) * (height - 4);
+        return <circle key={i} cx={x} cy={y} r={1.6} fill="#22c55e" />;
+      })}
     </svg>
   );
 };
 
-export default MasterTable;
+// Stability meta
+function stabilityMeta(vol: number) {
+  if (vol < 4)
+    return {
+      label: "Rock solid",
+      colour: "text-emerald-400",
+      reason: "Very low game-to-game movement; scores cluster tightly.",
+    };
+  if (vol < 8)
+    return {
+      label: "Steady",
+      colour: "text-emerald-300",
+      reason: "Small ups and downs; reliable role and usage.",
+    };
+  if (vol < 12)
+    return {
+      label: "Swingy",
+      colour: "text-amber-300",
+      reason: "Meaningful swings in output; matchup and role sensitive.",
+    };
+  return {
+    label: "Rollercoaster",
+    colour: "text-red-400",
+    reason:
+      "Huge volatility; slate-breaking upside with real downside risk.",
+  };
+}
+
+// AI signals mock
+const AI_SIGNALS = [
+  {
+    id: 1,
+    text: "High-ceiling mids are stabilising with stronger floors over the last 3 rounds.",
+    delta: +7,
+  },
+  {
+    id: 2,
+    text: "Key forwards seeing a slight dip in inside-50 marks but spike in accuracy.",
+    delta: -4,
+  },
+  {
+    id: 3,
+    text: "Rebounding defenders trending up in uncontested chains through half-back.",
+    delta: +5,
+  },
+  {
+    id: 4,
+    text: "Tagging roles are creating sharp volatility for elite ball-winners.",
+    delta: -6,
+  },
+  {
+    id: 5,
+    text: "Wing roles are lifting in uncontested marks as teams widen the ground.",
+    delta: +3,
+  },
+  {
+    id: 6,
+    text: "Second rucks are quietly building scoring spikes when resting forward.",
+    delta: +4,
+  },
+  {
+    id: 7,
+    text: "Shutdown defenders are suppressing one key scorer but leaking to smalls.",
+    delta: -3,
+  },
+  {
+    id: 8,
+    text: "Inside mids with centre-bounce bumps are seeing short-term volatility.",
+    delta: -2,
+  },
+];
+
+// -----------------------------------------------------------------------------
+// Main page
+// -----------------------------------------------------------------------------
+export default function AFLPlayers() {
+  const { isPremium } = useAuth();
+  const premiumUser = !!isPremium;
+
+  // Shared stat lens
+  const [selectedStat, setSelectedStat] = useState<StatKey>("fantasy");
+  const [openRiserId, setOpenRiserId] = useState<number | null>(null);
+  const [openFallerId, setOpenFallerId] = useState<number | null>(null);
+
+  // Table state
+  const [tableStat, setTableStat] = useState<StatKey>("fantasy");
+  const [seasonYear, setSeasonYear] = useState<number>(2025);
+  const [teamFilter, setTeamFilter] = useState<string>("All Teams");
+  const [positionFilter, setPositionFilter] =
+    useState<string>("All Positions");
+  const [roundFilter, setRoundFilter] = useState<string>("All Rounds");
+  const [compactMode, setCompactMode] = useState<boolean>(true);
+  const [tableVisibleCount, setTableVisibleCount] =
+    useState<number>(TABLE_FREE_ROWS);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>(
+    {}
+  );
+
+  // Compare state
+  const [teamA, setTeamA] = useState<string>("COLL");
+  const [teamB, setTeamB] = useState<string>("ESS");
+  const [playerAId, setPlayerAId] = useState<number | null>(null);
+  const [playerBId, setPlayerBId] = useState<number | null>(null);
+
+  // Derived data --------------------------------------------------------------
+  const sortedByForm = [...ALL_PLAYERS].sort((a, b) => {
+    const aAvg = average(lastN(getSeriesForStat(a, selectedStat), 5));
+    const bAvg = average(lastN(getSeriesForStat(b, selectedStat), 5));
+    return bAvg - aAvg;
+  });
+
+  const hotList = sortedByForm.slice(0, 6);
+  const coldList = [...sortedByForm].reverse().slice(0, 6);
+
+  const moversBase = [...ALL_PLAYERS]
+    .map((p) => {
+      const series = getSeriesForStat(p, selectedStat);
+      const l5 = lastN(series, 5);
+      if (l5.length < 5) return null;
+
+      const prev4 = l5.slice(0, 4);
+      const last = l5[4];
+      const prevAvg = average(prev4);
+      const diff = last - prevAvg;
+
+      return { player: p, diff, last, prevAvg };
+    })
+    .filter(Boolean) as {
+    player: Player;
+    diff: number;
+    last: number;
+    prevAvg: number;
+  }[];
+
+  const risers = moversBase
+    .filter((m) => m.diff > 0)
+    .sort((a, b) => b.diff - a.diff)
+    .slice(0, 6);
+
+  const fallers = moversBase
+    .filter((m) => m.diff < 0)
+    .sort((a, b) => a.diff - b.diff)
+    .slice(0, 6);
+
+  const stabilityList = [...ALL_PLAYERS]
+    .map((p) => {
+      const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+      if (l5.length < 5) return null;
+      const vol = stdDev(l5);
+      return { player: p, vol };
+    })
+    .filter(Boolean) as { player: Player; vol: number }[];
+
+  const filteredTable = ALL_PLAYERS.filter((p) => {
+    if (teamFilter !== "All Teams" && p.team !== teamFilter) return false;
+    if (positionFilter !== "All Positions" && p.pos !== positionFilter)
+      return false;
+    return true;
+  });
+
+  const tableSorted = [...filteredTable].sort((a, b) => {
+    const aSeries = getSeriesForStat(a, tableStat);
+    const bSeries = getSeriesForStat(b, tableStat);
+    const aTotal = aSeries.reduce((s, v) => s + v, 0);
+    const bTotal = bSeries.reduce((s, v) => s + v, 0);
+    return bTotal - aTotal;
+  });
+
+  const tableSlice = tableSorted.slice(0, tableVisibleCount);
+
+  // Compare calculations
+  const playersTeamA = ALL_PLAYERS.filter(
+    (p) => teamA === "All Teams" || p.team === teamA
+  );
+  const playersTeamB = ALL_PLAYERS.filter(
+    (p) => teamB === "All Teams" || p.team === teamB
+  );
+
+  const playerA = playersTeamA.find((p) => p.id === playerAId) ?? playersTeamA[0];
+  const playerB =
+    playersTeamB.find((p) => p.id === playerBId) ??
+    playersTeamB[1] ??
+    playersTeamB[0];
+
+  const compareSeriesA = playerA
+    ? lastN(getSeriesForStat(playerA, selectedStat), 5)
+    : [];
+  const compareSeriesB = playerB
+    ? lastN(getSeriesForStat(playerB, selectedStat), 5)
+    : [];
+
+  const compareAvgA = average(compareSeriesA);
+  const compareAvgB = average(compareSeriesB);
+  const compareTotalA = compareSeriesA.reduce((s, v) => s + v, 0);
+  const compareTotalB = compareSeriesB.reduce((s, v) => s + v, 0);
+  const compareBestA = compareSeriesA.length ? Math.max(...compareSeriesA) : 0;
+  const compareBestB = compareSeriesB.length ? Math.max(...compareSeriesB) : 0;
+  const compareWorstA = compareSeriesA.length ? Math.min(...compareSeriesA) : 0;
+  const compareWorstB = compareSeriesB.length ? Math.min(...compareSeriesB) : 0;
+
+  // Handlers ------------------------------------------------------------------
+  const handleGlobalStatChange = (value: StatKey) => {
+    if (!premiumUser && !FREE_STAT_SET.has(value)) {
+      showLockedToast("Unlock Neeko+ to use this stat lens.");
+      return;
+    }
+    setSelectedStat(value);
+  };
+
+  const handleTableStatChange = (value: StatKey) => {
+    setTableStat(value);
+  };
+
+  const handleTeamFilterChange = (value: string) => {
+    if (!premiumUser && value !== "All Teams") {
+      showLockedToast("Neeko+ unlocks team filters.");
+      return;
+    }
+    setTeamFilter(value);
+  };
+
+  const handlePositionFilterChange = (value: string) => {
+    if (!premiumUser && value !== "All Positions") {
+      showLockedToast("Neeko+ unlocks position filters.");
+      return;
+    }
+    setPositionFilter(value);
+  };
+
+  const handleRoundFilterChange = (value: string) => {
+    if (!premiumUser && value !== "All Rounds") {
+      showLockedToast("Neeko+ unlocks round filters.");
+      return;
+    }
+    setRoundFilter(value);
+  };
+
+  const toggleRowExpanded = (id: number) =>
+    setExpandedRows((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      window.history.back();
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render helpers
+  // ---------------------------------------------------------------------------
+  const renderStatSelector = () => (
+    <div className="flex items-center gap-2 text-xs md:text-sm">
+      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+        Stat Type
+      </span>
+      <div className="relative">
+        <select
+          className="h-8 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 pr-7 text-xs md:text-sm text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+          value={selectedStat}
+          onChange={(e) => handleGlobalStatChange(e.target.value as StatKey)}
+        >
+          <option value="fantasy">Fantasy</option>
+          <option value="disposals">Disposals</option>
+          <option value="goals">Goals</option>
+        </select>
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-neutral-400">
+          ▼
+        </span>
+      </div>
+    </div>
+  );
+
+  const renderDashboardRow = () => (
+    <div className="mt-6 grid gap-4 md:grid-cols-3">
+      {/* Hot list — fully free */}
+      <div className="relative overflow-hidden rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/80 via-neutral-950 to-emerald-900/30 p-4 shadow-[0_0_26px_rgba(16,185,129,0.28)]">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/60 bg-emerald-500/15 px-3 py-1.5 backdrop-blur-md">
+            <span className="text-xs md:text-sm font-medium text-emerald-100">
+              🔥 Form Leaders
+            </span>
+            <span className="text-[10px] text-emerald-200/80">
+              Top 6 by last-5 average
+            </span>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            Live form preview
+          </span>
+        </div>
+
+        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+          {hotList.map((p) => {
+            const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+            const avg = Math.round(average(l5) || 0);
+            const strong = avg >= 95;
+
+            return (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+              >
+                <div className="flex min-w-0 flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="max-w-[10.5rem] truncate whitespace-nowrap font-medium">
+                      {p.name}
+                    </span>
+                    <span className="whitespace-nowrap text-[10px] text-neutral-400">
+                      {p.pos} · {p.team}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500">
+                    Season snapshot (mock L5)
+                  </span>
+                </div>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="flex items-center text-xs text-emerald-300">
+                    Avg {avg}
+                    {strong && <FireIcon />}
+                  </span>
+                  <span className="text-[10px] text-neutral-500">
+                    Stable recent scores
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Position trends — role list, fully free */}
+      <div className="relative overflow-hidden rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/80 via-neutral-950 to-cyan-900/30 p-4 shadow-[0_0_26px_rgba(34,211,238,0.28)]">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 backdrop-blur-md">
+            <span className="text-xs md:text-sm font-medium text-cyan-100">
+              📊 Position Trends
+            </span>
+            <span className="text-[10px] text-cyan-200/80">
+              Avg last-5{" "}
+              {selectedStat === "fantasy"
+                ? "fantasy scores"
+                : selectedStat}{" "}
+              by role
+            </span>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            All roles free
+          </span>
+        </div>
+
+        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+          {(["MID", "RUC", "DEF", "FWD"] as Position[]).map((pos) => {
+            const rolePlayers = ALL_PLAYERS.filter((p) => p.pos === pos);
+            const allSeries = rolePlayers.map((p) =>
+              getSeriesForStat(p, selectedStat)
+            );
+
+            const curVals = allSeries.flatMap((s) => lastN(s, 5));
+            const prevVals = allSeries.flatMap((s) => s.slice(0, 5));
+
+            const avgCur = average(curVals);
+            const avgPrev = prevVals.length ? average(prevVals) : avgCur;
+            const pctDiff =
+              avgPrev !== 0
+                ? Math.round(((avgCur - avgPrev) / avgPrev) * 100)
+                : 0;
+
+            const arrow =
+              pctDiff > 3 ? "▲" : pctDiff < -3 ? "▼" : "●";
+            const arrowColour =
+              pctDiff > 3
+                ? "text-emerald-300"
+                : pctDiff < -3
+                ? "text-red-300"
+                : "text-yellow-300";
+
+            // Top 3 players for this role by last-5 average
+            const topThree = rolePlayers
+              .map((p) => {
+                const l5 = lastN(getSeriesForStat(p, selectedStat), 5);
+                return {
+                  player: p,
+                  avg: average(l5),
+                };
+              })
+              .sort((a, b) => b.avg - a.avg)
+              .slice(0, 3);
+
+            // Role-level mock sparkline based on current average
+            const mockRoleSeries = avgCur
+              ? [
+                  Math.round(avgCur * 0.88),
+                  Math.round(avgCur * 0.94),
+                  Math.round(avgCur),
+                  Math.round(avgCur * 1.06),
+                  Math.round(avgCur * 1.1),
+                ]
+              : [0, 0, 0, 0, 0];
+
+            return (
+              <li
+                key={pos}
+                className="rounded-xl bg-neutral-900/55 hover:scale-[1.015] hover:shadow-[0_0_18px_rgba(168,85,247,0.45)] transition-transform duration-200 px-3 py-2.5 transition-colors hover:bg-neutral-900/95"
+              >
+                {/* Header row: role + players + avg / change */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="font-medium text-neutral-100">
+                      {pos}
+                    </span>
+                    <span className="text-[10px] text-neutral-500">
+                      {rolePlayers.length} players
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="flex items-center gap-1 text-xs text-cyan-300">
+                      Avg {Math.round(avgCur || 0)}
+                      <span className={arrowColour}>
+                        {arrow} {Math.abs(pctDiff)}%
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-neutral-500">
+                      vs previous block of games (mock)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Top 3 by role */}
+                {topThree.length > 0 && (
+                  <p className="mt-1.5 text-[10px] text-neutral-400 truncate">
+                    Top 3:{" "}
+                    {topThree.map((entry) => entry.player.name).join(", ")}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Risk watchlist — now matches Form Leaders layout */}
+      <div className="relative overflow-hidden rounded-xl border border-red-500/45 bg-gradient-to-br from-red-950/80 via-neutral-950 to-red-900/30 p-4 shadow-[0_0_22px_rgba(248,113,113,0.28)]">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-red-400/60 bg-red-500/20 px-3 py-1.5 backdrop-blur-md">
+            <span className="text-xs md:text-sm font-medium text-red-100">
+              ⚠️ Risk Watchlist
+            </span>
+            <span className="text-[10px] text-red-200/80">
+              Trending cold or volatile
+            </span>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            Live form preview
+          </span>
+        </div>
+
+        <ul className="relative z-10 space-y-1.5 text-xs md:text-sm">
+          {coldList.map((p) => {
+            const series = lastN(getSeriesForStat(p, selectedStat), 5);
+            const avg = Math.round(average(series));
+            const vol = stdDev(series);
+
+            return (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-xl bg-neutral-900/55 px-3 py-2 transition-colors hover:bg-neutral-900/95"
+              >
+                {/* Left side */}
+                <div className="flex min-w-0 flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="max-w-[10.5rem] truncate whitespace-nowrap font-medium">
+                      {p.name}
+                    </span>
+                    <span className="whitespace-nowrap text-[10px] text-neutral-400">
+                      {p.pos} · {p.team}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500">
+                    Season snapshot (mock L5)
+                  </span>
+                </div>
+
+                {/* Right side */}
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="flex items-center text-xs text-cyan-300">
+                    Avg {avg}
+                    <Snowflake
+                      size={10}
+                      className="text-cyan-300 ml-1"
+                    />
+                  </span>
+                  <span className="text-[10px] text-neutral-500">
+                    Cold / volatile recent scores
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+
+  const renderAISignals = () => (
+  <div className="relative mt-8 overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-4 backdrop-blur-md">
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300">
+          AI SIGNALS (PREVIEW)
+        </p>
+        <p className="text-xs text-neutral-500">
+          Quick directional reads. Full breakdown lives on the AI Analysis page.
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <a href="/sports/afl/ai" className="text-[11px] text-yellow-400 underline underline-offset-2 hover:text-yellow-300">
+          Open AI Analysis
+        </a>
+      </div>
+    </div>
+    <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent opacity-80" />
+    <div className="space-y-2 text-sm">
+      {AI_SIGNALS.map((sig, idx) => {
+        const positive = sig.delta > 0;
+        const neutral = sig.delta === 0;
+        const colour = neutral ? "text-yellow-300" : positive ? "text-emerald-400" : "text-red-400";
+        const arrow = neutral ? "↔" : positive ? "▲" : "▼";
+        const isSoftLocked = !premiumUser && idx >= 3;
+        return (
+          <div key={sig.id} className="flex items-center justify-between gap-4 py-1.5">
+            <p className={`max-w-xl text-[13px] text-neutral-200 ${isSoftLocked ? "opacity-70" : ""}`}>{sig.text}</p>
+            <div className="flex items-center gap-1 whitespace-nowrap text-xs">
+              <span className={colour}>{arrow}</span>
+              <span className={colour}>{Math.abs(sig.delta)}%</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    {!premiumUser && (
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 via-black/75 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.45)]">
+        <div className="flex h-full items-end justify-center pb-3">
+          <a href="/neeko-plus" className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.75)]">
+            <LockIcon /><span>Unlock full AI insights — with Neeko+</span>
+          </a>
+        </div>
+      </div>
+    )}
+  </div>
+);
+})}
+        </div>
+
+        {/* Soft lock: only top 3 are clearly visible for free users */}
+        {!premiumUser && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
+            style={{ top: "58%" }}
+          >
+            <div className="flex h-full items-center justify-center">
+              <a
+                href="/neeko-plus"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.75)]"
+              >
+                <LockIcon />
+                <span>Unlock full AI insights — with Neeko+</span>
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderRisers = () => (
+    <div className="relative mt-6 overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-purple-950/50 to-purple-900/30 p-4 shadow-[0_0_26px_rgba(168,85,247,0.32)]">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-purple-400/60 bg-purple-500/20 px-3 py-1.5 backdrop-blur-md">
+          <span className="text-xs md:text-sm font-medium text-purple-100">
+            📉📈 Role &amp; Form Movers
+          </span>
+          <span className="text-[10px] text-purple-200/80">
+            Last game vs previous four
+          </span>
+        </div>
+        <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          Free preview
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* RISERS COLUMN */}
+        <div>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
+            📈 Risers
+          </h3>
+          <ul className="space-y-2">
+            {risers.map(({ player, diff, last }) => {
+              const isOpen = openRiserId === player.id;
+
+              const mockSeries = [
+                Math.max(0, Math.round(last - diff * 1.6)),
+                Math.max(0, Math.round(last - diff * 1.1)),
+                Math.max(0, Math.round(last - diff * 0.6)),
+                Math.max(0, Math.round(last - diff * 0.2)),
+                Math.round(last),
+              ];
+
+              return (
+                <li
+                  key={player.id}
+                  className="rounded-xl bg-neutral-900/55 hover:scale-[1.015] hover:shadow-[0_0_18px_rgba(168,85,247,0.45)] transition-transform duration-200 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(16,185,129,0.28)]"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenRiserId(isOpen ? null : player.id)
+                    }
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="truncate text-[11px] text-neutral-400">
+                        {player.pos} · {player.team}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-xs font-semibold text-emerald-400">
+                          +{Math.round(diff)}
+                        </div>
+                        <div className="text-[10px] text-neutral-400">
+                          vs prev 4
+                        </div>
+                      </div>
+                      <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
+                        <TrendSparkline values={mockSeries} />
+                      </div>
+                      <span className="text-xs text-neutral-400">
+                        {isOpen ? "▴" : "▾"}
+                      </span>
+                    </div>
+                  </button>
+                  <div
+                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                    style={{
+                      maxHeight: isOpen ? "260px" : "0px",
+                    }}
+                  >
+                    {isOpen && (
+                      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+                        <p className="text-neutral-400">
+                          Detailed movement breakdown will appear here. Connect
+                          this to your AI or deeper analysis later.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {/* FALLS COLUMN */}
+        <div>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-red-300">
+            📉 Falls
+          </h3>
+          <ul className="space-y-2">
+            {fallers.map(({ player, diff, last }) => {
+              const isOpen = openFallerId === player.id;
+              const absDiff = Math.abs(diff);
+
+              const mockSeries = [
+                Math.max(0, Math.round(last + absDiff * 1.6)),
+                Math.max(0, Math.round(last + absDiff * 1.1)),
+                Math.max(0, Math.round(last + absDiff * 0.6)),
+                Math.max(0, Math.round(last + absDiff * 0.2)),
+                Math.round(last),
+              ];
+
+              return (
+                <li
+                  key={player.id}
+                  className="rounded-xl bg-neutral-900/55 hover:scale-[1.015] hover:shadow-[0_0_18px_rgba(168,85,247,0.45)] transition-transform duration-200 px-3 py-2 transition-all duration-200 hover:bg-neutral-900/95 hover:shadow-[0_0_18px_rgba(248,113,113,0.28)]"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenFallerId(isOpen ? null : player.id)
+                    }
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold text-neutral-50">
+                        {player.name}
+                      </span>
+                      <span className="truncate text-[11px] text-neutral-400">
+                        {player.pos} · {player.team}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-xs font-semibold text-red-400">
+                          {Math.round(diff)}
+                        </div>
+                        <div className="text-[10px] text-neutral-400">
+                          vs prev 4
+                        </div>
+                      </div>
+                      <div className="h-6 w-10 overflow-hidden rounded-md bg-neutral-950/70 px-1 py-0.5">
+                        <TrendSparkline values={mockSeries} />
+                      </div>
+                      <span className="text-xs text-neutral-400">
+                        {isOpen ? "▴" : "▾"}
+                      </span>
+                    </div>
+                  </button>
+                  <div
+                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                    style={{
+                      maxHeight: isOpen ? "260px" : "0px",
+                    }}
+                  >
+                    {isOpen && (
+                      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/80 p-3 text-[11px] text-neutral-300">
+                        <p className="text-neutral-400">
+                          Detailed movement breakdown will appear here. Connect
+                          this to your AI or deeper analysis later.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCompare = () => (
+    <div className="relative mt-16 max-w-6xl mx-auto overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950/95 p-5 shadow-[0_0_30px_rgba(148,163,184,0.3)]">
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            Compare Players
+          </p>
+          <p className="text-xs text-neutral-400">
+            Side-by-side form view for your selected stat.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-neutral-400">
+          <LockIcon />
+          <span>Interactive compare is part of Neeko+.</span>
+        </div>
+      </div>
+
+      {/* Headline summary */}
+      <div className="mb-5 grid grid-cols-1 gap-4 text-xs md:grid-cols-3 md:text-sm">
+        <div className="text-left text-neutral-400">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
+            Player A
+          </span>
+          <span>Select a team &amp; player on Neeko+.</span>
+        </div>
+        <div className="text-center text-neutral-400">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
+            Stat Lens
+          </span>
+          <span>Fantasy points (season view).</span>
+        </div>
+        <div className="text-right text-neutral-400">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em]">
+            Player B
+          </span>
+          <span>Second player unlocks with Neeko+.</span>
+        </div>
+      </div>
+
+      {/* Selectors & metrics — softly locked for free users */}
+      <div className={premiumUser ? "" : "opacity-70"}>
+        <div className="mb-4 grid grid-cols-1 gap-4 text-xs md:grid-cols-3 md:text-sm">
+          {/* Player A */}
+          <div className="flex flex-col gap-2">
+            <select
+              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+              value={teamA}
+              onChange={(e) => {
+                setTeamA(e.target.value);
+                setPlayerAId(null);
+              }}
+              disabled={!premiumUser}
+            >
+              {ALL_TEAMS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+              value={playerAId ?? ""}
+              onChange={(e) => setPlayerAId(Number(e.target.value))}
+              disabled={!premiumUser}
+            >
+              <option value="">Select player</option>
+              {playersTeamA.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Stat lens */}
+          <div className="flex flex-col gap-2">
+            <select
+              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+              value={selectedStat}
+              disabled={!premiumUser}
+              onChange={(e) =>
+                setSelectedStat(e.target.value as StatKey)
+              }
+            >
+              {ALL_STATS.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Player B */}
+          <div className="flex flex-col gap-2">
+            <select
+              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+              value={teamB}
+              onChange={(e) => {
+                setTeamB(e.target.value);
+                setPlayerBId(null);
+              }}
+              disabled={!premiumUser}
+            >
+              {ALL_TEAMS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              className="h-9 rounded-full border border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100 shadow-inner"
+              value={playerBId ?? ""}
+              onChange={(e) => setPlayerBId(Number(e.target.value))}
+              disabled={!premiumUser}
+            >
+              <option value="">Select player</option>
+              {playersTeamB.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Comparison chart stub */}
+        <div className="rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 px-4 py-6">
+          <p className="mb-3 text-xs text-neutral-400">
+            Once unlocked, this section will show a full side-by-side trend
+            graph, last-5 averages and volatility comparison for your selected
+            stat.
+          </p>
+          <div className="h-32 rounded-xl border border-neutral-800 bg-neutral-950/80" />
+        </div>
+      </div>
+
+      {/* Soft lock overlay */}
+      {!premiumUser && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
+          style={{ top: "55%" }}
+        >
+          <div className="flex h-full items-center justify-center">
+            <a
+              href="/neeko-plus"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_26px_rgba(250,204,21,0.8)]"
+            >
+              <LockIcon />
+              <span>Unlock full interactive compare — Neeko+</span>
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStability = () => (
+    <div className="relative mt-8 overflow-hidden rounded-xl border border-sky-500/40 bg-gradient-to-br from-sky-950/80 via-neutral-950 to-sky-900/30 p-4 shadow-[0_0_26px_rgba(56,189,248,0.35)]">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <p className="mb-1 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+            Stability Meter
+          </p>
+          <p className="text-xs text-neutral-300">
+            Measures how swingy a player has been over the last 5 games.
+          </p>
+        </div>
+        <span className="flex items-center gap-1 text-[11px] text-neutral-400">
+          <LockIcon />
+          Neeko+ deep view
+        </span>
+      </div>
+
+      <div className="relative z-10 grid grid-cols-1 gap-2 text-xs md:grid-cols-2 md:text-sm">
+        {stabilityList.slice(0, 12).map((entry, idx) => {
+          const { player, vol } = entry;
+          const isLocked = !premiumUser && idx >= STABILITY_FREE;
+          const meta = stabilityMeta(vol);
+
+          return (
+            <div
+              key={player.id}
+              className={`flex items-center justify-between rounded-xl border border-sky-400/40 bg-neutral-950/90 px-3 py-1.5 ${
+                isLocked ? "opacity-40 blur-sm" : ""
+              }`}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium text-neutral-100">
+                  {player.name}
+                </span>
+                <span className="text-[10px] text-neutral-400">
+                  {player.pos} · {player.team}
+                </span>
+              </div>
+              <div className="flex max-w-[11rem] flex-col items-end gap-0.5 text-right">
+                <span className={`text-xs ${meta.colour}`}>{meta.label}</span>
+                <span className="text-[10px] text-neutral-400">
+                  Volatility: {vol.toFixed(1)}
+                </span>
+                <span className="text-[10px] text-neutral-400">
+                  {meta.reason}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!premiumUser && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
+          style={{ top: "44%" }} // overlay starts above row 3 so 4 cards remain free
+        >
+          <a
+            href="/neeko-plus"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-2 text-[11px] font-semibold text-black shadow-[0_0_22px_rgba(250,204,21,0.7)]"
+          >
+            <LockIcon />
+            <span>Unlock full stability rankings — Neeko+</span>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+
+  const calcThresholdPercent = (series: number[], threshold: number) => {
+    if (!series.length) return 0;
+    const count = series.filter((v) => v >= threshold).length;
+    return (count / series.length) * 100;
+  };
+
+  const thresholdBarClass = (pct: number) => {
+    if (pct >= 70) return "bg-emerald-500/80";
+    if (pct >= 40) return "bg-yellow-400/80";
+    if (pct > 0) return "bg-red-500/80";
+    return "bg-neutral-800";
+  };
+
+  const renderMasterTable = () => {
+    const roundLabels = ["OR", "R1", "R2", "R3", "R4", "R5"];
+
+    return (
+      <div className="relative mx-auto mt-8 max-w-6xl rounded-3xl border border-yellow-400/45 bg-neutral-950/98 p-5 shadow-[0_0_30px_rgba(250,204,21,0.35)]">
+        {/* Header */}
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="mb-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Master Player Table
+            </p>
+            <p className="text-xs text-neutral-400">
+              Season summary for the selected year and table stat.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {/* Compact */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-400">Compact view</span>
+              <button
+                type="button"
+                onClick={() => setCompactMode((prev) => !prev)}
+                className={`flex h-5 w-10 items-center rounded-full border px-0.5 transition-all ${
+                  compactMode
+                    ? "bg-emerald-500/80 border-emerald-300"
+                    : "bg-neutral-900 border-neutral-600"
+                }`}
+              >
+                <span
+                  className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    compactMode ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {/* Stat */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-400">Table stat</span>
+              <select
+                className="h-8 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-xs text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+                value={tableStat}
+                onChange={(e) =>
+                  handleTableStatChange(e.target.value as StatKey)
+                }
+              >
+                <option value="fantasy">Fantasy</option>
+                <option value="disposals">Disposals</option>
+                <option value="goals">Goals</option>
+              </select>
+            </div>
+            {/* Year */}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-400">Year</span>
+              <select
+                className="h-8 rounded-full border border-neutral-700 bg-neutral-900 px-3 text-xs text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+                value={seasonYear}
+                onChange={(e) => setSeasonYear(Number(e.target.value))}
+              >
+                {YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="mb-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Team
+            </span>
+            <select
+              className="h-9 w-full rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+              value={teamFilter}
+              onChange={(e) => handleTeamFilterChange(e.target.value)}
+            >
+              {ALL_TEAMS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                  {!premiumUser && t !== "All Teams" ? " 🔒" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Position
+            </span>
+            <select
+              className="h-9 w-full rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+              value={positionFilter}
+              onChange={(e) => handlePositionFilterChange(e.target.value)}
+            >
+              {ALL_POSITIONS.map((pos) => (
+                <option key={pos} value={pos}>
+                  {pos}
+                  {!premiumUser && pos !== "All Positions" ? " 🔒" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Rounds
+            </span>
+            <select
+              className="h-9 w-full rounded-full border border-neutral-700 bg-neutral-900 px-3 text-neutral-100 shadow-inner focus:outline-none focus:ring-1 focus:ring-yellow-400/70"
+              value={roundFilter}
+              onChange={(e) => handleRoundFilterChange(e.target.value)}
+            >
+              {ALL_ROUND_FILTERS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                  {!premiumUser && r !== "All Rounds" ? " 🔒" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col justify-center text-[11px] text-neutral-500">
+            <span>
+              Showing{" "}
+              <span className="text-neutral-200">{tableSlice.length}</span> of{" "}
+              <span className="text-neutral-200">{tableSorted.length}</span>{" "}
+              players
+            </span>
+            {!premiumUser && (
+              <span>
+                Neeko+ unlocks full table, filters &amp; AI summaries.
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="relative mt-4 mb-10 overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/95">
+          <table className="min-w-[960px] w-full text-left text-[11px] md:text-xs">
+            <thead>
+              <tr className="border-b border-neutral-800 bg-neutral-900/85">
+                <th className="px-3 py-2">Player</th>
+                <th className="px-3 py-2">Pos</th>
+                <th className="px-3 py-2">Team</th>
+                {!compactMode &&
+                  roundLabels.map((label) => (
+                    <th key={label} className="px-2 py-2 text-right">
+                      {label}
+                    </th>
+                  ))}
+                <th className="px-2 py-2 text-right">Games</th>
+                <th className="px-2 py-2 text-right">Min</th>
+                <th className="px-2 py-2 text-right">Max</th>
+                <th className="px-2 py-2 text-right">Avg</th>
+                <th className="px-2 py-2 text-right">Total</th>
+                {/* Dynamic threshold headers */}
+                {(() => {
+                  const stat = tableStat;
+                  if (stat === "disposals")
+                    return ["%15+", "%20+", "%25+", "%30+", "%35+"].map(
+                      (h) => (
+                        <th key={h} className="px-2 py-2 text-right">
+                          {h}
+                        </th>
+                      )
+                    );
+                  if (stat === "fantasy")
+                    return ["%60+", "%70+", "%80+", "%90+", "%100+"].map(
+                      (h) => (
+                        <th key={h} className="px-2 py-2 text-right">
+                          {h}
+                        </th>
+                      )
+                    );
+                  if (stat === "goals")
+                    return ["%1+", "%2+", "%3+", "%4+", "%5+"].map((h) => (
+                      <th key={h} className="px-2 py-2 text-right">
+                        {h}
+                      </th>
+                    ));
+                  return null;
+                })()}
+                <th className="px-3 py-2 text-right">Stability</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableSlice.map((p, idx) => {
+                const series = getSeriesForStat(p, tableStat);
+                const games = series.length;
+                const minVal = games ? Math.min(...series) : 0;
+                const maxVal = games ? Math.max(...series) : 0;
+                const total = series.reduce((s, v) => s + v, 0);
+                const avgVal = games ? total / games : 0;
+                const vol = stdDev(series);
+                const meta = stabilityMeta(vol);
+                const lockedRow =
+                  !premiumUser && idx >= TABLE_FREE_ROWS;
+                const isExpanded = !!expandedRows[p.id];
+
+                // Threshold series (always computed off their native stat)
+                const disposalsSeries = getSeriesForStat(p, "disposals");
+                const fantasySeries = getSeriesForStat(p, "fantasy");
+                const goalsSeries = getSeriesForStat(p, "goals");
+
+                // Dynamic threshold configuration based on current table stat
+                const thresholdConfig =
+                  tableStat === "disposals"
+                    ? {
+                        series: disposalsSeries,
+                        thresholds: [15, 20, 25, 30, 35],
+                      }
+                    : tableStat === "fantasy"
+                    ? {
+                        series: fantasySeries,
+                        thresholds: [60, 70, 80, 90, 100],
+                      }
+                    : tableStat === "goals"
+                    ? {
+                        series: goalsSeries,
+                        thresholds: [1, 2, 3, 4, 5],
+                      }
+                    : { series, thresholds: [] as number[] };
+
+                const cellPad = compactMode ? "py-1.5" : "py-2.5";
+
+                return (
+                  <Fragment key={p.id}>
+                    <tr
+                      className={`border-b border-neutral-900/80 transition-colors ${
+                        lockedRow
+                          ? "opacity-40 blur-sm"
+                          : "hover:bg-neutral-900/70"
+                      }`}
+                      style={{
+                        height: compactMode ? 36 : 44,
+                      }}
+                    >
+                      <td
+                        className={`px-3 ${cellPad} align-middle cursor-pointer text-neutral-100`}
+                        onClick={() =>
+                          !lockedRow && toggleRowExpanded(p.id)
+                        }
+                      >
+                        <span className="mr-1 inline-block text-[10px] text-neutral-500">
+                          {isExpanded ? "▼" : "▶"}
+                        </span>
+                        {lockedRow && <LockIcon />}
+                        <span className="font-medium whitespace-nowrap truncate">
+                          {p.name}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-3 ${cellPad} align-middle text-neutral-300`}
+                      >
+                        {p.pos}
+                      </td>
+                      <td
+                        className={`px-3 ${cellPad} align-middle text-neutral-400`}
+                      >
+                        {p.team}
+                      </td>
+
+                      {!compactMode &&
+                        roundLabels.map((_, i) => (
+                          <td
+                            key={i}
+                            className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-200`}
+                          >
+                            {series[i] ?? "-"}
+                          </td>
+                        ))}
+
+                      <td
+                        className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-200`}
+                      >
+                        {games || "-"}
+                      </td>
+                      <td
+                        className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-200`}
+                      >
+                        {games ? minVal : "-"}
+                      </td>
+                      <td
+                        className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-200`}
+                      >
+                        {games ? maxVal : "-"}
+                      </td>
+                      <td
+                        className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-100`}
+                      >
+                        {games ? Math.round(avgVal) : "-"}
+                      </td>
+                      <td
+                        className={`px-2 ${cellPad} align-middle text-right tabular-nums text-neutral-100`}
+                      >
+                        {games ? total : "-"}
+                      </td>
+
+                      {thresholdConfig.thresholds.map((t, i) => {
+                        const pct = calcThresholdPercent(
+                          thresholdConfig.series,
+                          t
+                        );
+                        return (
+                          <td
+                            key={`th-${p.id}-${i}`}
+                            className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="tabular-nums text-neutral-100">
+                                {pct ? Math.round(pct) : 0}%
+                              </span>
+                              <span
+                                className={`h-2 w-6 rounded-full ${thresholdBarClass(
+                                  pct
+                                )}`}
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td
+                        className={`px-2 ${cellPad} align-middle text-right text-[10px]`}
+                      >
+                        <span className={meta.colour}>{meta.label}</span>
+                      </td>
+                    </tr>
+
+                    {isExpanded && !lockedRow && (
+                      <tr className="border-b border-neutral-900/80 bg-neutral-950/95">
+                        <td colSpan={20} className="px-4 py-4">
+                          <div className="flex flex-col gap-4 md:flex-row">
+                            <div className="md:w-1/2">
+                              <h4 className="mb-2 text-[11px] font-semibold text-neutral-200">
+                                Season trend (games)
+                              </h4>
+                              <div className="w-full rounded-lg border border-neutral-800 bg-neutral-900/80 p-3">
+                                <TrendSparkline values={series} />
+                                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-neutral-300">
+                                  {series.map((v, i) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2 py-0.5"
+                                    >
+                                      <span className="tabular-nums">
+                                        {v}
+                                      </span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="md:w-1/2">
+                              <h4 className="mb-2 text-[11px] font-semibold text-neutral-200">
+                                AI form snapshot
+                              </h4>
+                              <p className="text-[11px] text-neutral-300">
+                                This is a stub description for how AI will talk
+                                about this player's seasonal role, usage and
+                                scoring floor for Neeko+ members. Wire this up
+                                to your AI pipeline and reuse this layout for
+                                deeper insights.
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {!premiumUser && (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/98 via-black/96 to-transparent backdrop-blur-2xl shadow-[0_0_26px_rgba(0,0,0,0.35)]"
+              style={{ top: "58%" }}
+            >
+              <a
+                href="/neeko-plus"
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.8)]"
+              >
+                <LockIcon />
+                <span>Unlock full master table — Neeko+</span>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {tableVisibleCount < tableSorted.length && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              onClick={() =>
+                setTableVisibleCount((prev) =>
+                  Math.min(prev + 50, tableSorted.length)
+                )
+              }
+              className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-xs text-neutral-100 hover:bg-neutral-800 hover:shadow-[0_0_14px_rgba(255,255,255,0.18)]"
+            >
+              Show more players
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Shell
+  // ---------------------------------------------------------------------------
+  const renderQuickNav = () => (
+    <div className="fixed right-4 top-1/3 z-40 hidden flex-col gap-3 text-[10px] text-neutral-400 lg:flex">
+      <a
+        href="#section-form-leaders"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          🔥
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">
+          Form
+        </span>
+      </a>
+      <a
+        href="#section-ai-signals"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          🧠
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">
+          AI
+        </span>
+      </a>
+      <a
+        href="#section-risers"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          ⬆️
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">
+          Risers
+        </span>
+      </a>
+      <a
+        href="#section-compare"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          🔀
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">
+          Compare
+        </span>
+      </a>
+      <a
+        href="#section-stability"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          📉
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">
+          Stability
+        </span>
+      </a>
+      <a
+        href="#section-master-table"
+        className="group inline-flex flex-col items-center gap-1"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 bg-neutral-950/80 group-hover:border-yellow-400 group-hover:bg-yellow-400/10">
+          📑
+        </span>
+        <span className="opacity-0 group-hover:opacity-100">
+          Table
+        </span>
+      </a>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="mx-auto max-w-6xl px-4 py-8 text-white">
+        {/* Top bar */}
+        <div className="mb-6 flex items-center justify-between gap-2">
+          <Button
+            onClick={handleBack}
+            className="bg-transparent px-0 text-sm text-neutral-300 hover:bg-transparent hover:text-neutral-100"
+          >
+            <ArrowLeftIcon />
+            Back
+          </Button>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+            AFL · Player Stats
+          </span>
+        </div>
+
+        {/* Hero */}
+        <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              AFL Player Stats
+            </h1>
+            <p className="mt-1 text-xs md:text-sm text-neutral-400">
+              Live player form, volatility and role-driven signals — built for
+              fantasy coaches and smarter decisions.
+            </p>
+          </div>
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            {renderStatSelector()}
+            {!premiumUser && (
+              <span className="max-w-xs text-right text-[10px] text-neutral-500">
+                Fantasy, Disposals &amp; Goals are available on this page.
+                Advanced stats, deeper AI and more live on Neeko+.
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Sticky section tabs (desktop only) */}
+        <div className="sticky top-16 z-30 -mx-4 mb-4 hidden border-b border-neutral-900/70 bg-gradient-to-b from-black/95 via-black/90 to-transparent px-4 py-2 text-[11px] text-neutral-400 md:flex">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 overflow-x-auto">
+            <a
+              href="#section-form-leaders"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
+            >
+              <span>🔥</span>
+              <span>Form &amp; Positions</span>
+            </a>
+            <a
+              href="#section-risers"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
+            >
+              <span>📉📈</span>
+              <span>Movers</span>
+            </a>
+            <a
+              href="#section-ai-signals"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
+            >
+              <span>🧠</span>
+              <span>AI Signals</span>
+            </a>
+            <a
+              href="#section-compare"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
+            >
+              <span>🔀</span>
+              <span>Compare</span>
+            </a>
+            <a
+              href="#section-stability"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
+            >
+              <span>📉</span>
+              <span>Stability</span>
+            </a>
+            <a
+              href="#section-master-table"
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition hover:bg-neutral-900 hover:text-neutral-100"
+            >
+              <span>📑</span>
+              <span>Master Table</span>
+            </a>
+          </div>
+        </div>
+
+        <section id="section-form-leaders" className="scroll-mt-28">
+          {renderDashboardRow()}
+        </section>
+        <section id="section-risers" className="scroll-mt-28">
+          {renderRisers()}
+        </section>
+        <section id="section-ai-signals" className="scroll-mt-28">
+          {renderAISignals()}
+        </section>
+        <section id="section-compare" className="scroll-mt-28">
+          {renderCompare()}
+        </section>
+        <section id="section-stability" className="scroll-mt-28">
+          {renderStability()}
+        </section>
+        <section id="section-master-table" className="scroll-mt-28">
+          {renderMasterTable()}
+        </section>
+      </div>
+      {renderQuickNav()}
+    </>
+  );
+}
