@@ -1,5 +1,5 @@
 // src/pages/sports/afl/AFLPlayers.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import RoundSummary from "@/components/afl/players/RoundSummary";
 import FormStabilityGrid from "@/components/afl/players/FormStabilityGrid";
@@ -8,6 +8,44 @@ import AIInsights from "@/components/afl/players/AIInsights";
 import MasterTable from "@/components/afl/players/MasterTable"; // ⭐ NEW
 
 export default function AFLPlayersPage() {
+  const [activeSection, setActiveSection] = useState("round-momentum");
+
+  /** 🔥 SCROLL-SPY LOGIC */
+  useEffect(() => {
+    const sectionIds = [
+      "round-momentum",
+      "form-stability",
+      "position-trends",
+      "ai-insights",
+      "master-table",
+    ];
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      {
+        threshold: 0.3,
+        rootMargin: "-20% 0px -30% 0px",
+      }
+    );
+
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  /** ⭐ Glow class */
+  const glow =
+    "bg-yellow-500/10 text-yellow-400 border-yellow-400 shadow-[0_0_18px_rgba(255,215,0,0.35)]";
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-white">
       {/* PAGE HEADER */}
@@ -16,100 +54,101 @@ export default function AFLPlayersPage() {
           AFL Player Performance Dashboard
         </h1>
 
-        <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-[15px] leading-relaxed">
+        <p className="mt-2 max-w-2xl text-sm text-white/70 leading-relaxed">
           League-wide momentum, fantasy analytics, player trends, stability
-          metrics, role intelligence, predictive insights and full-season player
-          ledgers — all in one intelligent AFL dashboard.
+          metrics, role intelligence, predictive insights and full-season
+          ledgers — all in one AFL dashboard.
         </p>
       </header>
 
-      {/* SECTION NAVIGATION */}
-      <nav
-        className="
-          mb-6 md:mb-8
-          rounded-2xl border border-white/5
-          bg-gradient-to-r from-[#050515] via-[#050512] to-[#030308]
-          px-4 py-3 md:px-6 md:py-3.5
-          shadow-[0_0_40px_rgba(0,0,0,0.55)]
-        "
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
-            Sections
-          </div>
-
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            <a
-              href="#round-momentum"
-              className="
-                rounded-full border border-white/15 bg-white/5
-                px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white 
-                transition-colors
-              "
-            >
-              Round Momentum
-            </a>
-
-            <a
-              href="#form-stability"
-              className="
-                rounded-full border border-white/15 bg-white/5
-                px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
-              "
-            >
-              Form Stability
-            </a>
-
-            <a
-              href="#position-trends"
-              className="
-                rounded-full border border-white/15 bg-white/5
-                px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white 
-                transition-colors
-              "
-            >
-              Position Trends
-            </a>
-
-            <a
-              href="#ai-insights"
-              className="
-                rounded-full border border-white/15 bg-white/5
-                px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white
-                transition-colors
-              "
-            >
-              AI Insights
-            </a>
-
-            <a
-              href="#master-table"
-              className="
-                rounded-full border border-white/15 bg-white/5
-                px-3.5 py-1.5 text-xs font-medium text-white/75
-                hover:bg-white/10 hover:text-white 
-                transition-colors
-              "
-            >
-              Master Table
-            </a>
-          </div>
+      {/* SELECTOR BAR */}
+      <div className="mb-10 rounded-xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur-sm">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45 mb-3">
+          Sections
         </div>
-      </nav>
 
-      {/* CONTENT SECTIONS */}
-      <div className="space-y-10 md:space-y-14">
-        {/* SECTION 1 — Round Summary */}
+        <div className="flex flex-wrap gap-2 md:justify-end">
+
+          {/* Round Momentum */}
+          <a
+            href="#round-momentum"
+            className={`
+              rounded-full border border-white/15 bg-white/5
+              px-3.5 py-1.5 text-xs font-medium transition-all
+              ${activeSection === "round-momentum"
+                ? glow
+                : "text-white/75 hover:bg-white/10 hover:text-white"}
+            `}
+          >
+            Round Momentum
+          </a>
+
+          {/* Form Stability */}
+          <a
+            href="#form-stability"
+            className={`
+              rounded-full border border-white/15 bg-white/5
+              px-3.5 py-1.5 text-xs font-medium transition-all
+              ${activeSection === "form-stability"
+                ? glow
+                : "text-white/75 hover:bg-white/10 hover:text-white"}
+            `}
+          >
+            Form Stability
+          </a>
+
+          {/* Position Trends */}
+          <a
+            href="#position-trends"
+            className={`
+              rounded-full border border-white/15 bg-white/5
+              px-3.5 py-1.5 text-xs font-medium transition-all
+              ${activeSection === "position-trends"
+                ? glow
+                : "text-white/75 hover:bg-white/10 hover:text-white"}
+            `}
+          >
+            Position Trends
+          </a>
+
+          {/* AI Insights */}
+          <a
+            href="#ai-insights"
+            className={`
+              rounded-full border border-white/15 bg-white/5
+              px-3.5 py-1.5 text-xs font-medium transition-all
+              ${activeSection === "ai-insights"
+                ? glow
+                : "text-white/75 hover:bg-white/10 hover:text-white"}
+            `}
+          >
+            AI Insights
+          </a>
+
+          {/* Master Table */}
+          <a
+            href="#master-table"
+            className={`
+              rounded-full border border-white/15 bg-white/5
+              px-3.5 py-1.5 text-xs font-medium transition-all
+              ${activeSection === "master-table"
+                ? glow
+                : "text-white/75 hover:bg-white/10 hover:text-white"}
+            `}
+          >
+            Master Table
+          </a>
+        </div>
+      </div>
+
+      {/* ALL SECTIONS */}
+      <div className="space-y-16">
+        {/* SECTION 1 — Round Momentum */}
         <section id="round-momentum" className="scroll-mt-24">
           <RoundSummary />
         </section>
 
-        {/* SECTION 2 — Form Stability Grid */}
+        {/* SECTION 2 — Form Stability */}
         <section id="form-stability" className="scroll-mt-24">
           <FormStabilityGrid />
         </section>
@@ -121,7 +160,7 @@ export default function AFLPlayersPage() {
 
         {/* SECTION 4 — AI Insights */}
         <section id="ai-insights" className="scroll-mt-24">
-          <AIInsights /> 
+          <AIInsights />
         </section>
 
         {/* SECTION 5 — Master Table */}
