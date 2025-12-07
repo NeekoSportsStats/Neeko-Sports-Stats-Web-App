@@ -1,158 +1,196 @@
 // src/components/afl/teams/TeamFormStabilityGrid.tsx
-import React from "react";
+import React, { useState } from "react";
 import { Flame, Snowflake, Activity } from "lucide-react";
 
-type FormBand = {
-  label: string;
-  description: string;
-  teams: { name: string; spread: string }[];
-  accent: "hot" | "stable" | "cooling";
+type TeamTrend = {
+  team: string;
+  value: number; // form index or L5 delta
 };
 
-const FORM_BANDS: FormBand[] = [
-  {
-    label: "Hot Teams",
-    description:
-      "Clubs outperforming seasonal baselines across fantasy scoring, inside-50s, pressure chains and clearance dominance.",
-    teams: [
-      { name: "Brisbane Lions", spread: "+14.8%" },
-      { name: "GWS Giants", spread: "+11.2%" },
-      { name: "Carlton", spread: "+9.5%" },
-    ],
-    accent: "hot",
-  },
-  {
-    label: "Stable Teams",
-    description:
-      "Low-volatility teams producing predictable scoring bands and locked-in role identity.",
-    teams: [
-      { name: "Sydney Swans", spread: "3.4% spread" },
-      { name: "Melbourne", spread: "4.1% spread" },
-      { name: "Collingwood", spread: "4.7% spread" },
-    ],
-    accent: "stable",
-  },
-  {
-    label: "Cooling Teams",
-    description:
-      "Clubs showing contraction in scoring, defensive resistance or pressure ratings — elevated risk until form stabilises.",
-    teams: [
-      { name: "Richmond", spread: "-8.4%" },
-      { name: "Hawthorn", spread: "-6.1%" },
-      { name: "West Coast", spread: "-5.7%" },
-    ],
-    accent: "cooling",
-  },
+const MOCK_HOT: TeamTrend[] = [
+  { team: "Brisbane Lions", value: +14.8 },
+  { team: "GWS Giants", value: +11.2 },
+  { team: "Carlton", value: +9.5 },
 ];
 
-const accentClasses: Record<
-  FormBand["accent"],
-  { border: string; glow: string; pill: string }
-> = {
-  hot: {
-    border: "border-red-500/50",
-    glow: "from-red-500/40 via-red-500/10 to-transparent",
-    pill: "bg-gradient-to-r from-red-500 to-orange-500",
-  },
-  stable: {
-    border: "border-emerald-500/45",
-    glow: "from-emerald-500/35 via-emerald-500/10 to-transparent",
-    pill: "bg-gradient-to-r from-emerald-500 to-teal-500",
-  },
-  cooling: {
-    border: "border-cyan-500/50",
-    glow: "from-cyan-500/40 via-cyan-500/10 to-transparent",
-    pill: "bg-gradient-to-r from-cyan-400 to-sky-500",
-  },
-};
+const MOCK_STABLE: TeamTrend[] = [
+  { team: "Sydney Swans", value: +2.1 },
+  { team: "Melbourne", value: +1.4 },
+  { team: "Geelong Cats", value: +0.9 },
+];
+
+const MOCK_COOLING: TeamTrend[] = [
+  { team: "Richmond", value: -7.3 },
+  { team: "Hawthorn", value: -6.1 },
+  { team: "West Coast Eagles", value: -4.4 },
+];
+
+type StatType = "Fantasy" | "Disposals" | "Goals";
 
 const TeamFormStabilityGrid: React.FC = () => {
+  const [lens, setLens] = useState<StatType>("Fantasy");
+
+  const lensDescription =
+    lens === "Fantasy"
+      ? "Fantasy scoring over the last 5 rounds"
+      : lens === "Disposals"
+      ? "Ball-winning strength & possession profile"
+      : "Goal-scoring momentum & forward impact";
+
   return (
-    <section className="mt-10 rounded-3xl border border-yellow-500/25 bg-gradient-to-b from-zinc-900/70 via-black to-black/95 px-5 py-7 shadow-[0_0_40px_rgba(0,0,0,0.9)] md:mt-14 md:px-8 md:py-9 lg:px-10 lg:py-10">
-      {/* Header */}
-      <div className="mb-7 flex flex-col gap-4 md:mb-8 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-3 md:max-w-2xl">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-yellow-400">
-            Team Form & Stability Grid
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Hot, stable and cooling clubs over the last 5 rounds
-          </h2>
-          <p className="text-sm text-zinc-300 md:text-[0.95rem]">
-            A macro view of league-wide team performance. See which clubs are
-            surging (Hot), which offer predictable output (Stable), and which
-            carry elevated risk (Cooling) across fantasy scoring, pressure
-            metrics and defensive resistance.
-          </p>
-        </div>
-        <p className="max-w-sm text-xs text-zinc-400 md:text-[0.8rem]">
-          This area evolves into a full trend engine comparing team-level pace
-          of play, pressure ratings and opponent-adjusted form — perfect for
-          stacking fixtures and avoiding trap matchups.
-        </p>
-      </div>
+    <section className="relative overflow-hidden rounded-3xl border border-yellow-500/30 bg-gradient-to-b from-black/90 via-black/95 to-black shadow-[0_0_40px_rgba(0,0,0,0.7)]">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute -left-32 top-10 h-64 w-64 rounded-full bg-yellow-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 bottom-[-80px] h-64 w-64 rounded-full bg-yellow-500/10 blur-3xl" />
 
-      {/* Bands */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {FORM_BANDS.map((band) => {
-          const accent = accentClasses[band.accent];
-          const Icon =
-            band.accent === "hot"
-              ? Flame
-              : band.accent === "stable"
-              ? Activity
-              : Snowflake;
+      <div className="relative px-5 py-10 md:px-8 md:py-12 lg:px-10">
 
-          return (
-            <div
-              key={band.label}
-              className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br from-black/95 via-zinc-950/95 to-black ${accent.border}`}
-            >
-              <div
-                className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${accent.glow} opacity-80 blur-2xl`}
-              />
-              <div className="relative space-y-4 px-4 py-5 text-sm md:px-5 md:py-6">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900/90 px-3 py-1 text-[0.75rem] font-medium text-zinc-100 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
-                    <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[0.7rem] text-black ${accent.pill}`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <span>{band.label}</span>
-                  </div>
-                </div>
-                <p className="text-[0.85rem] leading-relaxed text-zinc-300">
-                  {band.description}
-                </p>
-
-                <div className="space-y-2 pt-1 text-[0.82rem]">
-                  {band.teams.map((team) => (
-                    <div
-                      key={team.name}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <span className="truncate text-zinc-200">
-                        {team.name}
-                      </span>
-                      <span className="ml-auto text-xs font-semibold text-zinc-300">
-                        {team.spread}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* subtle loading bar */}
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
-                  <div className="h-full w-2/3 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent opacity-80" />
-                </div>
-              </div>
+        {/* Header */}
+        <div className="mb-10 flex flex-col gap-4 md:flex-row md:justify-between md:items-start">
+          <div className="space-y-3 md:max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/60 bg-black/70 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-yellow-300 shadow-[0_0_18px_rgba(234,179,8,0.45)]">
+              <Activity className="h-3.5 w-3.5" />
+              <span>Team Form &amp; Stability</span>
             </div>
-          );
-        })}
+
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Long-term momentum, role stability & performance consistency
+            </h2>
+
+            <p className="text-sm text-zinc-300 md:text-[0.95rem]">
+              Breaking down +5 round trajectories across fantasy scoring,
+              disposals and goals. These indicators reflect role continuity,
+              tactical stability and genuine scoring reliability.
+            </p>
+          </div>
+
+          {/* Stat lens selection */}
+          <div className="flex flex-col items-start gap-2 md:items-end text-xs">
+            <p className="uppercase tracking-[0.18em] text-yellow-200/80 font-semibold">
+              Stat Lens
+            </p>
+
+            <div className="inline-flex flex-wrap gap-1.5 rounded-full bg-white/5 p-1">
+              {(["Fantasy", "Disposals", "Goals"] as StatType[]).map((type) => {
+                const active = lens === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setLens(type)}
+                    className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+                      active
+                        ? "bg-yellow-400 text-black shadow-[0_0_22px_rgba(250,204,21,0.45)]"
+                        : "bg-transparent text-neutral-300 hover:bg-white/10"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-1 text-[0.7rem] text-zinc-400">{lensDescription}</p>
+          </div>
+        </div>
+
+        {/* Grid (Hot / Stable / Cooling) */}
+        <div className="grid gap-6 md:grid-cols-3">
+
+          {/* HOT */}
+          <FormCard
+            title="Hot Teams"
+            color="from-red-500/20 to-red-700/20 border-red-500/40"
+            icon={<Flame className="h-4 w-4 text-red-300" />}
+            data={MOCK_HOT}
+          />
+
+          {/* STABLE */}
+          <FormCard
+            title="Stable Teams"
+            color="from-green-500/20 to-green-700/20 border-green-500/40"
+            icon={<Activity className="h-4 w-4 text-green-300" />}
+            data={MOCK_STABLE}
+          />
+
+          {/* COOLING */}
+          <FormCard
+            title="Cooling Teams"
+            color="from-blue-500/20 to-blue-700/20 border-blue-500/40"
+            icon={<Snowflake className="h-4 w-4 text-blue-300" />}
+            data={MOCK_COOLING}
+          />
+
+        </div>
+
+        {/* Footer helper */}
+        <p className="mt-10 text-[0.78rem] text-zinc-500 md:text-xs">
+          These indicators reflect <span className="text-yellow-200">5-game form</span> 
+          and <span className="text-yellow-200">volatility profiles</span>. 
+          Teams may move between categories weekly depending on scoring texture, 
+          role shifts, matchups and tactical adjustments.
+        </p>
       </div>
     </section>
   );
 };
 
 export default TeamFormStabilityGrid;
+
+//
+// Sub-component: Hot / Stable / Cooling card
+//
+
+type CardProps = {
+  title: string;
+  color: string;
+  icon: React.ReactNode;
+  data: TeamTrend[];
+};
+
+const FormCard: React.FC<CardProps> = ({ title, color, icon, data }) => {
+  return (
+    <div
+      className={`rounded-2xl border ${color} bg-gradient-to-br px-5 py-6 shadow-[0_0_28px_rgba(0,0,0,0.55)]`}
+    >
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 ring-1 ring-white/10">
+          {icon}
+        </div>
+      </div>
+
+      {/* Team rows */}
+      <div className="space-y-3">
+        {data.map(({ team, value }) => (
+          <div key={team}>
+            <div className="flex items-center justify-between">
+              <span className="text-[0.85rem] text-zinc-200">{team}</span>
+              <span
+                className={`text-[0.85rem] font-semibold ${
+                  value > 0 ? "text-green-300" : "text-red-300"
+                }`}
+              >
+                {value > 0 ? `+${value}` : value}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-black/30">
+              <div
+                className={`h-full ${
+                  value > 0
+                    ? "bg-green-400/70"
+                    : "bg-red-400/70"
+                }`}
+                style={{
+                  width: `${Math.min(Math.abs(value) * 6, 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
