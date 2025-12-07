@@ -1,153 +1,155 @@
 // src/components/afl/teams/TeamRoundSummary.tsx
 import React from "react";
-import { Activity, BarChart3, Shield, TrendingUp } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  Shield,
+  TrendingUp,
+  GaugeCircle,
+} from "lucide-react";
 
-const highlightCards = [
-  {
-    label: "Highest scoring team",
-    team: "Brisbane Lions",
-    metric: "+12.3 vs last round",
-    icon: BarChart3,
-  },
-  {
-    label: "Strongest defence",
-    team: "Sydney Swans",
-    metric: "Lowest points conceded",
-    icon: Shield,
-  },
-  {
-    label: "Play-style surge",
-    team: "Western Bulldogs",
-    metric: "+9.1% possession tempo",
-    icon: Activity,
-  },
-  {
-    label: "Biggest round-to-round rise",
-    team: "GWS Giants",
-    metric: "+18.5 form index",
-    icon: TrendingUp,
-  },
-];
+type HighlightCard = {
+  label: string;
+  title: string;
+  metric: string;
+  subcopy: string;
+  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
 
-const bandCards = [
+const HIGHLIGHTS: HighlightCard[] = [
   {
-    tone: "Hot Teams",
-    description:
-      "Surging clubs outperforming expectations and season averages across the last 3–5 rounds.",
-    bulletTeams: ["Brisbane Lions", "GWS Giants", "Carlton"],
-    accentClass: "from-red-500/40 via-red-500/15 to-transparent",
-    borderClass: "border-red-500/50",
+    label: "Highest scoring club (current round)",
+    title: "Brisbane Lions",
+    metric: "+18.4 vs league avg",
+    subcopy: "Explosive fantasy output from midfield + half-forward chains.",
+    Icon: BarChart3,
   },
   {
-    tone: "Stable Anchors",
-    description:
-      "Low-volatility clubs providing predictable scoring bands and consistent structural roles.",
-    bulletTeams: ["Sydney Swans", "Collingwood", "Melbourne"],
-    accentClass: "from-emerald-500/40 via-emerald-500/15 to-transparent",
-    borderClass: "border-emerald-500/50",
+    label: "Strongest defensive wall",
+    title: "Sydney Swans",
+    metric: "Lowest scoring against",
+    subcopy:
+      "Defensive structure continues to squeeze opposition ceiling outcomes.",
+    Icon: Shield,
   },
   {
-    tone: "Cooling Teams",
-    description:
-      "Teams showing a contraction in scoring, pressure metrics or consistency — elevated short-term risk.",
-    bulletTeams: ["Richmond", "Hawthorn", "West Coast"],
-    accentClass: "from-cyan-500/40 via-cyan-500/15 to-transparent",
-    borderClass: "border-cyan-500/50",
+    label: "Play-style tempo surge",
+    title: "Western Bulldogs",
+    metric: "+9.3% pace-of-play",
+    subcopy:
+      "Lift in possession speed + corridor usage generating extra scoring chains.",
+    Icon: Activity,
+  },
+  {
+    label: "Biggest round-to-round riser",
+    title: "GWS Giants",
+    metric: "+16.7 form index",
+    subcopy:
+      "Meaningful jump in combined scoring, pressure and territory metrics.",
+    Icon: TrendingUp,
   },
 ];
 
 const TeamRoundSummary: React.FC = () => {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-yellow-500/35 bg-gradient-to-br from-yellow-500/10 via-black/70 to-black shadow-[0_0_40px_rgba(234,179,8,0.18)]">
-      <div className="pointer-events-none absolute inset-x-32 top-0 h-40 rounded-full bg-yellow-500/10 blur-3xl" />
+    <section className="relative overflow-hidden rounded-3xl border border-yellow-500/35 bg-gradient-to-br from-yellow-500/10 via-black/80 to-black shadow-[0_0_40px_rgba(234,179,8,0.22)]">
+      {/* Soft glow halos */}
+      <div className="pointer-events-none absolute inset-x-16 top-0 h-40 rounded-full bg-yellow-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-[-80px] h-64 w-64 rounded-full bg-yellow-400/10 blur-3xl" />
 
-      <div className="relative space-y-8 px-5 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10">
-        {/* Label + heading */}
-        <div className="space-y-3 md:space-y-4">
-          <div className="inline-flex items-center rounded-full border border-yellow-500/60 bg-black/60 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-yellow-300 shadow-[0_0_18px_rgba(234,179,8,0.45)]">
-            <span className="mr-1.5 text-xs">↗</span>
-            Round Momentum — Teams
+      <div className="relative px-5 py-7 md:px-8 md:py-9 lg:px-10 lg:py-10">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-3 md:max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/70 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-yellow-300 shadow-[0_0_18px_rgba(234,179,8,0.45)]">
+              <GaugeCircle className="h-3.5 w-3.5" />
+              <span>Current Round Summary — Teams</span>
+            </div>
+
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Round momentum snapshot across all AFL clubs
+            </h2>
+
+            <p className="text-sm text-zinc-300 md:text-[0.95rem]">
+              A fast read of which clubs are driving this round — high-scoring
+              sides, defensive clamps, tempo shifts and sharp form spikes. All
+              metrics reset each round so you can instantly see where the heat is.
+            </p>
           </div>
 
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-3 md:max-w-2xl">
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                Round momentum snapshot across the league
-              </h2>
-              <p className="text-sm text-zinc-300 md:text-[0.95rem]">
-                Identify which clubs are surging, stabilising or dropping away.
-                Powered by scoring trends, defensive indicators, usage rates and
-                form pulses from the most recent 3–5 rounds.
-              </p>
-            </div>
-            <p className="max-w-sm text-xs text-zinc-400 md:text-[0.8rem]">
-              Updated every round. This section will evolve into a live trend
-              engine surfacing fixture momentum, matchup watch-list alerts and
-              team role diagnostics.
+          <div className="space-y-2 max-w-sm text-xs text-zinc-400 md:text-[0.8rem]">
+            <p>
+              This block is intentionally{" "}
+              <span className="font-semibold text-yellow-300">
+                round-only
+              </span>{" "}
+              — it does <span className="underline underline-offset-2">
+                not
+              </span>{" "}
+              show long-term form. Hot / Stable / Cooling clubs live in the{" "}
+              <span className="font-semibold text-yellow-200">
+                Form &amp; Stability Grid
+              </span>{" "}
+              below.
             </p>
           </div>
         </div>
 
-        {/* Highlight row */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {highlightCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={card.label}
-                className="relative overflow-hidden rounded-2xl border border-yellow-500/15 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-black/90 px-4 py-4 text-sm shadow-[0_0_24px_rgba(0,0,0,0.9)]"
-              >
-                <div className="absolute inset-x-8 top-0 h-16 bg-yellow-500/5 blur-xl" />
-                <div className="relative flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs text-zinc-400">
-                    <span className="font-medium uppercase tracking-[0.16em]">
-                      {card.label}
-                    </span>
-                    <Icon className="h-4 w-4 text-yellow-400/80" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[0.98rem] font-semibold text-yellow-100">
-                      {card.team}
-                    </p>
-                    <p className="text-[0.8rem] text-zinc-400">{card.metric}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Bands row */}
-        <div className="grid gap-4 md:grid-cols-3">
-          {bandCards.map((card) => (
-            <div
-              key={card.tone}
-              className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${card.borderClass} from-black/90 via-zinc-950 to-black`}
+        {/* Highlight cards (desktop: 4 across, tablet: 2x2, mobile: stacked) */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {HIGHLIGHTS.map(({ label, title, metric, subcopy, Icon }) => (
+            <article
+              key={label}
+              className="relative overflow-hidden rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-black/95 px-4 py-4 text-sm shadow-[0_0_26px_rgba(0,0,0,0.9)] sm:px-4 sm:py-5"
             >
-              <div
-                className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${card.accentClass} opacity-70 blur-2xl`}
-              />
-              <div className="relative space-y-4 px-4 py-5 text-sm md:px-5 md:py-6">
-                <p className="text-[0.8rem] font-semibold uppercase tracking-[0.18em] text-zinc-300/80">
-                  {card.tone}
-                </p>
-                <p className="text-[0.85rem] leading-relaxed text-zinc-300">
-                  {card.description}
-                </p>
-                <div className="space-y-1.5 text-[0.82rem] text-zinc-300">
-                  {card.bulletTeams.map((team) => (
-                    <div key={team} className="flex items-center justify-between">
-                      <span className="flex-1 truncate">{team}</span>
-                      <span className="ml-2 h-px flex-1 bg-gradient-to-r from-zinc-700/60 via-zinc-800/0 to-transparent" />
-                    </div>
-                  ))}
+              {/* Card halo */}
+              <div className="pointer-events-none absolute inset-x-4 top-0 h-16 bg-yellow-500/10 blur-2xl" />
+
+              <div className="relative flex h-full flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                      {label}
+                    </p>
+                    <p className="text-[0.95rem] font-semibold text-yellow-50">
+                      {title}
+                    </p>
+                  </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/80 ring-1 ring-yellow-500/40">
+                    <Icon className="h-4 w-4 text-yellow-300" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[0.8rem] font-semibold text-yellow-300">
+                    {metric}
+                  </p>
+                  <p className="text-[0.78rem] leading-relaxed text-zinc-300">
+                    {subcopy}
+                  </p>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
         </div>
+
+        {/* Under-section hint / helper text */}
+        <div className="mt-5 border-t border-yellow-500/10 pt-4 text-[0.76rem] text-zinc-400 md:mt-6 md:pt-5">
+          <p>
+            Use this round snapshot to spot{" "}
+            <span className="font-semibold text-yellow-200">
+              one-week spikes
+            </span>{" "}
+            or short-term tactical shifts. For longer-term trajectories and
+            volatility bands, scroll to{" "}
+            <span className="font-semibold text-yellow-200">
+              Team Form &amp; Stability
+            </span>{" "}
+            below.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 
