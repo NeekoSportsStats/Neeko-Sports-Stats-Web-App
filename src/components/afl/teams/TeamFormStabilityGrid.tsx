@@ -1,168 +1,155 @@
 // src/components/afl/teams/TeamFormStabilityGrid.tsx
 import React from "react";
-import { Flame, Activity, Snowflake } from "lucide-react";
+import { Flame, Snowflake, Activity } from "lucide-react";
 
-const mockSparkline = (
-  <div className="mt-2 h-8 w-full rounded-md bg-gradient-to-r from-white/10 to-white/5 opacity-60" />
-);
+type FormBand = {
+  label: string;
+  description: string;
+  teams: { name: string; spread: string }[];
+  accent: "hot" | "stable" | "cooling";
+};
+
+const FORM_BANDS: FormBand[] = [
+  {
+    label: "Hot Teams",
+    description:
+      "Clubs outperforming seasonal baselines across fantasy scoring, inside-50s, pressure chains and clearance dominance.",
+    teams: [
+      { name: "Brisbane Lions", spread: "+14.8%" },
+      { name: "GWS Giants", spread: "+11.2%" },
+      { name: "Carlton", spread: "+9.5%" },
+    ],
+    accent: "hot",
+  },
+  {
+    label: "Stable Teams",
+    description:
+      "Low-volatility teams producing predictable scoring bands and locked-in role identity.",
+    teams: [
+      { name: "Sydney Swans", spread: "3.4% spread" },
+      { name: "Melbourne", spread: "4.1% spread" },
+      { name: "Collingwood", spread: "4.7% spread" },
+    ],
+    accent: "stable",
+  },
+  {
+    label: "Cooling Teams",
+    description:
+      "Clubs showing contraction in scoring, defensive resistance or pressure ratings — elevated risk until form stabilises.",
+    teams: [
+      { name: "Richmond", spread: "-8.4%" },
+      { name: "Hawthorn", spread: "-6.1%" },
+      { name: "West Coast", spread: "-5.7%" },
+    ],
+    accent: "cooling",
+  },
+];
+
+const accentClasses: Record<
+  FormBand["accent"],
+  { border: string; glow: string; pill: string }
+> = {
+  hot: {
+    border: "border-red-500/50",
+    glow: "from-red-500/40 via-red-500/10 to-transparent",
+    pill: "bg-gradient-to-r from-red-500 to-orange-500",
+  },
+  stable: {
+    border: "border-emerald-500/45",
+    glow: "from-emerald-500/35 via-emerald-500/10 to-transparent",
+    pill: "bg-gradient-to-r from-emerald-500 to-teal-500",
+  },
+  cooling: {
+    border: "border-cyan-500/50",
+    glow: "from-cyan-500/40 via-cyan-500/10 to-transparent",
+    pill: "bg-gradient-to-r from-cyan-400 to-sky-500",
+  },
+};
 
 const TeamFormStabilityGrid: React.FC = () => {
   return (
-    <section
-      className="
-        rounded-[32px] border border-neutral-800/80
-        bg-gradient-to-b from-neutral-950 via-[#0a0a0f] to-black
-        px-5 py-8 sm:px-7 lg:px-10 
-        shadow-[0_40px_120px_rgba(0,0,0,0.7)]
-      "
-    >
-      {/* HEADER */}
-      <header className="mb-6 md:mb-8 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-300/80">
+    <section className="mt-10 rounded-3xl border border-yellow-500/25 bg-gradient-to-b from-zinc-900/70 via-black to-black/95 px-5 py-7 shadow-[0_0_40px_rgba(0,0,0,0.9)] md:mt-14 md:px-8 md:py-9 lg:px-10 lg:py-10">
+      {/* Header */}
+      <div className="mb-7 flex flex-col gap-4 md:mb-8 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-3 md:max-w-2xl">
+          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-yellow-400">
             Team Form & Stability Grid
-          </div>
-
-          <h2 className="mt-1 text-xl font-semibold text-white md:text-2xl">
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
             Hot, stable and cooling clubs over the last 5 rounds
           </h2>
-
-          <p className="mt-2 max-w-2xl text-sm text-neutral-300/90 leading-relaxed">
+          <p className="text-sm text-zinc-300 md:text-[0.95rem]">
             A macro view of league-wide team performance. See which clubs are
             surging (Hot), which offer predictable output (Stable), and which
-            carry elevated risk (Cooling) across fantasy scoring, clearances,
-            pressure metrics and defensive resistance.
+            carry elevated risk (Cooling) across fantasy scoring, pressure
+            metrics and defensive resistance.
           </p>
         </div>
-
-        <p className="max-w-sm text-[12px] text-neutral-400 leading-relaxed">
-          This section evolves into a full trend engine comparing pace-of-play,
-          ball movement, pressure rating and opponent-adjusted form across the
-          competition.
+        <p className="max-w-sm text-xs text-zinc-400 md:text-[0.8rem]">
+          This area evolves into a full trend engine comparing team-level pace
+          of play, pressure ratings and opponent-adjusted form — perfect for
+          stacking fixtures and avoiding trap matchups.
         </p>
-      </header>
+      </div>
 
-      {/* GRID: 3 COLUMNS */}
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* Bands */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {FORM_BANDS.map((band) => {
+          const accent = accentClasses[band.accent];
+          const Icon =
+            band.accent === "hot"
+              ? Flame
+              : band.accent === "stable"
+              ? Activity
+              : Snowflake;
 
-        {/* ----------------------------- */}
-        {/* HOT TEAMS */}
-        {/* ----------------------------- */}
-        <div
-          className="
-            rounded-2xl border border-red-500/30
-            bg-gradient-to-br from-red-500/15 via-black to-black
-            p-5 shadow-[0_0_40px_rgba(255,60,60,0.12)]
-          "
-        >
-          <div className="flex items-center gap-2">
-            <Flame className="h-4 w-4 text-red-300" />
-            <h3 className="text-sm font-semibold text-red-200">Hot Teams</h3>
-          </div>
+          return (
+            <div
+              key={band.label}
+              className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br from-black/95 via-zinc-950/95 to-black ${accent.border}`}
+            >
+              <div
+                className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${accent.glow} opacity-80 blur-2xl`}
+              />
+              <div className="relative space-y-4 px-4 py-5 text-sm md:px-5 md:py-6">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900/90 px-3 py-1 text-[0.75rem] font-medium text-zinc-100 shadow-[0_0_18px_rgba(0,0,0,0.8)]">
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[0.7rem] text-black ${accent.pill}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span>{band.label}</span>
+                  </div>
+                </div>
+                <p className="text-[0.85rem] leading-relaxed text-zinc-300">
+                  {band.description}
+                </p>
 
-          <p className="mt-2 text-xs text-neutral-300/90 leading-relaxed">
-            Teams outperforming seasonal baselines across scoring, inside-50s,
-            pressure and clearance chains.
-          </p>
+                <div className="space-y-2 pt-1 text-[0.82rem]">
+                  {band.teams.map((team) => (
+                    <div
+                      key={team.name}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="truncate text-zinc-200">
+                        {team.name}
+                      </span>
+                      <span className="ml-auto text-xs font-semibold text-zinc-300">
+                        {team.spread}
+                      </span>
+                    </div>
+                  ))}
+                </div>
 
-          {/* SPARKLINE */}
-          {mockSparkline}
-
-          <ul className="mt-4 space-y-2 text-xs text-neutral-300/90">
-            <li className="flex justify-between">
-              <span>Brisbane Lions</span>
-              <span className="text-red-300 font-medium">+14.8%</span>
-            </li>
-            <li className="flex justify-between">
-              <span>GWS Giants</span>
-              <span className="text-red-300 font-medium">+11.2%</span>
-            </li>
-            <li className="flex justify-between">
-              <span>Carlton</span>
-              <span className="text-red-300 font-medium">+9.5%</span>
-            </li>
-          </ul>
-        </div>
-
-        {/* ----------------------------- */}
-        {/* STABLE TEAMS */}
-        {/* ----------------------------- */}
-        <div
-          className="
-            rounded-2xl border border-emerald-500/30
-            bg-gradient-to-br from-emerald-500/15 via-black to-black
-            p-5 shadow-[0_0_40px_rgba(80,200,140,0.15)]
-          "
-        >
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-emerald-300" />
-            <h3 className="text-sm font-semibold text-emerald-200">
-              Stable Teams
-            </h3>
-          </div>
-
-          <p className="mt-2 text-xs text-neutral-300/90 leading-relaxed">
-            Low-volatility teams producing predictable scoring bands and
-            consistent role identity.
-          </p>
-
-          {/* SPARKLINE */}
-          {mockSparkline}
-
-          <ul className="mt-4 space-y-2 text-xs text-neutral-300/90">
-            <li className="flex justify-between">
-              <span>Sydney Swans</span>
-              <span className="text-emerald-300 font-medium">3.4% spread</span>
-            </li>
-            <li className="flex justify-between">
-              <span>Melbourne</span>
-              <span className="text-emerald-300 font-medium">4.1% spread</span>
-            </li>
-            <li className="flex justify-between">
-              <span>Collingwood</span>
-              <span className="text-emerald-300 font-medium">4.7% spread</span>
-            </li>
-          </ul>
-        </div>
-
-        {/* ----------------------------- */}
-        {/* COOLING TEAMS */}
-        {/* ----------------------------- */}
-        <div
-          className="
-            rounded-2xl border border-sky-500/30
-            bg-gradient-to-br from-sky-500/15 via-black to-black
-            p-5 shadow-[0_0_40px_rgba(100,170,255,0.15)]
-          "
-        >
-          <div className="flex items-center gap-2">
-            <Snowflake className="h-4 w-4 text-sky-300" />
-            <h3 className="text-sm font-semibold text-sky-200">Cooling Teams</h3>
-          </div>
-
-          <p className="mt-2 text-xs text-neutral-300/90 leading-relaxed">
-            Teams showing contraction in scoring, defensive resistance or
-            pressure metrics — elevated short-term risk.
-          </p>
-
-          {/* SPARKLINE */}
-          {mockSparkline}
-
-          <ul className="mt-4 space-y-2 text-xs text-neutral-300/90">
-            <li className="flex justify-between">
-              <span>Richmond</span>
-              <span className="text-sky-300 font-medium">-8.4%</span>
-            </li>
-            <li className="flex justify-between">
-              <span>Hawthorn</span>
-              <span className="text-sky-300 font-medium">-6.1%</span>
-            </li>
-            <li className="flex justify-between">
-              <span>West Coast</span>
-              <span className="text-sky-300 font-medium">-5.7%</span>
-            </li>
-          </ul>
-        </div>
+                {/* subtle loading bar */}
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
+                  <div className="h-full w-2/3 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent opacity-80" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
