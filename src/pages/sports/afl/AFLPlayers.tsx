@@ -11,7 +11,7 @@ export default function AFLPlayersPage() {
   const [activeSection, setActiveSection] = useState("round-momentum");
   const [isStuck, setIsStuck] = useState(false);
 
-  /* 🔥 1. Scroll-Spy Tracking */
+  // Scroll-Spy Tracking
   useEffect(() => {
     const sectionIds = [
       "round-momentum",
@@ -24,7 +24,9 @@ export default function AFLPlayersPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
         });
       },
       {
@@ -41,7 +43,7 @@ export default function AFLPlayersPage() {
     return () => observer.disconnect();
   }, []);
 
-  /* 🔥 2. Sticky Detection */
+  // Sticky Detection
   useEffect(() => {
     const bar = document.getElementById("selector-bar");
     if (!bar) return;
@@ -57,66 +59,84 @@ export default function AFLPlayersPage() {
     return () => obs.disconnect();
   }, []);
 
-  /* ✨ Soft Glow (new) */
-  const softGlow =
-    "bg-yellow-500/10 text-yellow-300 border-yellow-400 shadow-[0_0_28px_8px_rgba(255,210,0,0.22)]";
+  const sections: { id: string; label: string }[] = [
+    { id: "round-momentum", label: "Round Momentum" },
+    { id: "form-stability", label: "Form Stability" },
+    { id: "position-trends", label: "Position Trends" },
+    { id: "ai-insights", label: "AI Insights" },
+    { id: "master-table", label: "Master Table" },
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-white">
-
       {/* PAGE HEADER */}
       <header className="mb-7 md:mb-9">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
           AFL Player Performance Dashboard
         </h1>
 
-        <p className="mt-2 max-w-2xl text-sm text-white/70 leading-relaxed">
-          League-wide momentum, fantasy analytics, player trends, stability metrics, role intelligence,
-          predictive insights and full-season ledgers — all in one AFL dashboard.
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">
+          League-wide momentum, fantasy analytics, player trends, stability
+          metrics, role intelligence, predictive insights and full-season
+          ledgers — all in one AFL dashboard.
         </p>
       </header>
 
       {/* INVISIBLE ANCHOR FOR STICKY LOGIC */}
-      <div id="selector-bar" className="h-1 w-full"></div>
+      <div id="selector-bar" className="h-1 w-full" />
 
-      {/* ⭐ STICKY SELECTOR BAR */}
+      {/* PREMIUM GLASS SECTIONS NAV */}
       <div
         className={`
-          sticky top-16 z-40 
-          rounded-xl border border-white/10 backdrop-blur-sm px-4 py-5 mb-10
-          transition-all duration-300
-          ${isStuck ? "bg-black/40 shadow-[0_6px_24px_rgba(0,0,0,0.35)]" : "bg-white/5"}
+          sticky top-16 z-40 mb-10 transition-all duration-300
+          ${isStuck ? "scale-[1.01]" : ""}
         `}
       >
-        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45 mb-3">
-          Sections
-        </div>
+        <div
+          className={`
+            rounded-2xl border px-4 py-3 md:px-6 md:py-4
+            backdrop-blur-xl bg-gradient-to-r
+            from-yellow-500/10 via-black/80 to-yellow-500/10
+            shadow-[0_18px_70px_rgba(0,0,0,0.85)]
+            ${
+              isStuck
+                ? "border-yellow-400/60 shadow-[0_0_40px_rgba(250,204,21,0.55)]"
+                : "border-white/12"
+            }
+          `}
+        >
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-200/80">
+                Sections
+              </div>
+              <p className="max-w-xl text-[11px] leading-relaxed text-neutral-300/90">
+                Jump between round momentum, stability grids, position trends,
+                AI analysis and the full-season ledger — without losing your
+                place in the dashboard.
+              </p>
+            </div>
 
-        <div className="flex flex-wrap gap-2 md:justify-end">
-          {/* Buttons */}
-          {[
-            ["round-momentum", "Round Momentum"],
-            ["form-stability", "Form Stability"],
-            ["position-trends", "Position Trends"],
-            ["ai-insights", "AI Insights"],
-            ["master-table", "Master Table"],
-          ].map(([id, label]) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className={`
-                rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 
-                text-xs font-medium transition-all
-                ${
-                  activeSection === id
-                    ? softGlow
-                    : "text-white/75 hover:bg-white/10 hover:text-white"
-                }
-              `}
-            >
-              {label}
-            </a>
-          ))}
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {sections.map(({ id, label }) => (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  className={`
+                    inline-flex items-center rounded-full border px-3.5 py-1.5
+                    text-xs font-medium tracking-wide transition-all
+                    ${
+                      activeSection === id
+                        ? "border-yellow-300 bg-yellow-400 text-black shadow-[0_0_26px_rgba(250,204,21,0.9)]"
+                        : "border-white/16 bg-black/40 text-neutral-200 hover:border-yellow-400/70 hover:bg-yellow-500/10 hover:text-white"
+                    }
+                  `}
+                >
+                  {label}
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

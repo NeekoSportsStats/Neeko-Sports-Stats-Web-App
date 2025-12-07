@@ -205,9 +205,14 @@ export const MasterTable: React.FC = () => {
   const { isPremium } = useAuth();
 
   const [selectedStat, setSelectedStat] = useState<StatLens>("Fantasy");
-  const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(1);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [compactMode, setCompactMode] = useState(false);
+
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+
+  // desktop side-panel insights
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [sidePanelPlayer, setSidePanelPlayer] = useState<PlayerRow | null>(null);
 
   // mobile insights panel
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -224,10 +229,6 @@ export const MasterTable: React.FC = () => {
 
   const config = STAT_CONFIG[selectedStat];
 
-  const handleToggleExpand = (id: number) => {
-    setExpandedPlayerId((prev) => (prev === id ? null : id));
-  };
-
   const handleShowMore = () => {
     setVisibleCount((prev) =>
       Math.min(prev + PAGE_SIZE, filteredPlayers.length)
@@ -242,6 +243,16 @@ export const MasterTable: React.FC = () => {
   const handleMobileSheetChange = (open: boolean) => {
     setMobileOpen(open);
     if (!open) setMobilePlayer(null);
+  };
+
+  const handleOpenDesktopInsights = (player: PlayerRow) => {
+    setSelectedPlayerId(player.id);
+    setSidePanelPlayer(player);
+    setSidePanelOpen(true);
+  };
+
+  const handleCloseDesktopInsights = () => {
+    setSidePanelOpen(false);
   };
 
   return (
@@ -403,32 +414,28 @@ export const MasterTable: React.FC = () => {
 
             <tbody className="divide-y divide-neutral-900/80">
               {visiblePlayers.map((player, index) => {
-                const isExpanded = expandedPlayerId === player.id;
                 const rounds = getRoundsForLens(player, selectedStat);
                 const summary = computeSummary(player, selectedStat);
                 const hitRates = computeHitRates(player, selectedStat);
-                const confidence = computeConfidenceScore(
-                  player,
-                  selectedStat
-                );
 
                 const rowBase =
                   "transition-colors duration-150 " +
                   (compactMode ? "leading-tight" : "");
 
-                // Blur only if NOT premium and beyond free limit
                 const isPremiumBlurred = !isPremium && index >= 20;
                 const blurClass = isPremiumBlurred
                   ? "blur-[3px] brightness-[0.65]"
                   : "";
+
+                const isSelected = selectedPlayerId === player.id;
 
                 return (
                   <React.Fragment key={player.id}>
                     {/* Main row */}
                     <tr
                       className={`${rowBase} ${
-                        isExpanded
-                          ? "bg-neutral-900/75"
+                        isSelected
+                          ? "bg-neutral-900/80"
                           : "hover:bg-neutral-900/55"
                       }`}
                     >
@@ -440,7 +447,7 @@ export const MasterTable: React.FC = () => {
                       >
                         <button
                           type="button"
-                          onClick={() => handleToggleExpand(player.id)}
+                          onClick={() => handleOpenDesktopInsights(player)}
                           className="flex w-full items-center gap-3 text-left"
                         >
                           <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-950/80 text-[10px] text-neutral-300">
@@ -454,7 +461,7 @@ export const MasterTable: React.FC = () => {
                               {player.team} • {player.role}
                             </span>
                           </div>
-                          {isExpanded ? (
+                          {isSelected ? (
                             <ChevronDown className="ml-auto h-4 w-4 text-yellow-300" />
                           ) : (
                             <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
@@ -513,26 +520,6 @@ export const MasterTable: React.FC = () => {
                         />
                       ))}
                     </tr>
-
-                    {/* Expanded analytics row (desktop only) */}
-                    {isExpanded && (
-                      <tr className="bg-gradient-to-b from-neutral-950 via-neutral-950 to-black">
-                        <td
-                          colSpan={1000}
-                          className={`border-t border-neutral-900/80 px-4 pb-6 pt-4 sm:px-6 lg:px-8 ${
-                            isPremiumBlurred
-                              ? "blur-[3px] brightness-[0.65]"
-                              : ""
-                          }`}
-                        >
-                          <ExpandedInsights
-                            player={player}
-                            selectedStat={selectedStat}
-                            confidence={confidence}
-                          />
-                        </td>
-                      </tr>
-                    )}
                   </React.Fragment>
                 );
               })}
@@ -641,12 +628,52 @@ export const MasterTable: React.FC = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* DESKTOP SIDE PANEL INSIGHTS ---------------------------------------- */}
+      {sidePanelOpen && sidePanelPlayer && (
+        <div className="fixed inset-0 z-50 hidden justify-end bg-black/40 backdrop-blur-sm md:flex">
+          <div className="flex h-full w-full max-w-md flex-col border-l border-yellow-500/40 bg-gradient-to-b from-yellow-500/14 via-neutral-950 to-black shadow-[0_0_80px_rgba(0,0,0,0.95)] md:max-w-xl">
+            <div className="flex items-center justify-between border-b border-yellow-500/30 px-6 py-4">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-yellow-200/80">
+                  Player Insights
+                </div>
+                <div className="mt-1 text-sm font-semibold text-neutral-50">
+                  {sidePanelPlayer.name}
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                  {sidePanelPlayer.team} • {sidePanelPlayer.role}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseDesktopInsights}
+                className="h-8 w-8 rounded-full border border-yellow-500/40 bg-black/70 text-neutral-200 hover:bg-yellow-400 hover:text-black"
+              >
+                <span className="sr-only">Close</span>
+                ✕
+              </Button>
+            </div>
+            <div className="h-[calc(100vh-64px)] overflow-y-auto px-4 py-4 md:px-6">
+              <ExpandedInsights
+                player={sidePanelPlayer}
+                selectedStat={selectedStat}
+                confidence={computeConfidenceScore(
+                  sidePanelPlayer,
+                  selectedStat
+                )}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Expanded insights layout – reused for desktop row + mobile bottom sheet
+// Expanded insights layout – reused for desktop side panel + mobile bottom sheet
 // -----------------------------------------------------------------------------
 
 type ExpandedInsightsProps = {
@@ -673,7 +700,7 @@ const ExpandedInsights: React.FC<ExpandedInsightsProps> = ({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)]">
-      {/* Left – sparkline + micro stats + AI summary */}
+      {/* Left – sparkline + micro stats + round wheel + AI summary */}
       <div className="space-y-4">
         <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black p-5 shadow-[0_0_40px_rgba(0,0,0,0.7)]">
           <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-400">
@@ -726,6 +753,28 @@ const ExpandedInsights: React.FC<ExpandedInsightsProps> = ({
               </span>
             </div>
             <MiniSparkline values={summary.lastWindow} />
+          </div>
+
+          {/* Round-by-round scores wheel */}
+          <div className="mt-4 rounded-2xl border border-neutral-800/80 bg-neutral-950/90 px-4 py-3">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+              Round-by-round scores
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {getRoundsForLens(player, selectedStat).map((value, i) => (
+                <div
+                  key={i}
+                  className="flex min-w-[46px] flex-col items-center"
+                >
+                  <span className="text-[9px] text-neutral-500">
+                    {ROUND_LABELS[i]}
+                  </span>
+                  <div className="mt-1 flex h-8 w-10 items-center justify-center rounded-md bg-neutral-900/90 text-[11px] text-neutral-100">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -792,7 +841,7 @@ const ExpandedInsights: React.FC<ExpandedInsightsProps> = ({
 };
 
 // -----------------------------------------------------------------------------
-// Mobile premium card – gradient/glow, compact summary + round wheel
+// Mobile premium card – gradient/glow, compact summary
 // -----------------------------------------------------------------------------
 
 type MobilePlayerCardProps = {
@@ -813,7 +862,6 @@ const MobilePlayerCard: React.FC<MobilePlayerCardProps> = ({
   const config = STAT_CONFIG[selectedStat];
   const summary = computeSummary(player, selectedStat);
   const hitRates = computeHitRates(player, selectedStat);
-  const rounds = getRoundsForLens(player, selectedStat);
 
   const topBand = hitRates[0] ?? 0;
   const ceilingBand = hitRates[hitRates.length - 1] ?? 0;
@@ -898,25 +946,6 @@ const MobilePlayerCard: React.FC<MobilePlayerCardProps> = ({
             View insights
           </Button>
         </div>
-
-        {/* Round-by-round scroll wheel */}
-        <div className="mt-3 overflow-x-auto">
-          <div className="flex gap-2 pb-1">
-            {rounds.map((value, i) => (
-              <div
-                key={i}
-                className="flex min-w-[46px] flex-col items-center"
-              >
-                <span className="text-[9px] text-neutral-500">
-                  {ROUND_LABELS[i]}
-                </span>
-                <div className="mt-1 flex h-8 w-10 items-center justify-center rounded-md bg-neutral-950/80 text-[11px] text-neutral-100">
-                  {value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -962,7 +991,7 @@ const BodyCell: React.FC<BodyCellProps> = ({
 }) => (
   <td
     className={`border-l border-neutral-900/85 px-2 ${
-      compact ? "py-1.5" : "py-2.5"
+      compact ? "py-1" : "py-2"
     } text-center text-[11px] ${
       wide ? "min-w-[72px]" : "min-w-[52px]"
     } ${dim ? "text-neutral-400" : "text-neutral-100"} ${
@@ -1008,7 +1037,7 @@ const HitRateCell: React.FC<HitRateCellProps> = ({
   return (
     <td
       className={`border-l border-neutral-900/85 px-2 ${
-        compact ? "py-1.5" : "py-2.5"
+        compact ? "py-1" : "py-2"
       } text-center ${blurClass}`}
     >
       <span
