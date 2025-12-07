@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  ChevronDown,
   ChevronRight,
   Lock,
   Search,
@@ -195,6 +194,15 @@ function computeConfidenceScore(player: PlayerRow, lens: StatLens) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+/** Colour classes for hit-rate % cells */
+function getHitRateColorClasses(value: number): string {
+  if (value <= 10) return "text-neutral-500";
+  if (value <= 30) return "text-amber-300";
+  if (value <= 60) return "text-emerald-300";
+  if (value <= 80) return "text-lime-300";
+  return "text-yellow-300";
+}
+
 /* -------------------------------------------------------------------------- */
 /*                               SHARED PIECES                                */
 /* -------------------------------------------------------------------------- */
@@ -387,23 +395,30 @@ function InsightsContent({ player, selectedStat }: InsightsContentProps) {
             Hit-rate profile
           </div>
           <div className="space-y-2">
-            {STAT_CONFIG[selectedStat].thresholds.map((threshold, idx) => (
-              <div key={threshold} className="flex items-center gap-3">
-                <div className="w-10 text-[10px] text-neutral-400">
-                  {threshold}
-                  {config.valueUnitShort === "g" ? "+" : "+"}
-                </div>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-900/90">
+            {STAT_CONFIG[selectedStat].thresholds.map((threshold, idx) => {
+              const value = hitRates[idx];
+              return (
+                <div key={threshold} className="flex items-center gap-3">
+                  <div className="w-10 text-[10px] text-neutral-400">
+                    {threshold}
+                    {config.valueUnitShort === "g" ? "+" : "+"}
+                  </div>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-900/90">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-red-400 via-yellow-300 to-lime-400"
+                      style={{ width: `${value}%` }}
+                    />
+                  </div>
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-red-400 via-yellow-300 to-lime-400"
-                    style={{ width: `${hitRates[idx]}%` }}
-                  />
+                    className={`w-8 text-right text-[10px] ${getHitRateColorClasses(
+                      value
+                    )}`}
+                  >
+                    {value}%
+                  </div>
                 </div>
-                <div className="w-8 text-right text-[10px] text-neutral-400">
-                  {hitRates[idx]}%
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -667,11 +682,11 @@ export default function MasterTable() {
                   </span>
                 </HeaderCell>
 
-                {/* Round headers – compact hides R1–R23, keeps OR */}
-                {ROUND_LABELS.map((round, idx) => {
-                  if (compactMode && idx > 0) return null;
-                  return <HeaderCell key={round}>{round}</HeaderCell>;
-                })}
+                {/* Round headers – hidden completely in compact mode */}
+                {!compactMode &&
+                  ROUND_LABELS.map((round) => (
+                    <HeaderCell key={round}>{round}</HeaderCell>
+                  ))}
 
                 {/* Summary columns (all stat types) */}
                 <HeaderCell className="w-16 text-right">Min</HeaderCell>
@@ -729,18 +744,16 @@ export default function MasterTable() {
                       </button>
                     </td>
 
-                    {/* Round cells (compact hides R1–R23) */}
-                    {rounds.map((value, idx) => {
-                      if (compactMode && idx > 0) return null;
-                      return (
+                    {/* Round cells – hidden entirely in compact mode */}
+                    {!compactMode &&
+                      rounds.map((value, idx) => (
                         <BodyCell
                           key={idx}
                           value={value}
                           compact={compactMode}
                           blurClass={blurClass}
                         />
-                      );
-                    })}
+                      ))}
 
                     {/* Summary */}
                     <BodyCell
@@ -768,16 +781,21 @@ export default function MasterTable() {
                       className="text-right text-neutral-300"
                     />
 
-                    {/* Hit-rate bands */}
-                    {STAT_CONFIG[selectedStat].thresholds.map((t, idx) => (
-                      <BodyCell
-                        key={t}
-                        value={`${hitRates[idx]}%`}
-                        compact={compactMode}
-                        blurClass={blurClass}
-                        className="text-right text-neutral-300"
-                      />
-                    ))}
+                    {/* Hit-rate bands with colours */}
+                    {STAT_CONFIG[selectedStat].thresholds.map((t, idx) => {
+                      const rate = hitRates[idx];
+                      return (
+                        <BodyCell
+                          key={t}
+                          value={`${rate}%`}
+                          compact={compactMode}
+                          blurClass={blurClass}
+                          className={`text-right ${getHitRateColorClasses(
+                            rate
+                          )}`}
+                        />
+                      );
+                    })}
                   </tr>
                 );
               })}
@@ -860,7 +878,7 @@ export default function MasterTable() {
           onClick={handleCloseInsights}
         >
           <div className="flex h-full w-full items-stretch justify-end">
-            {/* Desktop right-side panel */}
+            {/* Desktop right-side panel (fixed 480px) */}
             <div
               className="hidden h-full w-[480px] max-w-full border-l border-yellow-500/30 bg-gradient-to-b from-neutral-950 via-black to-black px-5 py-4 shadow-[0_0_60px_rgba(250,204,21,0.7)] md:block"
               onClick={(e) => e.stopPropagation()}
@@ -912,12 +930,12 @@ export default function MasterTable() {
               </div>
             </div>
 
-            {/* Mobile popup card (bottom) */}
+            {/* Mobile popup card (slide-up) */}
             <div
               className="flex w-full items-end justify-center md:hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-full max-w-md rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 py-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]">
+              <div className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 py-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]">
                 {/* drag handle */}
                 <div className="mx-auto mb-3 mt-1 h-1.5 w-10 rounded-full bg-yellow-200/70" />
                 <div className="mb-3 flex items-start justify-between gap-3">
