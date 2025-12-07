@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* -------------------------------------------------------------------------- */
+/*  DESIGN TOKENS                                                             */
+/* -------------------------------------------------------------------------- */
 
 @layer base {
   :root {
@@ -72,6 +72,10 @@ All colors MUST be HSL.
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*  COMPONENT CLASSES                                                         */
+/* -------------------------------------------------------------------------- */
+
 @layer components {
   .stat-card {
     @apply bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-all duration-300;
@@ -93,3 +97,63 @@ All colors MUST be HSL.
     @apply bg-gradient-to-r from-primary to-amber-400 bg-clip-text text-transparent;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*  PREMIUM ANIMATION PACK (SAFE + BEAUTIFUL + DOES NOT HIDE CONTENT)        */
+/* -------------------------------------------------------------------------- */
+
+@layer utilities {
+
+  /* ✨ GOLD-LINE SLIDE + FADE (premium section reveal) */
+  @keyframes premiumSection {
+    0% {
+      opacity: 0;
+      transform: translateY(14px);
+      filter: blur(6px);
+    }
+    50% {
+      opacity: 0.85;
+      transform: translateY(4px);
+      filter: blur(1px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  .animate-premium-section {
+    animation: premiumSection 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+
+  /* ✨ GOLD GLIDE (lighter version for smaller blocks) */
+  @keyframes goldGlide {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-gold-glide {
+    animation: goldGlide 0.45s ease-out forwards;
+  }
+
+  /* ✨ DELAY UTILITIES FOR STAGGERED ANIMATION */
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.10s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.20s; }
+  .delay-5 { animation-delay: 0.30s; }
+
+  /* ✨ SAFETY FALLBACK — ensures no element remains invisible */
+  .animate-premium-section,
+  .animate-gold-glide {
+    opacity: 1 !important;
+  }
+}
+
