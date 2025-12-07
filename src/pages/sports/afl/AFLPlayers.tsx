@@ -12,11 +12,11 @@ export default function AFLPlayersPage() {
   const [showTopButton, setShowTopButton] = useState(false);
 
   /* -------------------------------------------------------------------------- */
-  /*                         1. Scroll Spy + Smooth Nav                         */
+  /*                         Scroll Spy Section Tracking                        */
   /* -------------------------------------------------------------------------- */
 
   useEffect(() => {
-    const sectionIds = [
+    const ids = [
       "round-momentum",
       "form-stability",
       "position-trends",
@@ -25,18 +25,19 @@ export default function AFLPlayersPage() {
     ];
 
     const observer = new IntersectionObserver(
-      (entries) => {
+      (entries) =>
         entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        });
-      },
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        }),
       {
         threshold: 0.28,
         rootMargin: "-20% 0px -40% 0px",
       }
     );
 
-    sectionIds.forEach((id) => {
+    ids.forEach((id) => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
     });
@@ -44,63 +45,64 @@ export default function AFLPlayersPage() {
     return () => observer.disconnect();
   }, []);
 
-  /* Smooth scrolling on pill click */
+  /* -------------------------------------------------------------------------- */
+  /*                        Smooth Scroll Nav for Section Pills                 */
+  /* -------------------------------------------------------------------------- */
+
   useEffect(() => {
     const links = document.querySelectorAll("a[href^='#']");
 
-    const handleClick = (e: Event) => {
+    const handler = (e: Event) => {
       e.preventDefault();
-      const target = (e.currentTarget as HTMLAnchorElement).getAttribute("href");
-      if (!target) return;
+      const href = (e.currentTarget as HTMLAnchorElement).getAttribute("href");
+      if (!href) return;
 
-      const el = document.querySelector(target);
+      const el = document.querySelector(href);
       if (!el) return;
 
+      const topOffset = el.getBoundingClientRect().top + window.scrollY - 110;
+
       window.scrollTo({
-        top: el.getBoundingClientRect().top + window.scrollY - 110,
+        top: topOffset,
         behavior: "smooth",
       });
     };
 
-    links.forEach((link) => link.addEventListener("click", handleClick));
+    links.forEach((l) => l.addEventListener("click", handler));
 
-    return () =>
-      links.forEach((link) => link.removeEventListener("click", handleClick));
+    return () => links.forEach((l) => l.removeEventListener("click", handler));
   }, []);
 
   /* -------------------------------------------------------------------------- */
-  /*                           2. Sticky Nav Detection                          */
+  /*                            Sticky Nav Trigger                              */
   /* -------------------------------------------------------------------------- */
 
   useEffect(() => {
-    const bar = document.getElementById("selector-bar");
-    if (!bar) return;
+    const anchor = document.getElementById("selector-bar");
+    if (!anchor) return;
 
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        setIsStuck(!entry.isIntersecting);
-      },
+    const io = new IntersectionObserver(
+      ([entry]) => setIsStuck(!entry.isIntersecting),
       { threshold: 1 }
     );
 
-    obs.observe(bar);
-    return () => obs.disconnect();
+    io.observe(anchor);
+
+    return () => io.disconnect();
   }, []);
 
   /* -------------------------------------------------------------------------- */
-  /*                      3. Show “Back to Top” Button                          */
+  /*                         Back To Top Button Trigger                         */
   /* -------------------------------------------------------------------------- */
 
   useEffect(() => {
-    const onScroll = () => {
-      setShowTopButton(window.scrollY > 600);
-    };
+    const onScroll = () => setShowTopButton(window.scrollY > 600);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   /* -------------------------------------------------------------------------- */
-  /*                           Premium Glass Styling                            */
+  /*                            Section Definitions                             */
   /* -------------------------------------------------------------------------- */
 
   const sections = [
@@ -111,44 +113,39 @@ export default function AFLPlayersPage() {
     { id: "master-table", label: "Master Table" },
   ];
 
+  /* -------------------------------------------------------------------------- */
+  /*                                 RENDER                                     */
+  /* -------------------------------------------------------------------------- */
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-white">
-      {/* PAGE HEADER */}
-      <header className="mb-8 md:mb-10 opacity-0 animate-fadeIn">
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+
+      {/* Page Header */}
+      <header className="mb-8 md:mb-10 animate-premium-section">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
           AFL Player Performance Dashboard
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">
+        <p className="mt-2 max-w-2xl text-white/70 text-sm leading-relaxed">
           League-wide momentum, fantasy analytics, player trends, stability
           metrics, role intelligence, predictive insights and full-season
           ledgers — all in one AFL dashboard.
         </p>
       </header>
 
-      {/* Invisible anchor for sticky logic */}
       <div id="selector-bar" className="h-1 w-full"></div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/*                      PREMIUM NAV — Glass + Glow A1                     */}
+      {/*                          PREMIUM GLASS NAV A1                           */}
       {/* ---------------------------------------------------------------------- */}
 
-      <div
-        className={`
-          sticky top-16 z-40 transition-all duration-300 mb-10
-          ${isStuck ? "scale-[1.012]" : ""}
-        `}
-      >
+      <div className={`sticky top-16 z-40 transition-all duration-300 mb-10 ${isStuck ? "scale-[1.012]" : ""}`}>
         <div
           className={`
             rounded-2xl border backdrop-blur-xl bg-gradient-to-r
             from-yellow-500/10 via-black/80 to-yellow-500/10
             px-4 py-3 md:px-6 md:py-4
             shadow-[0_18px_70px_rgba(0,0,0,0.85)]
-            ${
-              isStuck
-                ? "border-yellow-400/60 shadow-[0_0_40px_rgba(250,204,21,0.55)]"
-                : "border-white/10"
-            }
+            ${isStuck ? "border-yellow-400/60 shadow-[0_0_40px_rgba(250,204,21,0.55)]" : "border-white/10"}
           `}
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -156,8 +153,8 @@ export default function AFLPlayersPage() {
               <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-yellow-200/80">
                 Sections
               </div>
-              <p className="max-w-xl text-[11px] text-neutral-300/90">
-                Navigate between trends, analytics, insights & the full-season ledger.
+              <p className="text-[11px] text-neutral-300/90">
+                Navigate trends, analytics, insights & the full-season ledger.
               </p>
             </div>
 
@@ -185,43 +182,38 @@ export default function AFLPlayersPage() {
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/*                            PAGE SECTIONS                               */}
+      {/*                              PAGE SECTIONS                             */}
       {/* ---------------------------------------------------------------------- */}
 
       <div className="space-y-20 md:space-y-24">
-        <section id="round-momentum" className="scroll-mt-28 opacity-0 animate-sectionFade">
+        <section id="round-momentum" className="scroll-mt-28 animate-premium-section">
           <RoundSummary />
         </section>
 
-        <section id="form-stability" className="scroll-mt-28 opacity-0 animate-sectionFade">
+        <section id="form-stability" className="scroll-mt-28 animate-premium-section delay-1">
           <FormStabilityGrid />
         </section>
 
-        <section id="position-trends" className="scroll-mt-28 opacity-0 animate-sectionFade">
+        <section id="position-trends" className="scroll-mt-28 animate-premium-section delay-2">
           <PositionTrends />
         </section>
 
-        <section id="ai-insights" className="scroll-mt-28 opacity-0 animate-sectionFade">
+        <section id="ai-insights" className="scroll-mt-28 animate-premium-section delay-3">
           <AIInsights />
         </section>
 
-        <section id="master-table" className="scroll-mt-28 opacity-0 animate-sectionFade">
+        <section id="master-table" className="scroll-mt-28 animate-premium-section delay-4">
           <MasterTable />
         </section>
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/*                        FLOATING "BACK TO TOP"                          */}
+      {/*                         FLOATING BACK TO TOP                           */}
       {/* ---------------------------------------------------------------------- */}
 
       {showTopButton && (
         <button
-          onClick={() =>
-            window.scrollTo({
-              top: 0,
-              behavior: "smooth",
-            })
-          }
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="
             fixed bottom-6 right-6 z-50 rounded-full
             bg-yellow-400 px-4 py-2 text-sm font-semibold text-black
@@ -235,32 +227,3 @@ export default function AFLPlayersPage() {
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                Animations                                  */
-/* -------------------------------------------------------------------------- */
-
-declare module "react" {
-  interface HTMLAttributes<T> extends AriaAttributes, DOMAttributes<T> {
-    animate?: string;
-  }
-}
-
-/* Tailwind animation utilities (add these in your globals or keep here if using safelist) */
-
-const styles = `
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
-
-  @keyframes sectionFade {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .animate-sectionFade {
-    animation: sectionFade 0.6s ease-out forwards;
-    animation-delay: 0.15s;
-  }
-`;
