@@ -10,47 +10,55 @@ import TeamMasterTable from "@/components/afl/teams/TeamMasterTable";
 export default function AFLTeamsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-white">
-      {/* PAGE HEADER */}
-      <header className="mb-7 md:mb-9">
+
+      {/* ---------------------------------------------------- */}
+      {/*  PAGE HEADER — HERO SECTION (Matches Player Dashboard) */}
+      {/* ---------------------------------------------------- */}
+
+      <header className="mb-8 md:mb-10">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
           AFL Team Performance Dashboard
         </h1>
 
-        <p className="mt-3 max-w-3xl text-sm text-white/75 md:text-[15px]">
-          League-wide{" "}
-          <span className="font-semibold text-yellow-300">
-            team momentum, strengths and matchup edges
-          </span>{" "}
-          — track form lines, stability profiles, role and style trends and
-          full-season ledgers for every AFL club.
+        <p className="mt-3 max-w-3xl text-sm text-white/75 md:text-[15px] leading-relaxed">
+          League-wide team analytics — scoring momentum, defensive strength,
+          matchup difficulty, stability profiles, pace-of-play metrics and
+          predictive intelligence across all 18 AFL clubs.
         </p>
 
-        <p className="mt-2 max-w-3xl text-[13px] text-white/55">
-          Built to mirror the player dashboard, but at a{" "}
-          <span className="font-semibold text-yellow-200/90">
+        <p className="mt-2 max-w-3xl text-[13px] text-white/55 leading-relaxed">
+          Designed to mirror the player dashboard, but powered at the{" "}
+          <span className="text-yellow-200/90 font-semibold">
             team intelligence
           </span>{" "}
-          level — perfect for spotting system trends, favourable matchup lanes
-          and fixture-driven swings.
+          level — helping you track club-wide form lines, structural trends and
+          evolving matchup landscapes.
         </p>
       </header>
 
-      {/* SECTION SELECTOR STRIP (matches player dashboard styling) */}
+      {/* ---------------------------------------------------- */}
+      {/*  SECTION SELECTOR NAVIGATION (Matches Player Dashboard) */}
+      {/* ---------------------------------------------------- */}
+
       <nav
         className="
-          mb-6 md:mb-8
-          rounded-2xl border border-white/5
+          mb-8 rounded-2xl border border-white/5
           bg-gradient-to-r from-[#050515] via-[#050512] to-[#030308]
           px-4 py-3 md:px-6 md:py-3.5
           shadow-[0_0_40px_rgba(0,0,0,0.55)]
         "
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+          {/* Label */}
           <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
             Sections
           </div>
 
+          {/* Pills */}
           <div className="flex flex-wrap gap-2 md:justify-end">
+
+            {/* Round Momentum */}
             <a
               href="#team-round-momentum"
               className="
@@ -63,6 +71,7 @@ export default function AFLTeamsPage() {
               Round Momentum
             </a>
 
+            {/* Form & Stability */}
             <a
               href="#team-form-stability"
               className="
@@ -72,9 +81,10 @@ export default function AFLTeamsPage() {
                 transition-colors
               "
             >
-              Form &amp; Stability
+              Form & Stability
             </a>
 
+            {/* Style & Matchups */}
             <a
               href="#team-profiles"
               className="
@@ -84,9 +94,10 @@ export default function AFLTeamsPage() {
                 transition-colors
               "
             >
-              Style &amp; Matchup Profiles
+              Style & Matchup Profiles
             </a>
 
+            {/* AI Insights */}
             <a
               href="#team-ai-insights"
               className="
@@ -96,9 +107,10 @@ export default function AFLTeamsPage() {
                 transition-colors
               "
             >
-              AI Team Insights
+              AI Insights
             </a>
 
+            {/* Master Table */}
             <a
               href="#team-master-table"
               className="
@@ -108,25 +120,30 @@ export default function AFLTeamsPage() {
                 transition-colors
               "
             >
-              Team Ledger &amp; Grid
+              Team Ledger & Grid
             </a>
+
           </div>
         </div>
       </nav>
 
-      {/* CONTENT SECTIONS – team versions of the player blocks */}
-      <div className="space-y-10 md:space-y-14">
-        {/* SECTION 1 — Round Momentum */}
+      {/* ---------------------------------------------------- */}
+      {/*  MAIN CONTENT SECTIONS — Will build these one by one */}
+      {/* ---------------------------------------------------- */}
+
+      <div className="space-y-12 md:space-y-16">
+
+        {/* SECTION 1 — Round Momentum (Teams) */}
         <section id="team-round-momentum" className="scroll-mt-24">
           <TeamRoundSummary />
         </section>
 
-        {/* SECTION 2 — Team Form & Stability */}
+        {/* SECTION 2 — Form & Stability */}
         <section id="team-form-stability" className="scroll-mt-24">
           <TeamFormStabilityGrid />
         </section>
 
-        {/* SECTION 3 — Style / Matchup Profiles */}
+        {/* SECTION 3 — Style & Matchups */}
         <section id="team-profiles" className="scroll-mt-24">
           <TeamProfileGrid />
         </section>
@@ -136,10 +153,11 @@ export default function AFLTeamsPage() {
           <TeamAIInsights />
         </section>
 
-        {/* SECTION 5 — Team Master Table */}
+        {/* SECTION 5 — Team Ledger / Master Table */}
         <section id="team-master-table" className="scroll-mt-24">
           <TeamMasterTable />
         </section>
+
       </div>
     </div>
   );
