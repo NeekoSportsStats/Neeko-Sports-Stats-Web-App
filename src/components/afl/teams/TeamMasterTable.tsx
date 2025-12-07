@@ -1,672 +1,436 @@
 // src/components/afl/teams/TeamMasterTable.tsx
-import React, { useMemo, useState } from "react";
-import { Lock, Sparkles, AlertTriangle } from "lucide-react";
 
-type StatLens = "Fantasy" | "Offence" | "Defence" | "Disposals" | "Goals";
+import React, { useMemo, useState, useEffect } from "react";
+import { ChevronRight, Lock, Search, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
-const ROUND_LABELS = Array.from({ length: 23 }, (_, i) => `R${i + 1}`);
+import TeamInsightsPanel from "./TeamInsightsPanel";
+import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
 
-// we’ll use hit-rates mainly for Fantasy-style stats
-const HIT_THRESHOLDS = [100, 110];
-
-type TeamRow = {
-  team: string;
-  fantasy: number[];
-  offence: number[];
-  defence: number[];
-  disposals: number[];
-  goals: number[];
-  upcomingDifficulty: 1 | 2 | 3; // 1 easy, 2 neutral, 3 hard
-};
-
-//
-// MOCK TEAM DATA – realistic-ish spread
-//
-function buildSeries(base: number, spread = 6): number[] {
-  const offsets = [
-    -3, 1, 0, 2, -1, 4, -2, 1, 3, -4, 0, 2, -1, 4, -3, 1, 0, 2, -2, 3, -1, 4,
-    -3,
-  ];
-  return offsets.map((o) => base + o + Math.round((Math.random() - 0.5) * spread));
-}
-
-const TEAMS: TeamRow[] = [
-  {
-    team: "Brisbane Lions",
-    fantasy: buildSeries(106),
-    offence: buildSeries(108),
-    defence: buildSeries(97),
-    disposals: buildSeries(305, 10),
-    goals: buildSeries(14, 2),
-    upcomingDifficulty: 2,
-  },
-  {
-    team: "Sydney Swans",
-    fantasy: buildSeries(101),
-    offence: buildSeries(102),
-    defence: buildSeries(99),
-    disposals: buildSeries(298, 9),
-    goals: buildSeries(12, 2),
-    upcomingDifficulty: 1,
-  },
-  {
-    team: "GWS Giants",
-    fantasy: buildSeries(109),
-    offence: buildSeries(111),
-    defence: buildSeries(96),
-    disposals: buildSeries(312, 10),
-    goals: buildSeries(15, 2),
-    upcomingDifficulty: 2,
-  },
-  {
-    team: "Carlton",
-    fantasy: buildSeries(95),
-    offence: buildSeries(97),
-    defence: buildSeries(92),
-    disposals: buildSeries(293, 8),
-    goals: buildSeries(11, 2),
-    upcomingDifficulty: 2,
-  },
-  {
-    team: "Collingwood",
-    fantasy: buildSeries(97),
-    offence: buildSeries(99),
-    defence: buildSeries(93),
-    disposals: buildSeries(295, 8),
-    goals: buildSeries(13, 2),
-    upcomingDifficulty: 3,
-  },
-  {
-    team: "Melbourne",
-    fantasy: buildSeries(98),
-    offence: buildSeries(100),
-    defence: buildSeries(98),
-    disposals: buildSeries(300, 9),
-    goals: buildSeries(12, 2),
-    upcomingDifficulty: 1,
-  },
-  {
-    team: "Geelong Cats",
-    fantasy: buildSeries(102),
-    offence: buildSeries(103),
-    defence: buildSeries(95),
-    disposals: buildSeries(307, 9),
-    goals: buildSeries(14, 2),
-    upcomingDifficulty: 2,
-  },
-  {
-    team: "Port Adelaide",
-    fantasy: buildSeries(97),
-    offence: buildSeries(100),
-    defence: buildSeries(90),
-    disposals: buildSeries(291, 8),
-    goals: buildSeries(11, 2),
-    upcomingDifficulty: 2,
-  },
-  {
-    team: "Richmond",
-    fantasy: buildSeries(92),
-    offence: buildSeries(94),
-    defence: buildSeries(88),
-    disposals: buildSeries(283, 7),
-    goals: buildSeries(9, 2),
-    upcomingDifficulty: 3,
-  },
-  {
-    team: "Hawthorn",
-    fantasy: buildSeries(90),
-    offence: buildSeries(92),
-    defence: buildSeries(86),
-    disposals: buildSeries(279, 7),
-    goals: buildSeries(8, 2),
-    upcomingDifficulty: 3,
-  },
+// AFL uses 23 rounds + OR
+export const ROUND_LABELS = [
+  "OR","R1","R2","R3","R4","R5","R6","R7","R8","R9",
+  "R10","R11","R12","R13","R14","R15","R16","R17","R18",
+  "R19","R20","R21","R22","R23",
 ];
 
-//
-// UTILITIES
-//
-function average(values: number[]): number {
-  if (!values.length) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+/* -------------------------------------------------------------------------- */
+/*                                CONFIG                                      */
+/* -------------------------------------------------------------------------- */
+
+const HIT_THRESHOLDS = [60, 70, 80, 90, 100];
+
+/* -------------------------------------------------------------------------- */
+/*                                  HELPERS                                   */
+/* -------------------------------------------------------------------------- */
+
+function computeSummary(team: AFLTeam) {
+  const scores = team.scores;
+  const min = Math.min(...scores);
+  const max = Math.max(...scores);
+  const total = scores.reduce((a, b) => a + b, 0);
+  const avg = +(total / scores.length).toFixed(1);
+  return { min, max, total, avg };
 }
 
-function stdDev(values: number[]): number {
-  if (!values.length) return 0;
-  const avg = average(values);
-  const variance =
-    values.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / values.length;
-  return Math.sqrt(variance);
-}
-
-function summarise(values: number[]) {
-  const avgVal = average(values);
-  const last5Arr = values.slice(-5);
-  const last5Val = average(last5Arr);
-
-  const hit100 =
-    (values.filter((v) => v >= 100).length / values.length || 0) * 100;
-  const hit110 =
-    (values.filter((v) => v >= 110).length / values.length || 0) * 100;
-
-  const volatility = stdDev(values); // higher = more volatile
-  const rawConsistency = Math.max(0, 40 - volatility * 4); // maps typical 0–10 stdev → ~0–40
-  const consistencyScore = Math.max(
-    5,
-    Math.min(95, 60 + rawConsistency) // cluster around 60–95 for nice bars
-  );
-
-  let confidenceLabel: "High" | "Medium" | "Low";
-  if (consistencyScore >= 80) confidenceLabel = "High";
-  else if (consistencyScore >= 60) confidenceLabel = "Medium";
-  else confidenceLabel = "Low";
-
-  return {
-    avg: Math.round(avgVal),
-    last5: Math.round(last5Val),
-    hit100: Math.round(hit100),
-    hit110: Math.round(hit110),
-    consistencyScore,
-    confidenceLabel,
-  };
-}
-
-function getLensSeries(team: TeamRow, lens: StatLens): number[] {
-  switch (lens) {
-    case "Fantasy":
-      return team.fantasy;
-    case "Offence":
-      return team.offence;
-    case "Defence":
-      return team.defence;
-    case "Disposals":
-      return team.disposals;
-    case "Goals":
-      return team.goals;
-  }
-}
-
-function difficultyLabel(d: 1 | 2 | 3) {
-  if (d === 1) return "Favourable";
-  if (d === 2) return "Neutral";
-  return "Tough";
-}
-
-function difficultyColour(d: 1 | 2 | 3) {
-  if (d === 1) return "text-emerald-300";
-  if (d === 2) return "text-yellow-300";
-  return "text-red-300";
-}
-
-//
-// SIMPLE SPARKLINE – full 23 rounds
-//
-const Sparkline: React.FC<{ values: number[] }> = ({ values }) => {
-  if (!values || !values.length) return null;
-
-  const width = 260;
-  const height = 60;
-  const padX = 8;
-  const padY = 6;
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-
-  const points = values.map((v, i) => {
-    const x = padX + (i / Math.max(values.length - 1, 1)) * (width - padX * 2);
-    const y =
-      padY + (1 - (v - min) / range) * (height - padY * 2);
-    return { x, y };
+function computeHitRates(team: AFLTeam) {
+  const scores = team.scores;
+  return HIT_THRESHOLDS.map((t) => {
+    const count = scores.filter((s) => s >= t).length;
+    return Math.round((count / scores.length) * 100);
   });
+}
 
-  const d = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
+// Green → Yellow → Red mapping
+function getHitRateColor(value: number) {
+  if (value >= 100) return "text-emerald-300";
+  if (value >= 90) return "text-lime-300";
+  if (value >= 75) return "text-lime-200";
+  if (value >= 60) return "text-yellow-300";
+  if (value >= 30) return "text-amber-300";
+  if (value >= 15) return "text-orange-300";
+  return "text-red-400";
+}
 
+/* -------------------------------------------------------------------------- */
+/*                              TABLE CELLS                                    */
+/* -------------------------------------------------------------------------- */
+
+function HeaderCell({ children, className }: any) {
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="h-10 w-full"
-      preserveAspectRatio="none"
+    <th
+      className={`border-b border-neutral-800/80 bg-gradient-to-b from-black/98 to-black/94
+      px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.16em]
+      text-neutral-400 ${className ?? ""}`}
     >
-      <path
-        d={d}
-        fill="none"
-        stroke="rgba(250,250,250,0.9)"
-        strokeWidth={1.4}
-        strokeLinecap="round"
-      />
-    </svg>
+      {children}
+    </th>
   );
-};
+}
 
-//
-// MAIN COMPONENT
-//
-const TeamMasterTable: React.FC = () => {
-  const [lens, setLens] = useState<StatLens>("Fantasy");
-  const [visibleCount, setVisibleCount] = useState(8);
-
-  const visibleTeams = useMemo(
-    () => TEAMS.slice(0, visibleCount),
-    [visibleCount]
+function BodyCell({ value, className, compact, blurClass }: any) {
+  return (
+    <td
+      className={`border-b border-neutral-900/80 bg-black/80 px-2.5
+      ${compact ? "py-2" : "py-2.5"} text-[11px] text-neutral-200
+      ${blurClass ?? ""} ${className ?? ""}`}
+    >
+      {value}
+    </td>
   );
-  const hasMore = visibleCount < TEAMS.length;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            MOBILE TEAM CARD                                 */
+/* -------------------------------------------------------------------------- */
+
+function MobileTeamCard({ team, index, blurClass, onOpen }: any) {
+  const summary = computeSummary(team);
+  const last = team.scores.slice(-6);
 
   return (
-    <section className="mt-12 rounded-3xl border border-yellow-500/25 bg-gradient-to-b from-black via-neutral-950 to-black px-5 py-8 shadow-[0_0_40px_rgba(0,0,0,0.65)] md:px-6 md:py-10">
+    <div
+      className={`relative rounded-2xl border border-neutral-800/80
+      bg-gradient-to-b from-black/95 via-black/90 to-black px-4 py-3
+      shadow-[0_0_40px_rgba(0,0,0,0.7)] ${blurClass}`}
+    >
       {/* Header */}
-      <div className="mb-8 flex flex-col gap-4 md:mb-10 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-3 max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-yellow-300 shadow-[0_0_18px_rgba(250,204,21,0.45)]">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Team Master Ledger</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full
+          border border-neutral-700/80 bg-black/80 text-[11px] text-neutral-200">
+            {index + 1}
           </div>
-          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
-            Full-season team ledger, hit-rates & confidence metrics
-          </h2>
-          <p className="text-sm text-zinc-400">
-            23-round performance grid with hit-rates, rolling form and
-            consistency markers for each club, across multiple stat lenses.
-          </p>
+
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: team.colours.primary }}
+              />
+              <span className="text-[13px] font-medium text-neutral-50">
+                {team.name}
+              </span>
+            </div>
+            <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+              {team.code}
+            </span>
+          </div>
         </div>
 
-        {/* Stat lens + helper */}
-        <div className="flex flex-col items-start gap-2 text-xs md:items-end">
-          <p className="uppercase tracking-[0.18em] text-yellow-200/80 font-semibold">
-            Stat Lens
-          </p>
-          <div className="inline-flex flex-wrap gap-1.5 rounded-full bg-white/5 p-1">
-            {(["Fantasy", "Offence", "Defence", "Disposals", "Goals"] as StatLens[]).map(
-              (type) => {
-                const active = lens === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setLens(type)}
-                    className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
-                      active
-                        ? "bg-yellow-400 text-black shadow-[0_0_22px_rgba(250,204,21,0.45)]"
-                        : "bg-transparent text-neutral-300 hover:bg-white/10"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                );
-              }
-            )}
+        <div className="text-right text-[11px] text-neutral-200">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+            Avg score
           </div>
-          <p className="mt-1 max-w-xs text-[0.7rem] text-zinc-500 text-right">
-            Hit-rates & extremes (🔥 / ❄️) are tuned primarily to{" "}
-            <span className="text-yellow-200">Fantasy</span> style outputs.
-          </p>
+          <div className="mt-0.5 text-sm font-semibold text-yellow-200">
+            {summary.avg}
+          </div>
+        </div>
+      </div>
+
+      {/* Last rounds spark blocks */}
+      <div className="mt-3 overflow-x-auto">
+        <div className="flex gap-2 pb-1">
+          {last.map((value, i) => {
+            const labelIndex = ROUND_LABELS.length - last.length + i;
+            return (
+              <div key={i} className="flex min-w-[46px] flex-col items-center">
+                <span className="text-[9px] text-neutral-500">
+                  {ROUND_LABELS[labelIndex]}
+                </span>
+                <div
+                  className="mt-1 flex h-8 w-10 items-center justify-center
+                rounded-md bg-neutral-950/80 text-[11px] text-neutral-100"
+                >
+                  {value}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="text-[10px] text-neutral-400">
+          Tap insights for full trend analysis.
+        </div>
+
+        <Button
+          size="sm"
+          onClick={onOpen}
+          className="rounded-full bg-yellow-400 px-3 py-1 text-[11px]
+          font-semibold text-black shadow-[0_0_24px_rgba(250,204,21,0.9)]
+          hover:bg-yellow-300"
+        >
+          View insights
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               MAIN TABLE                                    */
+/* -------------------------------------------------------------------------- */
+
+export default function TeamMasterTable() {
+  const { isPremium } = useAuth();
+  const [compactMode, setCompactMode] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<AFLTeam | null>(null);
+
+  // Sort by total points scored
+  const teams = useMemo(() => {
+    return [...MOCK_TEAMS].sort((a, b) => {
+      const A = a.scores.reduce((x, y) => x + y, 0);
+      const B = b.scores.reduce((x, y) => x + y, 0);
+      return B - A;
+    });
+  }, []);
+
+  return (
+    <>
+      {/* HEADER */}
+      <div className="rounded-3xl border border-neutral-800/80 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-4 shadow-[0_0_60px_rgba(0,0,0,0.9)]">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/15 via-yellow-500/5 to-transparent px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+                Team Master Table
+              </span>
+            </div>
+            <h3 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
+              Season scoring ledger & hit-rate grid
+            </h3>
+            <p className="mt-2 max-w-2xl text-xs text-neutral-400">
+              Full AFL club scoring dataset with round-by-round output, summary statistics
+              and hit-rate milestones. Sorted by total points scored this season.
+            </p>
+          </div>
+
+          {/* Desktop compact toggle */}
+          <div className="hidden items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-3 py-1.5 md:flex">
+            <Switch
+              checked={compactMode}
+              onCheckedChange={setCompactMode}
+              className="data-[state=checked]:bg-yellow-400"
+            />
+            <span className="text-[11px] font-medium text-neutral-100">
+              Compact (hide rounds)
+            </span>
+          </div>
+        </div>
+
+        {/* Search + filters */}
+        <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {/* Search */}
+          <div className="flex flex-1 items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-3 py-1.5 text-[11px] text-neutral-300">
+            <Search className="h-3.5 w-3.5 text-yellow-300" />
+            <input
+              type="text"
+              disabled
+              placeholder="Search clubs (Neeko+ only)"
+              className="w-full bg-transparent text-xs text-neutral-500 placeholder:text-neutral-500 focus:outline-none"
+            />
+            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-950 px-2 py-0.5 text-[10px] text-neutral-300">
+              <Lock className="h-3 w-3 text-yellow-300" />
+              Neeko+
+            </span>
+          </div>
+
+          {/* Round filter */}
+          <div className="flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-3 py-1.5 text-[11px] text-neutral-300">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+              Round
+            </span>
+            <button
+              type="button"
+              disabled
+              className="rounded-full bg-neutral-900/80 px-2 py-0.5 text-[11px] text-neutral-100"
+            >
+              All rounds
+            </button>
+            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-950 px-2 py-0.5 text-[10px] text-neutral-300">
+              <Lock className="h-3 w-3 text-yellow-300" />
+              Neeko+
+            </span>
+          </div>
         </div>
       </div>
 
       {/* DESKTOP TABLE */}
-      <div className="hidden md:block overflow-hidden rounded-3xl border border-white/10 bg-black/60 backdrop-blur-xl">
-        <div className="relative max-h-[720px] overflow-auto">
-          <table className="min-w-[1350px] border-separate border-spacing-0 text-[11px] text-zinc-200">
+      <div className="mt-8 hidden rounded-3xl border border-neutral-800/80 bg-neutral-950/95 md:block">
+        <div className="w-full overflow-x-auto">
+          <table className="border-separate border-spacing-0 text-[11px] text-neutral-100 min-w-[1200px]">
             <thead>
-              <tr className="sticky top-0 z-20 bg-black/95 text-[10px] uppercase tracking-[0.15em] text-zinc-400">
-                {/* Team */}
-                <th className="sticky left-0 z-30 border-b border-zinc-800 bg-black/95 px-4 py-3 text-left">
+              <tr className="sticky top-0 z-20 bg-black/95 backdrop-blur-sm">
+                {/* Sticky left team header */}
+                <HeaderCell className="sticky left-0 z-30 w-64 border-r border-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80">
                   Team
-                </th>
+                </HeaderCell>
 
                 {/* Rounds */}
-                {ROUND_LABELS.map((r) => (
-                  <th
-                    key={r}
-                    className="border-b border-zinc-800 px-2 py-3 text-center whitespace-nowrap"
-                  >
-                    {r}
-                  </th>
-                ))}
+                {!compactMode &&
+                  ROUND_LABELS.map((round) => (
+                    <HeaderCell key={round}>{round}</HeaderCell>
+                  ))}
 
-                {/* Summary cols */}
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  Sparkline
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center">
-                  Avg
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  Last 5
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  Consistency
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  Confidence
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  100+ %
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  110+ %
-                </th>
-                <th className="border-b border-zinc-800 px-3 py-3 text-center whitespace-nowrap">
-                  Next 3
-                </th>
+                {/* Summary */}
+                <HeaderCell className="w-16 text-right">Min</HeaderCell>
+                <HeaderCell className="w-16 text-right">Max</HeaderCell>
+                <HeaderCell className="w-20 text-right">Avg</HeaderCell>
+                <HeaderCell className="w-20 text-right">Total</HeaderCell>
+
+                {/* Hit-rates */}
+                {HIT_THRESHOLDS.map((t) => (
+                  <HeaderCell className="w-16 text-right" key={t}>
+                    {t}+
+                  </HeaderCell>
+                ))}
               </tr>
             </thead>
 
             <tbody>
-              {visibleTeams.map((team, rowIndex) => {
-                const values = getLensSeries(team, lens);
-                const summary = summarise(values);
-                const blurred = rowIndex >= 8; // premium blur after first 8 rows
+              {teams.map((team, index) => {
+                const summary = computeSummary(team);
+                const hitRates = computeHitRates(team);
 
-                // confidence colour
-                const confidenceColour =
-                  summary.confidenceLabel === "High"
-                    ? "text-emerald-300"
-                    : summary.confidenceLabel === "Medium"
-                    ? "text-yellow-300"
-                    : "text-red-300";
+                const blurClass =
+                  !isPremium && index >= 3
+                    ? "blur-[3px] brightness-[0.65]"
+                    : "";
 
                 return (
                   <tr
-                    key={team.team}
-                    className={`transition ${
-                      rowIndex % 2 === 0 ? "bg-white/5" : "bg-transparent"
-                    } hover:bg-white/10`}
+                    key={team.id}
+                    className="hover:bg-neutral-900/55 transition-colors"
                   >
-                    {/* TEAM (sticky) */}
+                    {/* Sticky Team Cell */}
                     <td
-                      className={`sticky left-0 z-10 border-r border-zinc-800 bg-black/80 px-4 py-3 text-left text-[0.85rem] font-semibold ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
+                      className={`sticky left-0 z-10 w-64 border-b border-neutral-900/80 border-r border-r-neutral-900/80 bg-gradient-to-r from-black/98 via-black/94 to-black/80 px-4 ${
+                        compactMode ? "py-2" : "py-2.5"
+                      } ${blurClass}`}
                     >
-                      {team.team}
-                    </td>
+                      <button
+                        className="group flex w-full items-center gap-3 text-left"
+                        onClick={() => setSelectedTeam(team)}
+                      >
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/80 bg-black/80 text-[11px] text-neutral-200">
+                          {index + 1}
+                        </div>
 
-                    {/* ROUND VALUES */}
-                    {values.map((v, idx) => {
-                      const showIcon =
-                        lens === "Fantasy" &&
-                        (v >= 110 || v <= 80);
-                      const extremeIcon =
-                        v >= 110 ? "🔥" : v <= 80 ? "❄️" : "";
-
-                      return (
-                        <td
-                          key={`${team.team}-${idx}`}
-                          className={`px-2 py-2 text-center ${
-                            blurred ? "blur-[3px] brightness-75" : ""
-                          }`}
-                        >
-                          <span className="inline-flex items-center justify-center gap-1">
-                            {showIcon && (
-                              <span className="text-[0.7rem]">
-                                {extremeIcon}
-                              </span>
-                            )}
-                            <span>{v}</span>
-                          </span>
-                        </td>
-                      );
-                    })}
-
-                    {/* SPARKLINE */}
-                    <td
-                      className={`px-3 py-2 ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      <Sparkline values={values} />
-                    </td>
-
-                    {/* AVG */}
-                    <td
-                      className={`px-3 py-2 text-center font-semibold text-yellow-300 ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      {summary.avg}
-                    </td>
-
-                    {/* LAST 5 */}
-                    <td
-                      className={`px-3 py-2 text-center text-yellow-200 ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      {summary.last5}
-                    </td>
-
-                    {/* CONSISTENCY BAR */}
-                    <td
-                      className={`px-3 py-2 ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      <div className="flex flex-col gap-1 text-[0.7rem] text-zinc-400">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
-                          <div
-                            className={`h-full ${
-                              summary.consistencyScore >= 80
-                                ? "bg-emerald-400"
-                                : summary.consistencyScore >= 60
-                                ? "bg-yellow-400"
-                                : "bg-red-400"
-                            }`}
-                            style={{
-                              width: `${summary.consistencyScore}%`,
-                            }}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: team.colours.primary }}
                           />
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-medium text-neutral-50">
+                              {team.name}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                              {team.code}
+                            </span>
+                          </div>
                         </div>
-                        <span>{summary.consistencyScore.toFixed(0)} / 100</span>
-                      </div>
+
+                        <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
+                      </button>
                     </td>
 
-                    {/* CONFIDENCE LABEL */}
-                    <td
-                      className={`px-3 py-2 text-center font-semibold ${confidenceColour} ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      {summary.confidenceLabel}
-                    </td>
+                    {/* Rounds */}
+                    {!compactMode &&
+                      team.scores.map((v, i) => (
+                        <BodyCell key={i} value={v} blurClass={blurClass} compact={compactMode} />
+                      ))}
 
-                    {/* HIT RATES */}
-                    <td
-                      className={`px-3 py-2 text-center text-emerald-300 ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      {summary.hit100}%
-                    </td>
-                    <td
-                      className={`px-3 py-2 text-center text-emerald-300 ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      {summary.hit110}%
-                    </td>
+                    {/* Summary */}
+                    <BodyCell
+                      value={summary.min}
+                      className="text-right text-neutral-300"
+                      blurClass={blurClass}
+                    />
+                    <BodyCell
+                      value={summary.max}
+                      className="text-right text-neutral-300"
+                      blurClass={blurClass}
+                    />
+                    <BodyCell
+                      value={summary.avg}
+                      className="text-right text-yellow-200"
+                      blurClass={blurClass}
+                    />
+                    <BodyCell
+                      value={summary.total}
+                      className="text-right text-neutral-300"
+                      blurClass={blurClass}
+                    />
 
-                    {/* FIXTURE DIFFICULTY */}
-                    <td
-                      className={`px-3 py-2 text-center ${
-                        blurred ? "blur-[3px] brightness-75" : ""
-                      }`}
-                    >
-                      <div className="flex flex-col items-center gap-1 text-[0.72rem]">
-                        <div className="flex gap-0.5">
-                          {[0, 1, 2].map((i) => (
-                            <span
-                              key={i}
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                team.upcomingDifficulty === 1
-                                  ? "bg-emerald-400"
-                                  : team.upcomingDifficulty === 2
-                                  ? "bg-yellow-400"
-                                  : "bg-red-400"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span
-                          className={difficultyColour(team.upcomingDifficulty)}
-                        >
-                          {difficultyLabel(team.upcomingDifficulty)}
-                        </span>
-                      </div>
-                    </td>
+                    {/* Hit rates */}
+                    {hitRates.map((rate, i) => (
+                      <BodyCell
+                        key={i}
+                        value={`${rate}%`}
+                        className={`text-right ${getHitRateColor(rate)}`}
+                        blurClass={blurClass}
+                      />
+                    ))}
                   </tr>
                 );
               })}
             </tbody>
           </table>
-
-          {/* Blur gradient over locked rows */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/95 to-transparent" />
-
-          {/* Unlock CTA */}
-          <div className="pointer-events-auto absolute inset-x-0 bottom-3 flex justify-center">
-            <button className="inline-flex items-center gap-2 rounded-full border border-yellow-500/70 bg-black/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200 shadow-[0_0_20px_rgba(250,200,0,0.35)]">
-              <Lock className="h-3.5 w-3.5" />
-              Unlock full ledger with Neeko+
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* MOBILE CARDS */}
-      <div className="mt-5 space-y-5 md:hidden">
-        {visibleTeams.map((team, rowIndex) => {
-          const values = getLensSeries(team, lens);
-          const summary = summarise(values);
-          const blurred = rowIndex >= 8;
+      {/* MOBILE LIST */}
+      <div className="mt-8 md:hidden">
+        <div className="space-y-3">
+          {teams.map((team, index) => {
+            const blurClass =
+              !isPremium && index >= 3
+                ? "blur-[3px] brightness-[0.65]"
+                : "";
 
-          const confidenceColour =
-            summary.confidenceLabel === "High"
-              ? "text-emerald-300"
-              : summary.confidenceLabel === "Medium"
-              ? "text-yellow-300"
-              : "text-red-300";
-
-          const hottest = Math.max(...values);
-          const coldest = Math.min(...values);
-          const hasExtreme =
-            (lens === "Fantasy" && hottest >= 110) ||
-            (lens === "Fantasy" && coldest <= 80);
-
-          return (
-            <div
-              key={team.team}
-              className={`rounded-2xl border border-zinc-800 bg-black/80 p-4 shadow-[0_0_26px_rgba(0,0,0,0.7)] ${
-                blurred ? "blur-[3px] brightness-75" : ""
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[0.85rem] font-semibold">{team.team}</p>
-                  <p className="mt-0.5 text-[0.7rem] text-zinc-500">
-                    {lens} • 23-round ledger
-                  </p>
-                </div>
-                {hasExtreme && (
-                  <div className="flex items-center gap-1 text-[0.7rem] text-yellow-300">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Extremes
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3">
-                <Sparkline values={values} />
-              </div>
-
-              <div className="mt-3 flex justify-between text-[0.75rem] text-zinc-300">
-                <div>
-                  <p className="text-[0.65rem] text-zinc-500">Avg</p>
-                  <p className="font-semibold text-yellow-300">
-                    {summary.avg}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[0.65rem] text-zinc-500">Last 5</p>
-                  <p className="font-semibold text-yellow-200">
-                    {summary.last5}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[0.65rem] text-zinc-500">100+ / 110+</p>
-                  <p className="font-semibold text-emerald-300">
-                    {summary.hit100}% / {summary.hit110}%
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-3 text-[0.72rem]">
-                <div className="flex-1">
-                  <p className="text-[0.65rem] text-zinc-500">Consistency</p>
-                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
-                    <div
-                      className={`h-full ${
-                        summary.consistencyScore >= 80
-                          ? "bg-emerald-400"
-                          : summary.consistencyScore >= 60
-                          ? "bg-yellow-400"
-                          : "bg-red-400"
-                      }`}
-                      style={{ width: `${summary.consistencyScore}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[0.65rem] text-zinc-500">Confidence</p>
-                  <p className={`font-semibold ${confidenceColour}`}>
-                    {summary.confidenceLabel}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between text-[0.7rem] text-zinc-400">
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`inline-flex h-1.5 w-1.5 rounded-full ${
-                      team.upcomingDifficulty === 1
-                        ? "bg-emerald-400"
-                        : team.upcomingDifficulty === 2
-                        ? "bg-yellow-400"
-                        : "bg-red-400"
-                    }`}
-                  />
-                  <span className={difficultyColour(team.upcomingDifficulty)}>
-                    {difficultyLabel(team.upcomingDifficulty)} next 3
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {visibleCount >= 8 && (
-          <button className="mt-1 w-full text-center text-[0.7rem] text-yellow-300">
-            Unlock full table with Neeko+
-          </button>
-        )}
+            return (
+              <MobileTeamCard
+                key={team.id}
+                team={team}
+                index={index}
+                blurClass={blurClass}
+                onOpen={() => setSelectedTeam(team)}
+              />
+            );
+          })}
+        </div>
       </div>
 
-      {/* Show More */}
-      {hasMore && (
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={() =>
-              setVisibleCount((prev) => Math.min(prev + 3, TEAMS.length))
-            }
-            className="rounded-full border border-yellow-500/40 bg-black/60 px-5 py-2 text-xs font-semibold text-yellow-300 shadow-[0_0_18px_rgba(255,200,0,0.25)] hover:bg-black/80 transition"
-          >
-            Show More Teams
-          </button>
+      {/* CTA */}
+      <div className="mt-16 text-center flex flex-col items-center gap-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+          <Sparkles className="h-3 w-3" />
+          <span>Neeko+ Team Grid</span>
         </div>
+
+        <p className="max-w-xl text-xs text-neutral-300/90">
+          Unlock deeper hit-rates, fixture difficulty modelling and predictive windows.
+        </p>
+
+        <Button
+          size="lg"
+          className="rounded-full bg-yellow-400 px-7 py-2 text-sm font-semibold text-black shadow-[0_0_40px_rgba(250,204,21,0.9)] hover:bg-yellow-300"
+        >
+          Get Neeko+
+        </Button>
+      </div>
+
+      {/* INSIGHTS OVERLAY */}
+      {selectedTeam && (
+        <TeamInsightsPanel team={selectedTeam} onClose={() => setSelectedTeam(null)} />
       )}
-    </section>
+    </>
   );
-};
-
-export default TeamMasterTable;
+}
