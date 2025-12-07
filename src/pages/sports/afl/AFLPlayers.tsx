@@ -25,17 +25,19 @@ export default function AFLPlayersPage() {
     ];
 
     const observer = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        }),
-      {
-        threshold: 0.28,
-        rootMargin: "-20% 0px -40% 0px",
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        setActiveSection(entry.target.id);
       }
-    );
+    });
+  },
+  {
+    threshold: 0.15,
+    rootMargin: "-10% 0px -55% 0px",
+  }
+);
+
 
     ids.forEach((id) => {
       const el = document.getElementById(id);
