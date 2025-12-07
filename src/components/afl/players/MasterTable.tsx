@@ -1,11 +1,7 @@
-import React, { useMemo, useState } from "react";
-import {
-  ChevronRight,
-  Lock,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react";
+// src/components/afl/players/MasterTable.tsx
+import React, { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { ChevronRight, Lock, Search, Sparkles, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -427,6 +423,150 @@ function InsightsContent({ player, selectedStat }: InsightsContentProps) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                        OVERLAY (PORTAL: DESKTOP + MOBILE)                  */
+/* -------------------------------------------------------------------------- */
+
+type InsightsOverlayProps = {
+  player: PlayerRow;
+  selectedStat: StatLens;
+  onClose: () => void;
+  onLensChange: (lens: StatLens) => void;
+};
+
+function InsightsOverlay({
+  player,
+  selectedStat,
+  onClose,
+  onLensChange,
+}: InsightsOverlayProps) {
+  // lock scroll while overlay is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div className="flex h-full w-full items-stretch justify-end">
+        {/* Desktop fixed right-side panel */}
+        <div
+          className="hidden h-full w-[480px] max-w-full border-l border-yellow-500/30 bg-gradient-to-b from-neutral-950 via-black to-black px-5 py-4 shadow-[0_0_60px_rgba(250,204,21,0.7)] md:block"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
+                Player insights
+              </div>
+              <div className="mt-1 text-sm font-semibold text-neutral-50">
+                {player.name}
+              </div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                {player.team} • {player.role}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Stat lens pills */}
+          <div className="mb-4 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px] text-neutral-200">
+            {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
+              <button
+                key={stat}
+                type="button"
+                onClick={() => onLensChange(stat)}
+                className={`rounded-full px-3 py-1.5 ${
+                  selectedStat === stat
+                    ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
+                    : "bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800"
+                }`}
+              >
+                {stat}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-[calc(100%-120px)] overflow-y-auto pr-1">
+            <InsightsContent player={player} selectedStat={selectedStat} />
+          </div>
+        </div>
+
+        {/* Mobile bottom-sheet card */}
+        <div
+          className="flex w-full items-end justify-center md:hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 py-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]">
+            {/* drag handle */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="mx-auto mb-3 mt-1 flex h-1.5 w-10 items-center justify-center rounded-full bg-yellow-200/70"
+            >
+              <span className="sr-only">Close</span>
+            </button>
+
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
+                  Player insights
+                </div>
+                <div className="mt-1 text-sm font-semibold text-neutral-50">
+                  {player.name}
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                  {player.team} • {player.role}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px] text-neutral-200">
+              {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
+                <button
+                  key={stat}
+                  type="button"
+                  onClick={() => onLensChange(stat)}
+                  className={`rounded-full px-3 py-1.5 ${
+                    selectedStat === stat
+                      ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
+                      : "bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800"
+                  }`}
+                >
+                  {stat}
+                </button>
+              ))}
+            </div>
+
+            <div className="max-h-[65vh] overflow-y-auto pb-2">
+              <InsightsContent player={player} selectedStat={selectedStat} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              MOBILE LIST CARD                              */
 /* -------------------------------------------------------------------------- */
 
@@ -520,6 +660,12 @@ export default function MasterTable() {
   const [compactMode, setCompactMode] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerRow | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // ensure we only portal on client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const players = useMemo(() => MOCK_PLAYERS, []);
   const visiblePlayers = useMemo(
@@ -871,122 +1017,19 @@ export default function MasterTable() {
         </Button>
       </div>
 
-      {/* INSIGHTS OVERLAY (DESKTOP + MOBILE) */}
-      {selectedPlayer && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md"
-          onClick={handleCloseInsights}
-        >
-          <div className="flex h-full w-full items-stretch justify-end">
-            {/* Desktop right-side panel (fixed 480px) */}
-            <div
-              className="hidden h-full w-[480px] max-w-full border-l border-yellow-500/30 bg-gradient-to-b from-neutral-950 via-black to-black px-5 py-4 shadow-[0_0_60px_rgba(250,204,21,0.7)] md:block"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
-                    Player insights
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-neutral-50">
-                    {selectedPlayer.name}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-                    {selectedPlayer.team} • {selectedPlayer.role}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCloseInsights}
-                  className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Stat lens pills inside overlay too */}
-              <div className="mb-4 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px] text-neutral-200">
-                {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
-                  <button
-                    key={stat}
-                    type="button"
-                    onClick={() => setSelectedStat(stat)}
-                    className={`rounded-full px-3 py-1.5 ${
-                      selectedStat === stat
-                        ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                        : "bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800"
-                    }`}
-                  >
-                    {stat}
-                  </button>
-                ))}
-              </div>
-
-              <div className="h-[calc(100%-120px)] overflow-y-auto pr-1">
-                <InsightsContent
-                  player={selectedPlayer}
-                  selectedStat={selectedStat}
-                />
-              </div>
-            </div>
-
-            {/* Mobile popup card (slide-up) */}
-            <div
-              className="flex w-full items-end justify-center md:hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 py-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]">
-                {/* drag handle */}
-                <div className="mx-auto mb-3 mt-1 h-1.5 w-10 rounded-full bg-yellow-200/70" />
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
-                      Player insights
-                    </div>
-                    <div className="mt-1 text-sm font-semibold text-neutral-50">
-                      {selectedPlayer.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-                      {selectedPlayer.team} • {selectedPlayer.role}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCloseInsights}
-                    className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px] text-neutral-200">
-                  {(["Fantasy", "Disposals", "Goals"] as const).map((stat) => (
-                    <button
-                      key={stat}
-                      type="button"
-                      onClick={() => setSelectedStat(stat)}
-                      className={`rounded-full px-3 py-1.5 ${
-                        selectedStat === stat
-                          ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                          : "bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800"
-                      }`}
-                    >
-                      {stat}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="max-h-[65vh] overflow-y-auto pb-2">
-                  <InsightsContent
-                    player={selectedPlayer}
-                    selectedStat={selectedStat}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* INSIGHTS OVERLAY VIA PORTAL */}
+      {isMounted &&
+        selectedPlayer &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <InsightsOverlay
+            player={selectedPlayer}
+            selectedStat={selectedStat}
+            onClose={handleCloseInsights}
+            onLensChange={setSelectedStat}
+          />,
+          document.body
+        )}
     </>
   );
 }
