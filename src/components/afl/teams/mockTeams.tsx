@@ -34,6 +34,12 @@ export type AFLTeam = {
   midfieldTrend: number[];
 };
 
+// Round labels (R1–R23) for team-level tables / panels
+export const ROUND_LABELS = Array.from({ length: 23 }, (_, i) => `R${i + 1}`);
+
+// Alias used by TeamMasterTable / TeamInsightsPanel
+export type TeamRow = AFLTeam;
+
 // AFL Club List
 export const TEAM_LIST = [
   "Carlton",
@@ -88,10 +94,12 @@ const TEAM_COLOURS = [
 const randomScore = () => Math.floor(60 + Math.random() * 70); // 60–130
 const randomMargin = () => Math.floor(-40 + Math.random() * 90); // -40 to +50
 const randomRating = () => Math.floor(40 + Math.random() * 60); // 40–100
-const randomClearances = () => Array.from({ length: 23 }, () => Math.floor(35 + Math.random() * 35)); // 35–70%
+const randomClearances = () =>
+  Array.from({ length: 23 }, () => Math.floor(35 + Math.random() * 35)); // 35–70%
 
 // Trend sparkline: values 0–100
-const randomTrend = () => Array.from({ length: 12 }, () => Math.floor(40 + Math.random() * 45));
+const randomTrend = () =>
+  Array.from({ length: 12 }, () => Math.floor(40 + Math.random() * 45));
 
 // Generate all teams with realistic mock data
 export const MOCK_TEAMS: AFLTeam[] = TEAM_LIST.map((name, idx) => {
