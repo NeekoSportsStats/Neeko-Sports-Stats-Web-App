@@ -165,10 +165,12 @@ function computeHitRates(player: PlayerRow, lens: StatLens) {
 
 /** Text-only colour for hit-rate %s in the table */
 function getHitRateColorClasses(value: number) {
-  if (value >= 75) return "text-lime-300";
-  if (value >= 50) return "text-yellow-300";
-  if (value >= 30) return "text-amber-300";
-  return "text-red-300";
+  if (value === 100) return "text-lime-300";       // full green (perfect)
+  if (value >= 80) return "text-lime-200";         // strong green
+  if (value >= 60) return "text-yellow-300";       // yellow-green
+  if (value >= 40) return "text-amber-300";        // yellow-orange
+  if (value >= 20) return "text-orange-300";       // orange
+  return "text-red-400";                           // <15% deep red
 }
 
 /* -------------------------------------------------------------------------- */
