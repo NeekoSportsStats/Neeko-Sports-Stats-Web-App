@@ -1,5 +1,5 @@
 // src/pages/sports/afl/AFLTeams.tsx
-// AFL Teams Page — identical layout structure to AFLPlayers page
+// AFL Teams Page — layout structure for AFL team analytics
 
 import React from "react";
 import TeamMomentumPulse from "@/components/afl/teams/TeamMomentumPulse";
@@ -19,8 +19,8 @@ export default function AFLTeams() {
           AFL Team Analytics
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-neutral-400">
-          League-wide team trends, momentum pulses, attack/defence shifts and full
-          season scoring tables.
+          League-wide team trends, momentum pulses, attack/defence shifts and
+          full season scoring tables.
         </p>
       </header>
 
