@@ -1,4 +1,5 @@
 // src/components/afl/teams/TeamMomentumPulse.tsx
+// AFL Team Round Momentum — Premium ESPN / Champion Data style makeover
 
 import React, { useMemo } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
@@ -8,12 +9,7 @@ import { Flame, TrendingUp, Shield, Activity } from "lucide-react";
 /*                       COLOUR UTILITIES FOR GLOW LINES                      */
 /* -------------------------------------------------------------------------- */
 
-type SparklineVariant =
-  | "neutral"
-  | "attack"
-  | "defence"
-  | "momentum"
-  | "volatility";
+type SparklineVariant = "neutral" | "attack" | "defence" | "momentum" | "volatility";
 
 function hexToRgb(hex: string) {
   const clean = hex.replace("#", "");
@@ -25,13 +21,13 @@ function hexToRgb(hex: string) {
   return { r, g, b };
 }
 
-function lightenHex(hex: string, amount = 0.35) {
+function lightenHex(hex: string, amount = 0.3) {
   const rgb = hexToRgb(hex);
   if (!rgb) {
     return { r: 255, g: 255, b: 255 };
   }
-  const lightenChannel = (c: number) =>
-    Math.round(c + (255 - c) * Math.min(Math.max(amount, 0), 1));
+  const clamp = (v: number) => Math.max(0, Math.min(255, v));
+  const lightenChannel = (c: number) => clamp(c + (255 - c) * amount);
 
   return {
     r: lightenChannel(rgb.r),
@@ -48,7 +44,7 @@ function getSparklineColours(
   let baseHex = "#facc15"; // neutral / yellow
 
   if (variant === "attack") baseHex = "#fbbf24"; // amber
-  if (variant === "defence") baseHex = "#2dd4bf"; // teal
+  if (variant === "defence") baseHex = "#22c4b8"; // teal-ish
   if (variant === "momentum") baseHex = "#a3e635"; // lime
   if (variant === "volatility") baseHex = "#fb923c"; // orange
 
@@ -62,83 +58,123 @@ function getSparklineColours(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                        DATA SMOOTHING / NORMALISATION                      */
+/* -------------------------------------------------------------------------- */
+
+function smoothValues(values: number[], iterations = 2): number[] {
+  if (!values || values.length < 3) return values ?? [];
+  let out = values.slice();
+  for (let pass = 0; pass < iterations; pass++) {
+    const next = out.slice();
+    for (let i = 1; i < out.length - 1; i++) {
+      next[i] = (out[i - 1] + out[i] + out[i + 1]) / 3;
+    }
+    out = next;
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                            GLOW SPARKLINE (SVG)                            */
 /* -------------------------------------------------------------------------- */
 
-function Sparkline({
-  values,
-  variant = "neutral",
-  accentColorHex,
-}: {
+interface SparklineProps {
   values: number[];
   variant?: SparklineVariant;
   accentColorHex?: string;
-}) {
-  const { line, glow } = getSparklineColours(accentColorHex, variant);
+}
 
-  const points = useMemo(() => {
-    if (!values || values.length < 2) {
-      // Fallback: simple midline
-      return "0,20 100,20";
+function Sparkline({ values, variant = "neutral", accentColorHex }: SparklineProps) {
+  const { points, line, glow } = useMemo(() => {
+    const smoothed = smoothValues(values);
+    if (!smoothed || smoothed.length < 2) {
+      return {
+        points: "0,20 100,20",
+        line: "rgb(250,250,250)",
+        glow: "rgba(250,250,250,0.35)",
+      };
     }
 
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1; // avoid divide-by-zero
+    const min = Math.min(...smoothed);
+    const max = Math.max(...smoothed);
+    const range = max - min || 1;
 
-    const paddingTop = 6;
-    const paddingBottom = 6;
+    const paddingTop = 8;
+    const paddingBottom = 8;
     const height = 40;
     const verticalSpace = height - paddingTop - paddingBottom;
 
-    return values
+    const pts = smoothed
       .map((v, idx) => {
         const x =
-          values.length === 1
+          smoothed.length === 1
             ? 50
-            : (idx / (values.length - 1)) * 100; // 0–100
+            : (idx / (smoothed.length - 1)) * 100; // 0–100
         const normalized = (v - min) / range;
         const y =
           height - paddingBottom - normalized * verticalSpace; // invert for SVG coords
         return `${x.toFixed(2)},${y.toFixed(2)}`;
       })
       .join(" ");
-  }, [values]);
+
+    const colours = getSparklineColours(accentColorHex, variant);
+    return { points: pts, ...colours };
+  }, [values, variant, accentColorHex]);
 
   return (
-    <div className="relative h-14 w-full overflow-hidden rounded-xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-black to-black shadow-[0_0_20px_rgba(0,0,0,0.7)]">
-      {/* Soft vertical gradient / subtle sheen */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-white/5 opacity-30" />
+    <div className="relative h-14 w-full overflow-hidden rounded-xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black shadow-[0_0_18px_rgba(0,0,0,0.8)]">
+      {/* Subtle radial sheen */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_60%)] opacity-60" />
+      {/* Soft inner vignette */}
+      <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_18px_rgba(0,0,0,0.85)]" />
 
-      {/* SVG Sparkline with glow */}
+      {/* SVG Sparkline */}
       <svg
         className="relative h-full w-full"
         viewBox="0 0 100 40"
         preserveAspectRatio="none"
         style={{
-          filter: `drop-shadow(0 0 6px ${glow}) drop-shadow(0 0 14px ${glow})`,
+          filter: `drop-shadow(0 0 3px ${glow}) drop-shadow(0 0 7px ${glow})`,
         }}
       >
-        {/* Soft baseline */}
+        {/* Light grid (professional, not noisy) */}
         <line
           x1="0"
-          y1="32"
+          y1="30"
           x2="100"
-          y2="32"
-          stroke="rgba(148,163,184,0.25)"
-          strokeWidth={0.5}
+          y2="30"
+          stroke="rgba(148,163,184,0.22)"
+          strokeWidth={0.4}
           strokeDasharray="2 3"
         />
+        <line
+          x1="0"
+          y1="18"
+          x2="100"
+          y2="18"
+          stroke="rgba(148,163,184,0.12)"
+          strokeWidth={0.35}
+          strokeDasharray="1.5 3"
+        />
+        <line
+          x1="0"
+          y1="8"
+          x2="100"
+          y2="8"
+          stroke="rgba(148,163,184,0.08)"
+          strokeWidth={0.35}
+          strokeDasharray="1 4"
+        />
 
-        {/* Glow band (wider, low opacity) */}
+        {/* Glow band */}
         <polyline
           points={points}
           fill="none"
-          stroke={line}
-          strokeWidth={3.5}
+          stroke={glow}
+          strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={0.28}
+          opacity={0.35}
         />
 
         {/* Main line */}
@@ -146,7 +182,7 @@ function Sparkline({
           points={points}
           fill="none"
           stroke={line}
-          strokeWidth={1.6}
+          strokeWidth={1.05}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -183,7 +219,7 @@ function HeadlineCard({
   accentColorHex,
 }: HeadlineCardProps) {
   return (
-    <div className="rounded-2xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black p-5 shadow-[0_0_30px_rgba(0,0,0,0.7)] backdrop-blur-sm">
+    <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black px-5 pb-5 pt-4 shadow-[0_18px_40px_rgba(0,0,0,0.85)]">
       <div className="flex items-center justify-between gap-3">
         <div className={`flex items-center gap-2 ${accentClassName}`}>
           <Icon className="h-4 w-4" />
@@ -193,7 +229,7 @@ function HeadlineCard({
         </div>
 
         {metricLabel && metricValue && (
-          <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/80 bg-neutral-900/70 px-2 py-0.5">
+          <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/80 bg-neutral-900/80 px-2 py-0.5 shadow-[0_0_12px_rgba(0,0,0,0.8)]">
             <span className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
               {metricLabel}
             </span>
@@ -310,32 +346,47 @@ export default function TeamMomentumPulse() {
       : "text-neutral-400";
 
   return (
-    <section className="mt-8 rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-950/90 via-black/95 to-black p-6 shadow-[0_0_50px_rgba(0,0,0,0.6)]">
+    <section className="mt-8 rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-950/95 via-black/95 to-black px-6 pb-7 pt-6 shadow-[0_0_60px_rgba(0,0,0,0.75)]">
       {/* SECTION LABEL */}
-      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/15 via-yellow-500/5 to-transparent px-3 py-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent px-3 py-1 shadow-[0_0_18px_rgba(250,204,21,0.45)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.95)]" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
           Round Momentum Pulse
         </span>
       </div>
 
-      <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
-        League-wide momentum trends &amp; team signals
-      </h2>
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-neutral-50 md:text-2xl">
+            League-wide momentum trends &amp; team signals
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-xs text-neutral-400 md:text-[13px]">
+            Round-by-round scoring flow, defensive stability, movement indicators
+            and team-level momentum signals across all 18 AFL clubs.
+          </p>
+        </div>
 
-      <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-        Round-by-round scoring flow, defensive stability, movement indicators
-        and team-level momentum signals.
-      </p>
+        {/* Little "Pro" style tag to reinforce premium feel */}
+        <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/80 bg-neutral-900/80 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+          <span className="h-1 w-1 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />
+          <span>Live momentum model (mock data)</span>
+        </div>
+      </div>
 
       {/* LEAGUE-WIDE SPARKLINE */}
-      <div className="mt-6 rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/60 via-neutral-950 to-black p-5 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+      <div className="mt-6 rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-neutral-950 to-black px-5 pb-4 pt-4 shadow-[0_18px_40px_rgba(0,0,0,0.85)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-            League scoring pulse
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+              League scoring pulse
+            </span>
+            <span className="text-[11px] text-neutral-400">
+              Average points scored per club by round
+            </span>
           </div>
+
           <div className="flex flex-wrap items-center gap-2 text-[10px]">
-            <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/70 bg-neutral-900/80 px-2 py-0.5 text-neutral-300">
+            <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/70 bg-neutral-900/90 px-2 py-0.5 text-neutral-300 shadow-[0_0_12px_rgba(0,0,0,0.9)]">
               <span className="uppercase tracking-[0.16em] text-neutral-500">
                 Avg R23
               </span>
@@ -344,7 +395,7 @@ export default function TeamMomentumPulse() {
               </span>
             </div>
             <div
-              className={`inline-flex items-center gap-1 rounded-full bg-neutral-900/60 px-2 py-0.5 ${leagueDeltaClass}`}
+              className={`inline-flex items-center gap-1 rounded-full bg-neutral-900/80 px-2 py-0.5 ${leagueDeltaClass}`}
             >
               <span className="text-[9px] uppercase tracking-[0.16em]">
                 {leagueDeltaLabel}
@@ -352,6 +403,7 @@ export default function TeamMomentumPulse() {
             </div>
           </div>
         </div>
+
         <div className="mt-3">
           <Sparkline
             values={leagueAvgSpark}
