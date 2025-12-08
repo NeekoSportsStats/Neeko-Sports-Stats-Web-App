@@ -5,35 +5,153 @@ import { MOCK_TEAMS } from "./mockTeams";
 import { Flame, TrendingUp, Shield, Activity } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                         SPARKLINE PLACEHOLDER (REPLACE LATER)              */
+/*                       COLOUR UTILITIES FOR GLOW LINES                      */
 /* -------------------------------------------------------------------------- */
 
-type SparklineVariant = "neutral" | "attack" | "defence" | "momentum" | "volatility";
+type SparklineVariant =
+  | "neutral"
+  | "attack"
+  | "defence"
+  | "momentum"
+  | "volatility";
+
+function hexToRgb(hex: string) {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return null;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return { r, g, b };
+}
+
+function lightenHex(hex: string, amount = 0.35) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return { r: 255, g: 255, b: 255 };
+  }
+  const lightenChannel = (c: number) =>
+    Math.round(c + (255 - c) * Math.min(Math.max(amount, 0), 1));
+
+  return {
+    r: lightenChannel(rgb.r),
+    g: lightenChannel(rgb.g),
+    b: lightenChannel(rgb.b),
+  };
+}
+
+function getSparklineColours(
+  accentColorHex: string | undefined,
+  variant: SparklineVariant
+) {
+  // Fallback base colour per variant if no accent colour is provided
+  let baseHex = "#facc15"; // neutral / yellow
+
+  if (variant === "attack") baseHex = "#fbbf24"; // amber
+  if (variant === "defence") baseHex = "#2dd4bf"; // teal
+  if (variant === "momentum") baseHex = "#a3e635"; // lime
+  if (variant === "volatility") baseHex = "#fb923c"; // orange
+
+  const useHex = accentColorHex ?? baseHex;
+  const { r, g, b } = lightenHex(useHex, 0.45);
+
+  const line = `rgb(${r}, ${g}, ${b})`;
+  const glow = `rgba(${r}, ${g}, ${b}, 0.55)`;
+
+  return { line, glow };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            GLOW SPARKLINE (SVG)                            */
+/* -------------------------------------------------------------------------- */
 
 function Sparkline({
   values,
   variant = "neutral",
+  accentColorHex,
 }: {
   values: number[];
   variant?: SparklineVariant;
+  accentColorHex?: string;
 }) {
-  // Placeholder only – values are unused for now, but kept for future real charts
-  let gradient = "from-neutral-800/60 via-neutral-900/60 to-black";
+  const { line, glow } = getSparklineColours(accentColorHex, variant);
 
-  if (variant === "attack") {
-    gradient = "from-yellow-500/25 via-yellow-500/10 to-black";
-  } else if (variant === "defence") {
-    gradient = "from-teal-500/25 via-teal-500/10 to-black";
-  } else if (variant === "momentum") {
-    gradient = "from-lime-400/25 via-lime-400/10 to-black";
-  } else if (variant === "volatility") {
-    gradient = "from-orange-400/25 via-orange-400/10 to-black";
-  }
+  const points = useMemo(() => {
+    if (!values || values.length < 2) {
+      // Fallback: simple midline
+      return "0,20 100,20";
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1; // avoid divide-by-zero
+
+    const paddingTop = 6;
+    const paddingBottom = 6;
+    const height = 40;
+    const verticalSpace = height - paddingTop - paddingBottom;
+
+    return values
+      .map((v, idx) => {
+        const x =
+          values.length === 1
+            ? 50
+            : (idx / (values.length - 1)) * 100; // 0–100
+        const normalized = (v - min) / range;
+        const y =
+          height - paddingBottom - normalized * verticalSpace; // invert for SVG coords
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(" ");
+  }, [values]);
 
   return (
-    <div
-      className={`h-12 w-full rounded-lg bg-gradient-to-b ${gradient} shadow-inner shadow-black/60`}
-    />
+    <div className="relative h-14 w-full overflow-hidden rounded-xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-black to-black shadow-[0_0_20px_rgba(0,0,0,0.7)]">
+      {/* Soft vertical gradient / subtle sheen */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-white/5 opacity-30" />
+
+      {/* SVG Sparkline with glow */}
+      <svg
+        className="relative h-full w-full"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        style={{
+          filter: `drop-shadow(0 0 6px ${glow}) drop-shadow(0 0 14px ${glow})`,
+        }}
+      >
+        {/* Soft baseline */}
+        <line
+          x1="0"
+          y1="32"
+          x2="100"
+          y2="32"
+          stroke="rgba(148,163,184,0.25)"
+          strokeWidth={0.5}
+          strokeDasharray="2 3"
+        />
+
+        {/* Glow band (wider, low opacity) */}
+        <polyline
+          points={points}
+          fill="none"
+          stroke={line}
+          strokeWidth={3.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.28}
+        />
+
+        {/* Main line */}
+        <polyline
+          points={points}
+          fill="none"
+          stroke={line}
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
   );
 }
 
@@ -50,6 +168,7 @@ type HeadlineCardProps = {
   metricValue?: string;
   sparkValues: number[];
   sparkVariant?: SparklineVariant;
+  accentColorHex?: string;
 };
 
 function HeadlineCard({
@@ -61,9 +180,10 @@ function HeadlineCard({
   metricValue,
   sparkValues,
   sparkVariant = "neutral",
+  accentColorHex,
 }: HeadlineCardProps) {
   return (
-    <div className="rounded-2xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/80 to-black p-5 shadow-[0_0_25px_rgba(0,0,0,0.5)]">
+    <div className="rounded-2xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/90 via-neutral-950 to-black p-5 shadow-[0_0_30px_rgba(0,0,0,0.7)] backdrop-blur-sm">
       <div className="flex items-center justify-between gap-3">
         <div className={`flex items-center gap-2 ${accentClassName}`}>
           <Icon className="h-4 w-4" />
@@ -84,12 +204,16 @@ function HeadlineCard({
         )}
       </div>
 
-      <div className="mt-2 text-lg font-semibold text-neutral-50">
+      <div className="mt-2 text-lg font-semibold text-neutral-50 md:text-xl">
         {highlight}
       </div>
 
       <div className="mt-3">
-        <Sparkline values={sparkValues} variant={sparkVariant} />
+        <Sparkline
+          values={sparkValues}
+          variant={sparkVariant}
+          accentColorHex={accentColorHex}
+        />
       </div>
     </div>
   );
@@ -205,7 +329,7 @@ export default function TeamMomentumPulse() {
       </p>
 
       {/* LEAGUE-WIDE SPARKLINE */}
-      <div className="mt-6 rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/50 to-black p-5 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+      <div className="mt-6 rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/60 via-neutral-950 to-black p-5 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
             League scoring pulse
@@ -229,7 +353,11 @@ export default function TeamMomentumPulse() {
           </div>
         </div>
         <div className="mt-3">
-          <Sparkline values={leagueAvgSpark} variant="neutral" />
+          <Sparkline
+            values={leagueAvgSpark}
+            variant="neutral"
+            accentColorHex="#facc15"
+          />
         </div>
       </div>
 
@@ -245,6 +373,7 @@ export default function TeamMomentumPulse() {
           metricValue={`${highestScoringScore} pts`}
           sparkValues={highestScoring?.scores ?? []}
           sparkVariant="attack"
+          accentColorHex={highestScoring?.colours.primary}
         />
 
         {/* Strongest defensive wall */}
@@ -257,6 +386,7 @@ export default function TeamMomentumPulse() {
           metricValue={`${strongestDefenceRating.toFixed(0)}/100`}
           sparkValues={strongestDefence?.margins ?? []}
           sparkVariant="defence"
+          accentColorHex={strongestDefence?.colours.primary}
         />
 
         {/* Biggest round-to-round riser */}
@@ -271,6 +401,7 @@ export default function TeamMomentumPulse() {
           }${biggestRiserDelta.toFixed(0)} pts`}
           sparkValues={biggestRiser?.team?.margins ?? []}
           sparkVariant="momentum"
+          accentColorHex={biggestRiser?.team?.colours.primary}
         />
 
         {/* Predicted volatility (AI) */}
@@ -283,6 +414,7 @@ export default function TeamMomentumPulse() {
           metricValue={`${volatilityScore.toFixed(0)}/100`}
           sparkValues={predictedVolatility?.team?.scores ?? []}
           sparkVariant="volatility"
+          accentColorHex={predictedVolatility?.team?.colours.primary}
         />
       </div>
     </section>
