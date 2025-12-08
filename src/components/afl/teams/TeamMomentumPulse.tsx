@@ -1,29 +1,31 @@
 // src/components/afl/teams/TeamMomentumPulse.tsx
-// ELITE PRO BROADCAST VERSION — Round Momentum Pulse (Teams)
+// Neeko+ "Molten Gold" Elite Broadcast Hero — Round Momentum Pulse (Teams)
 
 import React from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import { Flame, Shield, TrendingUp, BarChart3 } from "lucide-react";
 
 /* ============================================================================
-   1. Professional white-line sparkline with accent-tinted background
+   1. Professional sparkline with subtle gold backlight
 ============================================================================ */
 
 function smooth(values: number[]) {
   if (!values || values.length < 3) return values ?? [];
-  const smoothed = [...values];
+  const out = [...values];
   for (let i = 1; i < values.length - 1; i++) {
-    smoothed[i] = (values[i - 1] + values[i] + values[i + 1]) / 3;
+    out[i] = (values[i - 1] + values[i] + values[i + 1]) / 3;
   }
-  return smoothed;
+  return out;
 }
 
 interface ProSparklineProps {
   values: number[];
-  accent?: string; // rgba/hex accent for subtle tint
 }
 
-function ProSparkline({ values, accent }: ProSparklineProps) {
+const GOLD_TINT = "rgba(232, 198, 112, 0.28)";
+const GOLD_DOT = "#E8C670";
+
+function ProSparkline({ values }: ProSparklineProps) {
   const smoothed = smooth(values);
 
   const { points, lastX, lastY } = React.useMemo(() => {
@@ -43,7 +45,7 @@ function ProSparkline({ values, accent }: ProSparklineProps) {
       const x =
         smoothed.length === 1 ? 50 : (i / (smoothed.length - 1)) * 100;
       const normalized = (v - min) / range;
-      const y = 34 - normalized * 22 + 4; // keep in a calm band
+      const y = 34 - normalized * 22 + 4; // keep in a calm vertical band
 
       pts += `${x.toFixed(1)},${y.toFixed(1)} `;
       if (i === smoothed.length - 1) {
@@ -55,20 +57,17 @@ function ProSparkline({ values, accent }: ProSparklineProps) {
     return { points: pts.trim(), lastX: lx, lastY: ly };
   }, [smoothed]);
 
-  const accentTint = accent ?? "rgba(148, 163, 184, 0.35)";
-  const gridPrimary = "rgba(255,255,255,0.14)";
-  const gridSecondary = "rgba(255,255,255,0.08)";
-
   return (
     <div
-      className="relative h-16 w-full overflow-hidden rounded-xl border border-neutral-800/90 bg-neutral-950/80"
+      className="relative h-16 w-full overflow-hidden rounded-xl border border-neutral-800/80 bg-neutral-950/90"
       style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(255,255,255,0.04), transparent),
-                          radial-gradient(circle at top left, ${accentTint}, transparent 65%)`,
+        backgroundImage:
+          // soft gold wash from top-left, plus very subtle vertical fade
+          `radial-gradient(circle_at_top_left, ${GOLD_TINT}, transparent 70%), linear-gradient(to_bottom, rgba(15,15,15,0.9), rgba(0,0,0,0.95))`,
       }}
     >
       {/* inner vignette */}
-      <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_18px_rgba(0,0,0,0.85)]" />
+      <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_18px_rgba(0,0,0,0.9)]" />
 
       <svg
         className="relative h-full w-full"
@@ -76,32 +75,60 @@ function ProSparkline({ values, accent }: ProSparklineProps) {
         preserveAspectRatio="none"
       >
         {/* broadcast-style grid */}
-        <line x1="0" y1="30" x2="100" y2="30" stroke={gridPrimary} strokeWidth={0.7} />
-        <line x1="0" y1="22" x2="100" y2="22" stroke={gridSecondary} strokeWidth={0.6} />
-        <line x1="0" y1="14" x2="100" y2="14" stroke={gridSecondary} strokeWidth={0.5} />
-
+        <line
+          x1="0"
+          y1="30"
+          x2="100"
+          y2="30"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth={0.7}
+        />
+        <line
+          x1="0"
+          y1="22"
+          x2="100"
+          y2="22"
+          stroke="rgba(255,255,255,0.10)"
+          strokeWidth={0.6}
+        />
+        <line
+          x1="0"
+          y1="14"
+          x2="100"
+          y2="14"
+          stroke="rgba(255,255,255,0.07)"
+          strokeWidth={0.5}
+        />
         {/* left axis tick */}
-        <line x1="2" y1="10" x2="2" y2="32" stroke="rgba(255,255,255,0.16)" strokeWidth={0.6} />
+        <line
+          x1="2"
+          y1="10"
+          x2="2"
+          y2="32"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth={0.6}
+        />
 
         {/* main white line */}
         <polyline
           points={points}
           fill="none"
           stroke="white"
-          strokeWidth={1.6}
+          strokeWidth={1.7}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
-        {/* latest value dot */}
-        <circle cx={lastX} cy={lastY} r={1.5} fill="white" />
+        {/* latest value dot with gold halo */}
+        <circle cx={lastX} cy={lastY} r={1.7} fill="white" />
+        <circle cx={lastX} cy={lastY} r={3} fill={GOLD_DOT} opacity={0.35} />
       </svg>
     </div>
   );
 }
 
 /* ============================================================================
-   2. Broadcast-style insight card
+   2. Gold-framed broadcast insight card
 ============================================================================ */
 
 interface InsightCardProps {
@@ -110,7 +137,6 @@ interface InsightCardProps {
   metric: string;
   values: number[];
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  accent: string;
 }
 
 function InsightCard({
@@ -119,52 +145,45 @@ function InsightCard({
   metric,
   values,
   icon: Icon,
-  accent,
 }: InsightCardProps) {
   return (
-    <div className="relative rounded-2xl border border-neutral-800/90 bg-gradient-to-b from-neutral-950 via-black to-black p-5 shadow-[0_22px_45px_rgba(0,0,0,0.85)]">
-      {/* accent top edge */}
-      <div
-        className="absolute inset-x-0 top-0 h-[3px] rounded-t-2xl"
-        style={{ backgroundImage: `linear-gradient(to right, transparent, ${accent}, transparent)` }}
-      />
-
-      {/* card header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+    <div className="rounded-2xl bg-[linear-gradient(135deg,#E8C670,#D9A441,#B57C1C)] p-[1.5px] shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
+      <div className="flex h-full flex-col rounded-[1.05rem] border border-neutral-900/80 bg-gradient-to-b from-[#050505] via-black to-[#020202] p-5">
+        {/* Header row */}
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[rgba(232,198,112,0.8)]">
           <Icon className="h-4 w-4" />
           <span>{title}</span>
         </div>
-      </div>
 
-      {/* team name */}
-      <div className="mt-2 text-xl font-semibold text-white">{team}</div>
+        {/* Team name */}
+        <div className="mt-2 text-xl font-semibold text-white">{team}</div>
 
-      {/* metric pill */}
-      <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-neutral-700/90 bg-neutral-900/90 px-2 py-[3px] shadow-[0_0_16px_rgba(0,0,0,0.7)]">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-          Metric
-        </span>
-        <span className="text-[11px] font-semibold text-neutral-100">
-          {metric}
-        </span>
-      </div>
+        {/* Metric pill */}
+        <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-[rgba(232,198,112,0.5)] bg-black/80 px-2 py-[4px] shadow-[0_0_12px_rgba(0,0,0,0.7)]">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+            Metric
+          </span>
+          <span className="text-[11px] font-semibold text-neutral-50">
+            {metric}
+          </span>
+        </div>
 
-      {/* sparkline */}
-      <div className="mt-3">
-        <ProSparkline values={values} accent={accent} />
+        {/* Sparkline */}
+        <div className="mt-3">
+          <ProSparkline values={values} />
+        </div>
       </div>
     </div>
   );
 }
 
 /* ============================================================================
-   3. Key Headlines component
+   3. Key Headlines
 ============================================================================ */
 
 function KeyHeadlines({ items }: { items: string[] }) {
   return (
-    <ul className="mt-4 space-y-1 text-[13px] leading-snug text-neutral-300">
+    <ul className="mt-4 space-y-1 text-[13px] leading-snug text-neutral-200">
       {items.map((text, idx) => (
         <li key={idx}>• {text}</li>
       ))}
@@ -219,40 +238,39 @@ export default function TeamMomentumPulse() {
   ];
 
   return (
-    <section className="mt-8 rounded-3xl border border-neutral-800/80 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.28),_transparent_55%),linear-gradient(to_bottom,#020617,#000)] px-4 py-6 shadow-[0_0_70px_rgba(0,0,0,0.8)] sm:px-6 md:px-8 md:py-7">
-      {/* section label */}
-      <div className="inline-flex items-center gap-2 rounded-full border border-neutral-700/90 bg-neutral-900/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-300 shadow-[0_0_18px_rgba(0,0,0,0.7)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />
+    <section className="mt-8 rounded-3xl border border-neutral-800/80 bg-[radial-gradient(circle_at_top_left,rgba(232,198,112,0.18),transparent_68%),linear-gradient(to_bottom,#020617,#000000)] px-4 py-6 shadow-[0_0_80px_rgba(0,0,0,0.85)] sm:px-6 md:px-8 md:py-7">
+      {/* Header pill */}
+      <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(232,198,112,0.7)] bg-black/75 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[rgba(232,198,112,0.9)] shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#E8C670] shadow-[0_0_10px_#E8C670]" />
         Round Momentum Pulse · R23
       </div>
 
-      {/* heading */}
+      {/* Title & subtitle */}
       <h2 className="mt-4 text-xl font-semibold text-white md:text-2xl">
         League-wide fantasy trends &amp; team momentum highlights
       </h2>
 
-      <p className="mt-2 max-w-3xl text-sm text-neutral-300">
+      <p className="mt-2 max-w-3xl text-sm text-neutral-200">
         Round 23 fantasy trends reveal usage spikes, role changes and matchup
-        edges that shaped team performance across the league. This broadcast-style
-        summary surfaces the key team-level stories from the latest round.
+        edges that shaped team performance across the league. This Neeko+ view
+        surfaces the key team-level stories from the latest round.
       </p>
 
-      {/* key headlines */}
+      {/* Headlines */}
       <KeyHeadlines items={headlines} />
 
-      {/* subheading for cards */}
-      <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-400">
+      {/* Subheading above cards */}
+      <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(232,198,112,0.8)]">
         Round 23 Summary Metrics
       </h3>
 
-      {/* insight cards — vertical on mobile */}
+      {/* Cards grid (vertical on mobile, 2 cols on sm, 4 on lg) */}
       <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InsightCard
           title="Highest Fantasy Surge"
           team={fantasyTeam.name}
           metric={`${fantasyTeam.attackRating}/100 usage score`}
           values={fantasyTeam.attackTrend}
-          accent="rgba(45, 212, 191, 0.7)" // teal
           icon={BarChart3}
         />
 
@@ -261,7 +279,6 @@ export default function TeamMomentumPulse() {
           team={scoringTeam.name}
           metric={`${scoringScore} pts (R23)`}
           values={scoringTeam.scores}
-          accent="rgba(251, 191, 36, 0.7)" // amber
           icon={Flame}
         />
 
@@ -270,7 +287,6 @@ export default function TeamMomentumPulse() {
           team={defenceTeam.name}
           metric={`${defenceTeam.defenceRating}/100 rating`}
           values={defenceTeam.defenceTrend}
-          accent="rgba(59, 130, 246, 0.7)" // blue
           icon={Shield}
         />
 
@@ -279,7 +295,6 @@ export default function TeamMomentumPulse() {
           team={momentumTeam.name}
           metric={`${momentumDelta > 0 ? "+" : ""}${momentumDelta} pts swing`}
           values={momentumTeam.margins}
-          accent="rgba(190, 242, 100, 0.7)" // lime
           icon={TrendingUp}
         />
       </div>
