@@ -1,4 +1,3 @@
-// src/components/afl/teams/TeamFormGrid.tsx
 import React, { useMemo, useState } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import {
@@ -10,8 +9,9 @@ import {
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                         SLIM SPARKLINE (COMPACT)                           */
+/*                               MINI SPARKLINE                               */
 /* -------------------------------------------------------------------------- */
+
 function MiniSparkline({ values }: { values: number[] }) {
   return (
     <div className="h-8 w-full rounded-md bg-gradient-to-b from-neutral-800/35 to-black shadow-inner" />
@@ -21,6 +21,7 @@ function MiniSparkline({ values }: { values: number[] }) {
 /* -------------------------------------------------------------------------- */
 /*                        CLASSIFICATION + METRICS                            */
 /* -------------------------------------------------------------------------- */
+
 function classifyTeams() {
   const last = 22;
   const prev = 19;
@@ -39,12 +40,13 @@ function classifyTeams() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                  WRAPPER                                    */
+/*                                  WRAPPER                                   */
 /* -------------------------------------------------------------------------- */
+
 export default function TeamFormGrid() {
-  const [metric, setMetric] = useState<"momentum" | "fantasy" | "disposals" | "goals">(
-    "momentum"
-  );
+  const [metric, setMetric] = useState<
+    "momentum" | "fantasy" | "disposals" | "goals"
+  >("momentum");
 
   const teams = useMemo(() => classifyTeams(), []);
 
@@ -67,7 +69,8 @@ export default function TeamFormGrid() {
       </h2>
 
       <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-        Switch between momentum, fantasy, disposals and goals to see how each club is trending. Tap a pill to reveal a full analytics panel.
+        Switch between momentum, fantasy, disposals and goals to see how each
+        club is trending. Tap a pill to reveal a full analytics panel.
       </p>
 
       {/* Metric Tabs */}
@@ -87,30 +90,39 @@ export default function TeamFormGrid() {
         ))}
       </div>
 
-      {/* Categories */}
+      {/* Categories — stacked on mobile, 3 columns on desktop */}
       <div className="mt-10 grid gap-12 lg:grid-cols-3">
         <CategoryColumn
-          icon={<Flame className="h-4 w-4 text-yellow-300" />}
+          icon={
+            <Flame className="h-4 w-4 text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]" />
+          }
           title="Hot Teams"
           tint="yellow"
           teams={hot}
           metric={metric}
+          stickyOffset={0}
         />
 
         <CategoryColumn
-          icon={<CircleDot className="h-4 w-4 text-lime-300" />}
+          icon={
+            <CircleDot className="h-4 w-4 text-lime-300 drop-shadow-[0_0_8px_rgba(132,204,22,0.9)]" />
+          }
           title="Stable Teams"
           tint="lime"
           teams={stable}
           metric={metric}
+          stickyOffset={0}
         />
 
         <CategoryColumn
-          icon={<Snowflake className="h-4 w-4 text-sky-300" />}
+          icon={
+            <Snowflake className="h-4 w-4 text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
+          }
           title="Cold Teams"
           tint="sky"
           teams={cold}
           metric={metric}
+          stickyOffset={0}
         />
       </div>
     </section>
@@ -120,26 +132,46 @@ export default function TeamFormGrid() {
 /* -------------------------------------------------------------------------- */
 /*                              CATEGORY COLUMN                                */
 /* -------------------------------------------------------------------------- */
+
 function CategoryColumn({
   icon,
   title,
   tint,
   teams,
   metric,
+  stickyOffset,
 }: {
   icon: React.ReactNode;
   title: string;
   tint: "yellow" | "lime" | "sky";
   teams: any[];
   metric: string;
+  stickyOffset: number;
 }) {
+  const dividerGradient =
+    tint === "yellow"
+      ? "from-amber-400/65 via-amber-300/35 to-transparent"
+      : tint === "lime"
+      ? "from-lime-400/65 via-lime-300/35 to-transparent"
+      : "from-sky-400/65 via-sky-300/35 to-transparent";
+
   return (
-    <div>
-      <div className="mb-3 flex items-center gap-2">
-        {icon}
-        <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-          {title}
-        </span>
+    <div className="space-y-3">
+      {/* Sticky header on mobile, static on md+ */}
+      <div
+        className={`
+          sticky top-[60px] z-10 mb-1 bg-gradient-to-b from-neutral-950 via-black/95 to-transparent 
+          pt-1 pb-2 md:static md:bg-transparent md:pt-0 md:pb-0
+        `}
+        style={{ top: `${stickyOffset}px` }}
+      >
+        <div className={`h-px w-full bg-gradient-to-r ${dividerGradient}`} />
+        <div className="mt-2 flex items-center gap-2">
+          {icon}
+          <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+            {title}
+          </span>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -152,8 +184,9 @@ function CategoryColumn({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              SLIM PILL + BADGE                              */
+/*                            SLIM PILL + BADGE + BAR                          */
 /* -------------------------------------------------------------------------- */
+
 function SlimPill({
   team,
   tint,
@@ -174,40 +207,83 @@ function SlimPill({
       ? team.midfieldTrend.at(-1) ?? 0
       : team.scores[22] - team.scores[21];
 
-  const glow =
+  // Micro bar fill (clamped range)
+  const clamped =
+    metric === "momentum"
+      ? Math.max(-30, Math.min(30, metricValue))
+      : Math.max(0, Math.min(100, metricValue));
+  const fillPct =
+    metric === "momentum"
+      ? ((clamped + 30) / 60) * 100
+      : (clamped / 100) * 100;
+
+  const glowClass =
     tint === "yellow"
-      ? "text-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.65)]"
+      ? "text-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.8)]"
       : tint === "lime"
-      ? "text-lime-300 shadow-[0_0_10px_rgba(132,204,22,0.65)]"
-      : "text-sky-300 shadow-[0_0_10px_rgba(56,189,248,0.7)]";
+      ? "text-lime-300 shadow-[0_0_8px_rgba(132,204,22,0.8)]"
+      : "text-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.9)]";
+
+  const barFillClass =
+    tint === "yellow"
+      ? "bg-yellow-400"
+      : tint === "lime"
+      ? "bg-lime-400"
+      : "bg-sky-400";
+
+  const logoSrc = `/afl/logos/${(team.code || "").toLowerCase()}.svg`;
 
   return (
     <div>
       {/* Pill Button */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen((v) => !v)}
         className="
-          w-full flex flex-col rounded-xl bg-gradient-to-r 
+          w-full rounded-xl bg-gradient-to-r 
           from-neutral-900/85 to-black/90 border border-neutral-800/70 
-          px-4 py-3 transition-all shadow-[0_0_14px_rgba(0,0,0,0.45)]
+          px-3 py-2.5 md:px-4 md:py-3 transition-all shadow-[0_0_14px_rgba(0,0,0,0.45)]
+          hover:border-neutral-500/70
         "
       >
-        <div className="flex w-full items-center justify-between">
-          <span className="text-sm text-neutral-200 truncate">
-            {team.name}
-          </span>
+        {/* TOP ROW: logo + name, micro bar + badge */}
+        <div className="flex w-full items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/80 bg-neutral-900 shadow-[0_0_10px_rgba(0,0,0,0.6)] overflow-hidden">
+              <img
+                src={logoSrc}
+                alt={team.name}
+                className="h-6 w-6 object-contain"
+              />
+            </div>
+            <span className="truncate text-sm text-neutral-200">
+              {team.name}
+            </span>
+          </div>
 
-          <span className={`text-xs font-semibold tracking-wide ${glow}`}>
-            {metricValue >= 0 ? "+" : ""}
-            {metricValue.toFixed(1)}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Micro bar */}
+            <div className="h-1.5 w-10 rounded-full bg-neutral-800/80">
+              <div
+                className={`h-full rounded-full ${barFillClass}`}
+                style={{ width: `${fillPct}%` }}
+              />
+            </div>
+
+            {/* Badge */}
+            <span
+              className={`text-xs font-semibold tracking-wide ${glowClass}`}
+            >
+              {metricValue >= 0 ? "+" : ""}
+              {metricValue.toFixed(1)}
+            </span>
+          </div>
         </div>
 
+        {/* SECOND ROW: descriptor + chevron */}
         <div className="mt-0.5 flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
             {metric} • last 5
           </span>
-
           {open ? (
             <ChevronUp className="h-4 w-4 text-neutral-500" />
           ) : (
@@ -216,31 +292,41 @@ function SlimPill({
         </div>
       </button>
 
-      {/* Analytics Expand */}
+      {/* Analytics Expand with shimmer */}
       <div
-        className={`transition-[max-height,opacity] duration-500 ease-out ${
-          open ? "max-h-[400px] opacity-100 mt-3" : "max-h-0 opacity-0"
-        } overflow-hidden`}
+        className={`overflow-hidden transition-[max-height,opacity] duration-500 ease-out ${
+          open ? "max-h-[420px] opacity-100 mt-3" : "max-h-0 opacity-0"
+        }`}
       >
-        <div className="rounded-xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/90 to-black p-4">
-          <MiniSparkline values={team.margins.slice(-5)} />
+        <div className="relative rounded-xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/95 to-black p-4">
+          {/* Shimmer overlay */}
+          {open && (
+            <div className="pointer-events-none absolute inset-0 animate-pulse bg-[radial-gradient(circle_at_0%_0%,rgba(250,250,250,0.18),transparent_55%)] opacity-40" />
+          )}
 
-          {/* Analytics grid */}
-          <div className="mt-4 grid grid-cols-2 gap-4 text-[11px]">
-            <Metric label="Attack Δ" value={team.attackDelta} />
-            <Metric label="Defence Δ" value={team.defenceDelta} />
-            <Metric
-              label="Clearance %"
-              value={`${Math.round(
-                team.clearanceDom.slice(-5).reduce((a, b) => a + b, 0) / 5
-              )}%`}
-            />
-            <Metric label="Consistency" value={team.consistencyIndex} />
-            <Metric label="Fixture Diff" value={team.fixtureDifficulty.score} />
-            <Metric
-              label="Opponents"
-              value={team.fixtureDifficulty.opponents.join(", ")}
-            />
+          <div className="relative">
+            <MiniSparkline values={team.margins.slice(-5)} />
+
+            {/* Analytics grid */}
+            <div className="mt-4 grid grid-cols-2 gap-4 text-[11px]">
+              <Metric label="Attack Δ" value={team.attackDelta} />
+              <Metric label="Defence Δ" value={team.defenceDelta} />
+              <Metric
+                label="Clearance %"
+                value={`${Math.round(
+                  team.clearanceDom.slice(-5).reduce((a, b) => a + b, 0) / 5
+                )}%`}
+              />
+              <Metric label="Consistency" value={team.consistencyIndex} />
+              <Metric
+                label="Fixture Diff"
+                value={team.fixtureDifficulty.score}
+              />
+              <Metric
+                label="Opponents"
+                value={team.fixtureDifficulty.opponents.join(", ")}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -249,8 +335,9 @@ function SlimPill({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           METRIC ITEM (ANALYTICS)                           */
+/*                           METRIC ITEM (ANALYTICS)                          */
 /* -------------------------------------------------------------------------- */
+
 function Metric({ label, value }: { label: string; value: any }) {
   return (
     <div>
