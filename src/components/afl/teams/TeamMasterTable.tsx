@@ -1,15 +1,14 @@
 // src/components/afl/teams/TeamMasterTable.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, Lock, Search, Sparkles } from "lucide-react";
+import { ChevronRight, Lock, Search } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { MOCK_TEAMS, TeamRow, ROUND_LABELS } from "./mockTeams";
 import TeamInsightsPanel from "./TeamInsightsPanel";
 
 /* -------------------------------------------------------------------------- */
-/*                                HELPERS                                     */
+/*                                 HELPERS                                    */
 /* -------------------------------------------------------------------------- */
 
 type Mode = "scoring" | "fantasy" | "disposals" | "goals";
@@ -24,13 +23,16 @@ const MODE_CONFIG = {
 const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
 const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
 
-/* Correct mapping to your mockTeams.ts structure */
 function getSeries(team: TeamRow, mode: Mode): number[] {
   switch (mode) {
-    case "fantasy": return team.fantasy;
-    case "disposals": return team.disposals;
-    case "goals": return team.goals;
-    default: return team.scores;
+    case "fantasy":
+      return team.fantasy;
+    case "disposals":
+      return team.disposals;
+    case "goals":
+      return team.goals;
+    default:
+      return team.scores;
   }
 }
 
@@ -58,7 +60,7 @@ function rateClass(v: number) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           MAIN COMPONENT                                   */
+/*                                COMPONENT                                   */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamMasterTable() {
@@ -72,6 +74,19 @@ export default function TeamMasterTable() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
+  /* ---------------- BODY SCROLL LOCK (panel open) ---------------- */
+  useEffect(() => {
+    if (selectedTeam) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [selectedTeam]);
+
+  /* ---------------- COMPUTED TEAMS ---------------- */
   const teams = useMemo(() => {
     const enriched = MOCK_TEAMS.map((t) => ({
       ...t,
@@ -95,7 +110,7 @@ export default function TeamMasterTable() {
     <>
       <section className="mt-14 rounded-3xl border border-neutral-800 bg-gradient-to-b from-neutral-950 via-black to-black px-5 py-5 shadow-[0_0_80px_rgba(0,0,0,0.8)]">
 
-        {/* --------------------- HEADER --------------------- */}
+        {/* ---------------- HEADER ---------------- */}
         <div className="flex flex-col gap-4 md:flex-row md:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1">
@@ -110,12 +125,12 @@ export default function TeamMasterTable() {
             </h1>
 
             <p className="mt-2 text-xs text-neutral-400 max-w-xl">
-              Full AFL club dataset with round-by-round output, summary statistics and
-              hit-rate milestones. Mode: <b>{MODE_CONFIG[mode].label}</b> – {MODE_CONFIG[mode].subtitle}.
+              Full AFL club dataset with round-by-round output, summary statistics and hit-rate milestones. Mode:{" "}
+              <b>{MODE_CONFIG[mode].label}</b> – {MODE_CONFIG[mode].subtitle}.
             </p>
           </div>
 
-          {/* Mode filter pills */}
+          {/* MODE SELECTOR + COMPACT SWITCH */}
           <div className="flex flex-col gap-3 md:items-end">
             <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-black/70 px-1.5 py-1">
               {(["scoring", "fantasy", "disposals", "goals"] as Mode[]).map((m) => (
@@ -133,7 +148,6 @@ export default function TeamMasterTable() {
               ))}
             </div>
 
-            {/* Compact toggle */}
             <div className="inline-flex items-center gap-2 rounded-full border border-neutral-700 bg-black/70 px-3 py-1.5">
               <Switch
                 checked={compactMode}
@@ -145,7 +159,7 @@ export default function TeamMasterTable() {
           </div>
         </div>
 
-        {/* Search row */}
+        {/* ---------------- SEARCH ---------------- */}
         <div className="mt-5 flex flex-col gap-3 md:flex-row">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
@@ -171,13 +185,13 @@ export default function TeamMasterTable() {
           </button>
         </div>
 
-        {/* --------------------- DESKTOP TABLE --------------------- */}
+        {/* ---------------- TABLE (DESKTOP) ---------------- */}
         <div className="hidden md:block mt-6 -mx-5 border-t border-neutral-900">
           <div className="overflow-x-auto w-full">
             <table className="min-w-[1080px] text-[11px] border-separate border-spacing-0">
               <thead>
                 <tr className="sticky top-0 bg-black/85 backdrop-blur-sm">
-                  <th className="sticky left-0 z-40 w-64 px-4 py-2 text-left text-neutral-300 bg-black/90 border-r border-neutral-900">
+                  <th className="sticky left-0 z-40 w-64 px-4 py-3 text-left text-neutral-300 bg-black/90 border-r border-neutral-900">
                     TEAM
                   </th>
 
@@ -185,21 +199,19 @@ export default function TeamMasterTable() {
                     ROUND_LABELS.map((r) => (
                       <th
                         key={r}
-                        className={`border-b border-neutral-800 px-2 text-[10px] text-neutral-400 ${
-                          compactMode ? "min-w-[34px]" : "min-w-[48px]"
-                        }`}
+                        className="border-b border-neutral-800 px-2 py-3 text-[10px] text-neutral-400 min-w-[48px]"
                       >
                         {r}
                       </th>
                     ))}
 
-                  <th className="w-14 text-right px-2">MIN</th>
-                  <th className="w-14 text-right px-2">MAX</th>
-                  <th className="w-14 text-right px-2">AVG</th>
-                  <th className="w-16 text-right px-2">TOTAL</th>
+                  <th className="w-14 text-right px-2 py-3">MIN</th>
+                  <th className="w-14 text-right px-2 py-3">MAX</th>
+                  <th className="w-14 text-right px-2 py-3">AVG</th>
+                  <th className="w-16 text-right px-2 py-3">TOTAL</th>
 
                   {thresholds.map((t) => (
-                    <th key={t} className="w-14 text-right px-2">
+                    <th key={t} className="w-14 text-right px-2 py-3">
                       {t}+
                     </th>
                   ))}
@@ -211,7 +223,6 @@ export default function TeamMasterTable() {
                   const series = getSeries(team, mode);
                   const summary = computeSummary(series);
                   const hit = computeHitRate(series, thresholds);
-
                   const blur = !isPremium && index >= 6;
 
                   return (
@@ -219,19 +230,19 @@ export default function TeamMasterTable() {
                       key={team.id}
                       className="border-b border-neutral-900 hover:bg-neutral-900/50 text-neutral-200"
                     >
-                      {/* Sticky Team Name */}
                       <td
                         className={`sticky left-0 z-20 w-64 bg-black/90 border-r border-neutral-900 px-4 ${
-                          compactMode ? "py-1" : "py-2.5"
+                          compactMode ? "py-1.5" : "py-3"
                         }`}
                       >
                         <button
                           onClick={() => setSelectedTeam(team)}
                           className="group flex w-full items-center gap-3"
                         >
-                          <div className="h-7 w-7 flex items-center justify-center rounded-full border border-neutral-700 bg-black/70">
+                          <div className="h-7 w-7 flex items-center justify-center rounded-full border border-neutral-700 bg-black/70 text-xs">
                             {index + 1}
                           </div>
+
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
                               <span
@@ -247,6 +258,7 @@ export default function TeamMasterTable() {
                               {team.code}
                             </span>
                           </div>
+
                           <ChevronRight className="ml-auto h-4 w-4 text-neutral-500 group-hover:text-yellow-300" />
                         </button>
 
@@ -259,28 +271,27 @@ export default function TeamMasterTable() {
                         )}
                       </td>
 
-                      {/* Round values */}
                       {!compactMode &&
                         series.map((v, i) => (
                           <td
                             key={i}
-                            className={`px-2 ${
-                              compactMode ? "py-1 text-[10px]" : "py-2.5"
-                            } ${blur ? "blur-[2px] brightness-[0.8]" : ""}`}
+                            className={`px-2 py-3 text-center ${
+                              blur ? "blur-[2px] brightness-[0.8]" : ""
+                            }`}
                           >
                             {v}
                           </td>
                         ))}
 
-                      {/* Summary */}
-                      <td className="px-2 py-1 text-right">{summary.min}</td>
-                      <td className="px-2 py-1 text-right">{summary.max}</td>
-                      <td className="px-2 py-1 text-right text-yellow-200">{summary.average}</td>
-                      <td className="px-2 py-1 text-right">{summary.total}</td>
+                      <td className="px-2 py-3 text-right">{summary.min}</td>
+                      <td className="px-2 py-3 text-right">{summary.max}</td>
+                      <td className="px-2 py-3 text-right text-yellow-200">
+                        {summary.average}
+                      </td>
+                      <td className="px-2 py-3 text-right">{summary.total}</td>
 
-                      {/* Hit Rates */}
                       {hit.map((v, i) => (
-                        <td key={i} className={`px-2 py-1 text-right ${rateClass(v)}`}>
+                        <td key={i} className={`px-2 py-3 text-right ${rateClass(v)}`}>
                           {v}%
                         </td>
                       ))}
@@ -292,25 +303,25 @@ export default function TeamMasterTable() {
           </div>
         </div>
 
-        {/* ------------------------- MOBILE LIST -------------------------- */}
+        {/* ---------------- MOBILE LIST ---------------- */}
         <div className="md:hidden mt-6 flex flex-col gap-3">
           {filteredTeams.map((team, index) => {
             const series = getSeries(team, mode);
             const summary = computeSummary(series);
             const hit = computeHitRate(series, thresholds);
-
             const blur = !isPremium && index >= 6;
 
             return (
               <button
                 key={team.id}
                 onClick={() => setSelectedTeam(team)}
-                className="relative flex items-center justify-between px-4 py-3 rounded-xl bg-black/80 border border-neutral-800 shadow-lg"
+                className="relative flex items-center justify-between px-4 py-4 rounded-xl bg-black/80 border border-neutral-800 shadow-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="h-7 w-7 flex items-center justify-center rounded-full border border-neutral-700">
+                  <div className="h-7 w-7 flex items-center justify-center rounded-full border border-neutral-700 text-xs">
                     {index + 1}
                   </div>
+
                   <div>
                     <div className="flex items-center gap-2">
                       <span
@@ -323,12 +334,12 @@ export default function TeamMasterTable() {
                       <span className="text-[13px] text-neutral-50">{team.name}</span>
                     </div>
                     <span className="text-[10px] text-neutral-400 uppercase tracking-wider">
-                      {team.code} • Avg {summary.average.toFixed(1)} • Max {summary.max}
+                      {team.code} • Avg {summary.average} • Max {summary.max}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right mr-2">
                   <span className="block text-[10px] text-neutral-500 uppercase tracking-wider">
                     {thresholds[2]}+ hit
                   </span>
@@ -337,7 +348,7 @@ export default function TeamMasterTable() {
                   </span>
                 </div>
 
-                <ChevronRight className="ml-2 h-4 w-4 text-neutral-500" />
+                <ChevronRight className="h-4 w-4 text-neutral-500" />
 
                 {blur && (
                   <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-xl" />
@@ -348,7 +359,7 @@ export default function TeamMasterTable() {
         </div>
       </section>
 
-      {/* ------------------------ INSIGHTS PANEL PORTAL ------------------------ */}
+      {/* ---------------- PANEL PORTAL ---------------- */}
       {isMounted && selectedTeam &&
         createPortal(
           <TeamInsightsPanel
