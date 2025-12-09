@@ -2,6 +2,7 @@
 
 import React from "react";
 import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
+import { Lock } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*                                HELPER FUNCS                                */
@@ -23,9 +24,7 @@ const lastN = (arr: number[], n: number) => arr.slice(-n);
 
 function buildLeagueBaselines() {
   // Approximate points conceded as score - margin
-  const leagueAttack = avg(
-    MOCK_TEAMS.map((t) => avg(lastN(t.scores, 5)))
-  );
+  const leagueAttack = avg(MOCK_TEAMS.map((t) => avg(lastN(t.scores, 5))));
 
   const leagueDefence = avg(
     MOCK_TEAMS.map((t) => {
@@ -45,7 +44,10 @@ function buildLeagueBaselines() {
   return { leagueAttack, leagueDefence, leagueClearance, leagueVolatility };
 }
 
-function buildTeamInsightLines(team: AFLTeam, baselines: ReturnType<typeof buildLeagueBaselines>): string[] {
+function buildTeamInsightLines(
+  team: AFLTeam,
+  baselines: ReturnType<typeof buildLeagueBaselines>
+): string[] {
   const last5Scores = lastN(team.scores, 5);
   const last5Margins = lastN(team.margins, 5);
   const last5Clear = lastN(team.clearanceDom, 5);
@@ -63,7 +65,7 @@ function buildTeamInsightLines(team: AFLTeam, baselines: ReturnType<typeof build
 
   const lines: string[] = [];
 
-  // 1) Momentum / stability
+  // Momentum stability vs league
   if (vol < leagueVolatility * 0.8) {
     lines.push(
       `${team.name} is entering a stabilising window with decreasing volatility.`
@@ -78,7 +80,7 @@ function buildTeamInsightLines(team: AFLTeam, baselines: ReturnType<typeof build
     );
   }
 
-  // 2) Attack vs league
+  // Attack vs league
   if (attackAvg > leagueAttack * 1.05) {
     lines.push(
       `${team.name} is trending above league attack averages over the last 5 rounds.`
@@ -93,22 +95,18 @@ function buildTeamInsightLines(team: AFLTeam, baselines: ReturnType<typeof build
     );
   }
 
-  // 3) Defence vs league
+  // Defence vs league
   if (defenceAvg < leagueDefence * 0.95) {
     lines.push(
       `${team.name} defensive profile has tightened relative to league averages.`
     );
   } else if (defenceAvg > leagueDefence * 1.05) {
-    lines.push(
-      `${team.name} defence is conceding above projected levels.`
-    );
+    lines.push(`${team.name} defence is conceding above projected levels.`);
   } else {
-    lines.push(
-      `${team.name} defence is conceding in line with league norms.`
-    );
+    lines.push(`${team.name} defence is conceding in line with league norms.`);
   }
 
-  // 4) Clearances vs league
+  // Clearances vs league
   if (clearAvg > leagueClearance * 1.05) {
     lines.push(
       `${team.name} clearance differential is trending above league norms.`
@@ -127,7 +125,94 @@ function buildTeamInsightLines(team: AFLTeam, baselines: ReturnType<typeof build
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               REACT COMPONENT                               */
+/*                              CARD COMPONENTS                               */
+/* -------------------------------------------------------------------------- */
+
+const RealCard = ({
+  team,
+  lines,
+}: {
+  team: AFLTeam;
+  lines: string[];
+}) => (
+  <article
+    className="min-w-[260px] snap-start rounded-3xl border border-neutral-800/90 bg-gradient-to-b from-black/96 via-neutral-950 to-black px-5 py-5 text-xs text-neutral-200 shadow-[0_0_45px_rgba(0,0,0,0.8)] transition hover:brightness-110"
+  >
+    {/* header */}
+    <div className="mb-3 flex items-center justify-between">
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/90">
+          AI Team Insights
+        </div>
+        <div className="mt-1 text-sm font-semibold text-neutral-50">
+          {team.name}
+        </div>
+      </div>
+
+      <div
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-yellow-500/50"
+        style={{
+          background:
+            "radial-gradient(circle at 30% 0%, rgba(250,204,21,0.35), transparent 55%)",
+        }}
+      >
+        <span
+          className="h-2 w-2 rounded-full shadow-[0_0_14px_rgba(250,204,21,0.9)]"
+          style={{ backgroundColor: "#FACC15" }}
+        />
+      </div>
+    </div>
+
+    <ul className="space-y-1.5 leading-relaxed text-[11px]">
+      {lines.map((line, idx) => (
+        <li key={idx} className="flex gap-2">
+          <span className="mt-[4px] h-[3px] w-[3px] rounded-full bg-neutral-500" />
+          <span>{line}</span>
+        </li>
+      ))}
+    </ul>
+  </article>
+);
+
+const BlurredCard = () => (
+  <article
+    className="relative min-w-[260px] snap-start rounded-3xl border border-yellow-500/20 bg-black/40 px-5 py-5 
+    backdrop-blur-md opacity-50 select-none pointer-events-none shadow-[0_0_35px_rgba(0,0,0,0.6)]"
+  >
+    {/* Lock overlay */}
+    <div className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-yellow-500/40 bg-black/60 shadow-[0_0_12px_rgba(250,204,21,0.3)]">
+      <Lock className="h-3.5 w-3.5 text-yellow-300" />
+    </div>
+
+    {/* Mock text */}
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/70">
+        AI Insights Locked
+      </div>
+      <div className="mt-1 text-sm font-semibold text-neutral-300/70">
+        Hidden Team
+      </div>
+    </div>
+
+    <ul className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-neutral-400/70">
+      <li className="flex gap-2">
+        <span className="mt-[4px] h-[3px] w-[3px] rounded-full bg-neutral-400/60" />
+        <span>Attack trend unavailable</span>
+      </li>
+      <li className="flex gap-2">
+        <span className="mt-[4px] h-[3px] w-[3px] rounded-full bg-neutral-400/60" />
+        <span>Defensive model hidden</span>
+      </li>
+      <li className="flex gap-2">
+        <span className="mt-[4px] h-[3px] w-[3px] rounded-full bg-neutral-400/60" />
+        <span>Momentum volatility locked</span>
+      </li>
+    </ul>
+  </article>
+);
+
+/* -------------------------------------------------------------------------- */
+/*                                MAIN SECTION                                */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamAIInsights() {
@@ -138,69 +223,52 @@ export default function TeamAIInsights() {
     lines: buildTeamInsightLines(team, baselines),
   }));
 
+  const VISIBLE = items.slice(0, 3);
+  const LOCKED = items.slice(3, 6); // Only show 3 blurred
+
   return (
-    <section className="mt-14 rounded-3xl border border-neutral-800/80 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-6 shadow-[0_0_60px_rgba(0,0,0,0.9)]">
-      {/* Section header */}
-      <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent px-3 py-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
-              AI Insights
-            </span>
-          </div>
-          <h3 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
-            High-level team trends & cohesion signals
-          </h3>
-          <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Momentum stability, attack/defence shifts and clearance dominance
-            summarised into lightweight AI team notes — lighter than your full AI
-            analysis page but still driven by dynamic AFL data.
-          </p>
+    <section className="mt-14 rounded-3xl border border-neutral-800/80 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-6 py-8 shadow-[0_0_60px_rgba(0,0,0,0.9)]">
+      
+      {/* Header */}
+      <div className="mb-8">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent px-3 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+            AI Insights
+          </span>
         </div>
+
+        <h3 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
+          High-level team trends (preview)
+        </h3>
+        <p className="mt-2 max-w-2xl text-xs text-neutral-400">
+          Your lightweight AI snapshot for momentum, attack/defence shifts and 
+          clearance trends. Unlock full intelligence to view all 18 clubs in depth.
+        </p>
       </div>
 
-      {/* Grid of AI cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {items.map(({ team, lines }) => (
-          <article
-            key={team.id}
-            className="rounded-3xl border border-neutral-800/90 bg-gradient-to-b from-black/96 via-neutral-950 to-black px-5 py-4 text-xs text-neutral-200 shadow-[0_0_40px_rgba(0,0,0,0.7)]"
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/90">
-                  AI Team Insights
-                </div>
-                <div className="mt-1 text-sm font-semibold text-neutral-50">
-                  {team.name}
-                </div>
-              </div>
-
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-yellow-500/50 text-[11px]"
-                style={{
-                  background:
-                    "radial-gradient(circle at 30% 0%, rgba(250,204,21,0.35), transparent 55%)",
-                }}
-              >
-                <span
-                  className="h-2 w-2 rounded-full shadow-[0_0_14px_rgba(250,204,21,0.9)]"
-                  style={{ backgroundColor: "#FACC15" }}
-                />
-              </div>
-            </div>
-
-            <ul className="space-y-1.5 text-[11px] leading-relaxed text-neutral-200">
-              {lines.map((line, idx) => (
-                <li key={idx} className="flex gap-2">
-                  <span className="mt-[3px] h-[3px] w-[3px] shrink-0 rounded-full bg-neutral-500" />
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
+      {/* ROW 1 — REAL CARDS */}
+      <div className="mb-6 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible">
+        {VISIBLE.map(({ team, lines }) => (
+          <RealCard key={team.id} team={team} lines={lines} />
         ))}
+      </div>
+
+      {/* ROW 2 — BLURRED CARDS */}
+      <div className="mb-8 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible">
+        {LOCKED.map((_, idx) => (
+          <BlurredCard key={idx} />
+        ))}
+      </div>
+
+      {/* CTA */}
+      <div className="rounded-3xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 via-yellow-500/0 to-transparent px-6 py-4 text-center transition hover:brightness-110 cursor-pointer">
+        <a
+          href="/sports/afl/ai-analysis"
+          className="text-yellow-300 font-semibold text-sm tracking-wide"
+        >
+          Unlock Full AFL AI Intelligence →
+        </a>
       </div>
     </section>
   );
