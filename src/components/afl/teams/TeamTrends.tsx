@@ -1,7 +1,12 @@
+// src/components/afl/teams/TeamTrends.tsx
 import React, { useMemo } from "react";
-import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
-// If you keep MOCK_TEAMS elsewhere, adjust this import:
 import { MOCK_TEAMS } from "./mockTeams";
+import {
+  TrendingUp,
+  Shield,
+  Activity,
+  MoveVertical,
+} from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*                           Sparkline (smoothed line)                        */
@@ -61,7 +66,7 @@ function SparklineLarge({
   const height = 40;
 
   const pathD = useMemo(
-    () => buildSmoothPath(values, width, height, 6, 6), // a bit more vertical padding
+    () => buildSmoothPath(values, width, height, 6, 6),
     [values]
   );
 
@@ -183,7 +188,7 @@ function computeMetricSummary(
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
-  // clamp extreme volatility a bit so it feels realistic
+  // clamp volatility so it feels realistic
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -210,7 +215,7 @@ function formatNumber(value: number, isPercentMetric: boolean): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              TeamTrends section                            */
+/*                             Trend block component                          */
 /* -------------------------------------------------------------------------- */
 
 type TrendSeries = {
@@ -369,7 +374,7 @@ function TrendBlock({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          Mocked rolling data helpers                       */
+/*                       Mocked rolling data helpers                          */
 /* -------------------------------------------------------------------------- */
 
 function buildPressureSeries(length: number): number[] {
@@ -399,10 +404,10 @@ function buildPercentSeries(
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            Top-level TeamTrends page                       */
+/*                               TeamTrends section                           */
 /* -------------------------------------------------------------------------- */
 
-function TeamTrendsSection() {
+export default function TeamTrends() {
   const rounds = 23;
 
   /* ------------------------------- ATTACK -------------------------------- */
@@ -552,12 +557,11 @@ function TeamTrendsSection() {
 
   return (
     <section className="mt-10">
-      {/* Entire section glass panel with gold outline */}
-      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(17,24,39,0.96),transparent_60%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] md:px-7 md:pb-9 md:pt-7">
+      {/* Entire section glass panel with neutral black glass + gold outline */}
+      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl md:px-7 md:pb-9 md:pt-7">
         {/* Soft outer halo */}
         <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
-        {/* Content */}
         <div className="relative">
           {/* Header pill */}
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
@@ -577,8 +581,8 @@ function TeamTrendsSection() {
           </p>
 
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-            League averages • Last 23 rounds • Synthetic positional
-            trend lenses
+            League averages • Last 23 rounds • Synthetic positional trend
+            lenses
           </p>
 
           {/* Grid of positional cards */}
@@ -706,19 +710,5 @@ function TeamTrendsSection() {
         </div>
       </div>
     </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Page wrapper                                */
-/* -------------------------------------------------------------------------- */
-
-export default function AFLTeamTrendsPage() {
-  return (
-    <main className="min-h-screen bg-[#020617] text-white">
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 md:px-6 md:pt-12">
-        <TeamTrendsSection />
-      </div>
-    </main>
   );
 }
