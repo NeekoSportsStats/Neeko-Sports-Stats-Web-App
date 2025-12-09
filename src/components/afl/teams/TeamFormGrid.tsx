@@ -18,33 +18,37 @@ interface ClassifiedTeams {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Metric Logic                                  */
+/*                        Metric + Fake Data Logic (Option B)                 */
 /* -------------------------------------------------------------------------- */
 
 function getBaseMomentum(team: AFLTeam): number {
   const last5 = team.margins.slice(-5);
-  return last5.reduce((a, b) => a + b, 0) / last.last5.length;
+  if (last5.length === 0) return 0;
+  const sum = last5.reduce((a, b) => a + b, 0);
+  return sum / last5.length;
 }
 
 function metricJitter(team: AFLTeam, metric: Metric): number {
-  const seed =
-    team.id *
-    (metric === "fantasy"
+  const factor =
+    metric === "fantasy"
       ? 1.7
       : metric === "disposals"
       ? 2.3
       : metric === "goals"
       ? 3.1
-      : 0.9);
+      : 0.9;
+
+  const seed = team.id * factor;
   return Math.sin(seed) * 6;
 }
 
 function getMetricScore(team: AFLTeam, metric: Metric): number {
   const base = getBaseMomentum(team);
+
   if (metric === "momentum") return base;
   if (metric === "fantasy") return base * 0.7 + metricJitter(team, metric);
   if (metric === "disposals") return base * 0.5 + metricJitter(team, metric);
-  return base * 0.35 + metricJitter(team, metric);
+  return base * 0.35 + metricJitter(team, metric); // goals
 }
 
 function classifyTeams(metric: Metric): ClassifiedTeams {
@@ -60,7 +64,7 @@ function classifyTeams(metric: Metric): ClassifiedTeams {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Visual Helpers                              */
+/*                              Visual Helpers                                */
 /* -------------------------------------------------------------------------- */
 
 const metricLabels: Record<Metric, string> = {
@@ -77,7 +81,7 @@ const metricPrefix: Record<Metric, string> = {
   goals: "Goals",
 };
 
-/* Variant Colours — updated with RED HOT (R1) */
+/** Variant badge styles (HOT = deep red, R1) */
 const badgeStyles: Record<Variant, string> = {
   hot: "bg-gradient-to-b from-red-500/25 to-red-700/20 border border-red-500/50 text-red-200 shadow-[0_0_12px_rgba(255,80,80,0.35)]",
   stable:
@@ -85,7 +89,7 @@ const badgeStyles: Record<Variant, string> = {
   cold: "bg-gradient-to-b from-sky-400/20 to-sky-700/20 border border-sky-400/40 text-sky-200 shadow-[0_0_12px_rgba(0,170,255,0.35)]",
 };
 
-/* G2 Glow — Halo + Rim glow */
+/** G2: halo glow + rim glow per variant */
 const variantHalo: Record<Variant, string> = {
   hot: "shadow-[0_0_32px_rgba(255,60,60,0.25),0_0_6px_rgba(255,100,100,0.45)]",
   stable:
@@ -95,20 +99,23 @@ const variantHalo: Record<Variant, string> = {
 
 function formatMetric(value: number): string {
   const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded.toFixed(1)}`;
 }
 
 function intensityWidth(value: number): string {
   const clamped = Math.max(-40, Math.min(40, value));
-  return `${Math.max(6, Math.min(100, (Math.abs(clamped) / 40) * 100))}%`;
+  const pct = (Math.abs(clamped) / 40) * 100;
+  const width = Math.max(6, Math.min(100, pct));
+  return `${width}%`;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           Full-Width Sparkline                              */
+/*                           Full-Width Sparkline                             */
 /* -------------------------------------------------------------------------- */
 
 function FullWidthSparkline({ variant }: { variant: Variant }) {
-  const stroke =
+  const strokeClass =
     variant === "hot"
       ? "text-red-400"
       : variant === "stable"
@@ -116,7 +123,7 @@ function FullWidthSparkline({ variant }: { variant: Variant }) {
       : "text-sky-300";
 
   return (
-    <div className={`w-full h-6 ${stroke}`}>
+    <div className={`w-full h-6 ${strokeClass}`}>
       <svg viewBox="0 0 100 24" className="h-full w-full opacity-95">
         <path
           d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
@@ -141,8 +148,7 @@ export default function TeamFormGrid() {
 
   return (
     <section className="mt-16">
-      <div className="rounded-[32px] border border-neutral-700 bg-gradient-to-b from-neutral-900/40 via-black/80 to-black px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-
+      <div className="rounded-[32px] border border-neutral-800 bg-gradient-to-b from-neutral-900/40 via-black/80 to-black px-4 py-8 sm:px-6 md:px-10 lg:px-12">
         {/* Header */}
         <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-4 py-1 shadow-[0_0_16px_rgba(255,60,60,0.45)] backdrop-blur-[2px]">
           <span className="h-1.5 w-1.5 rounded-full bg-red-300 shadow-[0_0_6px_rgba(255,80,80,0.9)]" />
@@ -156,7 +162,8 @@ export default function TeamFormGrid() {
         </h2>
 
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between different lenses to reveal movement and trends. Tap cards for deeper analytics.
+          Switch between different lenses to reveal movement and trends. Tap cards
+          for deeper analytics.
         </p>
 
         {/* Metric Tabs */}
@@ -215,21 +222,23 @@ export default function TeamFormGrid() {
 /*                           Column Component                                 */
 /* -------------------------------------------------------------------------- */
 
-function FormColumn({ variant, title, icon, teams, metric }: {
+function FormColumn(props: {
   variant: Variant;
   title: string;
   icon: React.ReactNode;
   teams: AFLTeam[];
   metric: Metric;
 }) {
-  const color =
+  const { variant, title, icon, teams, metric } = props;
+
+  const colorClass =
     variant === "hot"
       ? "text-red-300"
       : variant === "stable"
       ? "text-lime-200"
       : "text-sky-200";
 
-  const divider =
+  const dividerClass =
     variant === "hot"
       ? "from-red-500/40"
       : variant === "stable"
@@ -240,10 +249,10 @@ function FormColumn({ variant, title, icon, teams, metric }: {
     <div>
       <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-300">
         {icon}
-        <span className={`font-semibold ${color}`}>{title}</span>
+        <span className={`font-semibold ${colorClass}`}>{title}</span>
       </div>
 
-      <div className={`mb-4 h-px bg-gradient-to-r ${divider}`} />
+      <div className={`mb-4 h-px bg-gradient-to-r ${dividerClass}`} />
 
       <div className="space-y-4">
         {teams.map((team) => (
@@ -263,11 +272,12 @@ function FormColumn({ variant, title, icon, teams, metric }: {
 /*                                Team Card                                   */
 /* -------------------------------------------------------------------------- */
 
-function TeamFormCard({ variant, team, metric }: {
+function TeamFormCard(props: {
   variant: Variant;
   team: AFLTeam;
   metric: Metric;
 }) {
+  const { variant, team, metric } = props;
   const [flipped, setFlipped] = useState(false);
 
   const score = getMetricScore(team, metric);
@@ -288,17 +298,15 @@ function TeamFormCard({ variant, team, metric }: {
   return (
     <div
       className={`relative min-h-[190px] cursor-pointer rounded-2xl border border-neutral-700/50 bg-black/90 backdrop-blur-[3px] transform-gpu transition duration-300 hover:-translate-y-[2px] ${variantHalo[variant]}`}
-      onClick={() => setFlipped(!flipped)}
+      onClick={() => setFlipped((prev) => !prev)}
     >
       <div
         className={`relative h-full w-full transform-gpu transition-transform duration-500 [transform-style:preserve-3d] ${
           flipped ? "[transform:rotateY(180deg)]" : ""
         }`}
       >
-
         {/* FRONT */}
         <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
-
           {/* Top: name + score */}
           <div className="flex items-start justify-between">
             <div>
@@ -324,7 +332,7 @@ function TeamFormCard({ variant, team, metric }: {
 
           {/* Progress bar — PB2 (medium) */}
           <div className="mt-3">
-            <div className="relative h-2.5 w-full rounded-full bg-neutral-800/80 overflow-hidden">
+            <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-neutral-800/80">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
                   variant === "hot"
@@ -339,7 +347,7 @@ function TeamFormCard({ variant, team, metric }: {
           </div>
 
           {/* Bottom */}
-          <div className="mt-3 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em] pb-1">
+          <div className="mt-3 flex items-center justify-between pb-1 text-[9px] uppercase tracking-[0.14em] text-neutral-500">
             <span>{metricLabels[metric]}</span>
             <span className="flex items-center gap-1 text-neutral-400">
               <span className="hidden sm:inline">Analytics</span>
@@ -350,11 +358,12 @@ function TeamFormCard({ variant, team, metric }: {
 
         {/* BACK */}
         <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/8 bg-black/65 px-4 py-3 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-sm font-semibold text-neutral-50">{team.name}</div>
+              <div className="text-sm font-semibold text-neutral-50">
+                {team.name}
+              </div>
               <div className="mt-[1px] text-[9px] uppercase text-neutral-500 tracking-[0.16em]">
                 {metricPrefix[metric]} snapshot
               </div>
@@ -373,42 +382,64 @@ function TeamFormCard({ variant, team, metric }: {
             </div>
           </div>
 
-          {/* Stats (tighter) */}
-          <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2 text-[10px] text-neutral-300 leading-tight">
+          {/* Stats grid (tighter) */}
+          <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2 text-[10px] leading-tight text-neutral-300">
             <div>
-              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Attack Δ</div>
-              <div className="font-semibold">{attackDelta >= 0 ? "+" : ""}{attackDelta}</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+                Attack Δ
+              </div>
+              <div className="font-semibold">
+                {attackDelta >= 0 ? "+" : ""}
+                {attackDelta}
+              </div>
             </div>
 
             <div>
-              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Defence Δ</div>
-              <div className="font-semibold">{defenceDelta >= 0 ? "+" : ""}{defenceDelta}</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+                Defence Δ
+              </div>
+              <div className="font-semibold">
+                {defenceDelta >= 0 ? "+" : ""}
+                {defenceDelta}
+              </div>
             </div>
 
             <div>
-              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Clear %</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+                Clear %
+              </div>
               <div className="font-semibold">{clearance}%</div>
             </div>
 
             <div>
-              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Consist.</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+                Consist.
+              </div>
               <div className="font-semibold">{consistency}</div>
             </div>
 
             <div>
-              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Pressure</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+                Pressure
+              </div>
               <div className="font-semibold">+3</div>
             </div>
 
             <div>
-              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Fixture</div>
-              <div className="font-semibold">{team.fixtureDifficulty.score}</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+                Fixture
+              </div>
+              <div className="font-semibold">
+                {team.fixtureDifficulty.score}
+              </div>
             </div>
           </div>
 
           {/* Opponents */}
           <div className="mt-2">
-            <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Opponents</div>
+            <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
+              Opponents
+            </div>
             <div className="mt-1 flex flex-wrap gap-1">
               {team.fixtureDifficulty.opponents.map((op) => (
                 <code
@@ -421,7 +452,6 @@ function TeamFormCard({ variant, team, metric }: {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
