@@ -114,7 +114,7 @@ function SoftZigZagSparkline({ variant }: { variant: Variant }) {
       : "text-sky-300";
 
   return (
-    <div className={`h-5 w-14 ${color}`}>
+    <div className={`h-5 w-20 ${color}`}>
       <svg viewBox="0 0 100 24" className="h-full w-full opacity-90">
         <path
           d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
@@ -140,6 +140,8 @@ export default function TeamFormGrid() {
   return (
     <section className="mt-16">
       <div className="rounded-[32px] border border-yellow-500/12 bg-gradient-to-b from-yellow-900/10 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
+
+        {/* Header */}
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-[rgba(250,204,21,0.25)] px-4 py-1 backdrop-blur-[2px] shadow-[0_0_20px_rgba(250,204,21,0.3)]">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.8)]" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-yellow-50">
@@ -152,10 +154,10 @@ export default function TeamFormGrid() {
         </h2>
 
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between different lenses to reveal movement and trends.
-          Click cards to reveal deeper analytics.
+          Switch between different lenses to reveal movement and trends. Click cards to reveal deeper analytics.
         </p>
 
+        {/* Metric tabs */}
         <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/70">
           {METRICS.map((m) => {
             const active = metric === m;
@@ -164,9 +166,7 @@ export default function TeamFormGrid() {
                 key={m}
                 onClick={() => setMetric(m)}
                 className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
-                  active
-                    ? "text-black"
-                    : "text-neutral-400 hover:text-neutral-100"
+                  active ? "text-black" : "text-neutral-400 hover:text-neutral-100"
                 }`}
               >
                 {active && (
@@ -180,6 +180,7 @@ export default function TeamFormGrid() {
           })}
         </div>
 
+        {/* Columns */}
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <FormColumn
             variant="hot"
@@ -225,32 +226,28 @@ function FormColumn({
   teams: AFLTeam[];
   metric: Metric;
 }) {
+  const color =
+    variant === "hot"
+      ? "text-yellow-200"
+      : variant === "stable"
+      ? "text-lime-200"
+      : "text-sky-200";
+
+  const divider =
+    variant === "hot"
+      ? "from-yellow-400/40"
+      : variant === "stable"
+      ? "from-lime-400/40"
+      : "from-sky-400/40";
+
   return (
     <div>
       <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
         {icon}
-        <span
-          className={`font-semibold ${
-            variant === "hot"
-              ? "text-yellow-200"
-              : variant === "stable"
-              ? "text-lime-200"
-              : "text-sky-200"
-          }`}
-        >
-          {title}
-        </span>
+        <span className={`font-semibold ${color}`}>{title}</span>
       </div>
 
-      <div
-        className={`mb-4 h-px bg-gradient-to-r ${
-          variant === "hot"
-            ? "from-yellow-400/40"
-            : variant === "stable"
-            ? "from-lime-400/40"
-            : "from-sky-400/40"
-        }`}
-      />
+      <div className={`mb-4 h-px bg-gradient-to-r ${divider}`} />
 
       <div className="space-y-4">
         {teams.map((team) => (
@@ -287,17 +284,17 @@ function TeamFormCard({
 
   const attackDelta =
     team.scores[team.scores.length - 1] - team.scores[team.scores.length - 2];
+
   const defenceDelta =
     team.margins[team.margins.length - 1] -
     team.margins[team.margins.length - 2];
+
   const clearance = team.clearanceDom[team.clearanceDom.length - 1];
   const consistency = team.consistencyIndex;
 
   return (
     <div
-      className={`relative min-h-[176px] h-auto pb-1 cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[1px] transform-gpu transition duration-300 ${
-        variantHalo[variant]
-      }`}
+      className={`relative min-h-[178px] h-auto cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]}`}
       onClick={() => setFlipped(!flipped)}
     >
       <div
@@ -305,66 +302,67 @@ function TeamFormCard({
           flipped ? "[transform:rotateY(180deg)]" : ""
         }`}
       >
+
         {/* FRONT */}
-        <div className="absolute inset-0 h-full flex flex-col justify-between px-4 py-4 [backface-visibility:hidden]">
+        <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-sm font-semibold text-neutral-50">
+              <div className="text-[15px] font-semibold text-neutral-50 leading-tight">
                 {team.name}
               </div>
-              <div className="mt-1 text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
+              <div className="mt-[2px] text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 {metricLabels[metric]}
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-1">
+            <div className="flex flex-col items-end gap-1.5">
               <SoftZigZagSparkline variant={variant} />
               <div
-                className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
+                className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-1.5 py-[1px] text-[9px] font-semibold`}
               >
                 {formattedScore}
               </div>
             </div>
           </div>
 
-          <div className="mt-4">
-            <div className="relative h-1.5 w-full rounded-full bg-neutral-800/80 overflow-hidden">
+          <div className="mt-3">
+            <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
                   variant === "hot"
-                    ? "from-yellow-300 to-yellow-400"
+                    ? "from-yellow-200 to-yellow-400"
                     : variant === "stable"
-                    ? "from-lime-300 to-emerald-400"
-                    : "from-sky-300 to-cyan-400"
+                    ? "from-lime-200 to-emerald-400"
+                    : "from-sky-200 to-cyan-400"
                 }`}
                 style={{ width: barWidth }}
               />
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
+          <div className="mt-3 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
             <span>{metricLabels[metric]}</span>
             <span className="flex items-center gap-1 text-[9px] text-neutral-400">
               <span className="hidden sm:inline">Analytics</span>
-              <span className="text-xs">↺</span>
+              <span className="text-[11px]">↺</span>
             </span>
           </div>
         </div>
 
         {/* BACK */}
-        <div className="absolute inset-0 h-full px-4 py-3 bg-black/60 backdrop-blur-[3px] border border-white/5 rounded-xl flex flex-col justify-between [transform:rotateY(180deg)] [backface-visibility:hidden]">
+        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-3 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+
+          {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-sm font-semibold text-neutral-50">
-                {team.name}
-              </div>
-              <div className="mt-1 text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
-                {metricPrefix[metric]} analytics snapshot
+              <div className="text-sm font-semibold text-neutral-50">{team.name}</div>
+              <div className="mt-1 text-[9px] uppercase text-neutral-500 tracking-[0.16em]">
+                {metricPrefix[metric]} snapshot
               </div>
             </div>
 
             <div
-              className={`text-[10px] font-semibold ${
+              className={`text-[11px] font-semibold ${
                 variant === "hot"
                   ? "text-yellow-200"
                   : variant === "stable"
@@ -376,63 +374,68 @@ function TeamFormCard({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-y-1.5 gap-x-4 text-[11px] text-neutral-300 leading-tight">
+          {/* Dense 3-column Grid */}
+          <div className="mt-3 grid grid-cols-3 gap-y-2 gap-x-4 text-[11px] text-neutral-300 leading-snug">
+
             <div>
-              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
-                Attack Δ
-              </div>
-              <div className="mt-1 font-semibold">
+              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Attack Δ</div>
+              <div className="font-semibold">
                 {attackDelta >= 0 ? "+" : ""}
                 {attackDelta}
               </div>
             </div>
 
             <div>
-              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
-                Defence Δ
-              </div>
-              <div className="mt-1 font-semibold">
+              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Defence Δ</div>
+              <div className="font-semibold">
                 {defenceDelta >= 0 ? "+" : ""}
                 {defenceDelta}
               </div>
             </div>
 
             <div>
-              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
-                Clearance %
-              </div>
-              <div className="mt-1 font-semibold">{clearance}%</div>
+              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Clear %</div>
+              <div className="font-semibold">{clearance}%</div>
             </div>
 
             <div>
-              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
-                Consistency
-              </div>
-              <div className="mt-1 font-semibold">{consistency}</div>
+              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Consist.</div>
+              <div className="font-semibold">{consistency}</div>
             </div>
 
-            <div className="col-span-2">
-              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
-                Opponents
-              </div>
-              <div className="mt-1 flex gap-1">
-                {team.fixtureDifficulty.opponents.map((op) => (
-                  <code
-                    key={op}
-                    className="rounded bg-white/5 px-1.5 py-[1px] text-[10px] text-neutral-300"
-                  >
-                    {op}
-                  </code>
-                ))}
-              </div>
+            <div>
+              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Pressure</div>
+              <div className="font-semibold">+3</div>
+            </div>
+
+            <div>
+              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Fixture</div>
+              <div className="font-semibold">{team.fixtureDifficulty.score}</div>
             </div>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
+          {/* Opponents */}
+          <div className="mt-2">
+            <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Opponents</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {team.fixtureDifficulty.opponents.map((op) => (
+                <code
+                  key={op}
+                  className="rounded bg-white/5 px-1.5 py-[1px] text-[9px] text-neutral-300"
+                >
+                  {op}
+                </code>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2 text-[9px] uppercase tracking-[0.14em] text-neutral-500">
             <span>Tap to return</span>
-            <span className="text-xs">↺</span>
+            <span className="text-[11px]">↺</span>
           </div>
         </div>
+
       </div>
     </div>
   );
