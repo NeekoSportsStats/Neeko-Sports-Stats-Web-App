@@ -1,44 +1,63 @@
-// src/components/afl/teams/TeamMomentumPulse.tsx
-// T1 PRIME EDITION v2 — Final polish:
-// - 6 narrative headlines
-// - Headlines panel bottom-aligned with metric cards
-// - Animated sunlight shimmer (background only)
-// - Animated border glow on cards
-// - Fade-in animations
-// - Sparkline tuned for better visibility (including mobile)
+// TEAM MOMENTUM PULSE — T1 PRIME EDITION v3
+// - Updated to match existing data model (no invalid fields)
+// - H1-A Premium Depth Hover (subtle): scale 1.02 + 3px lift + soft gold glow
+// - Headlines card remains static (HC2)
+// - Background sunlight shimmer + fade-in animations
+// - Sparkline mobile improved
+// - 6 narrative editorial headlines (not duplicates)
 
 import React from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import { Flame, Shield, TrendingUp, BarChart3, Zap } from "lucide-react";
 
 /* ============================================================================
-   Shared animation styles (keyframes injected via <style>)
+   Inject Keyframes for Hover + Sunlight + Fade-In
 ============================================================================ */
 
 function AnimationStyles() {
   return (
     <style>
       {`
+        /* Sunlight shimmer — subtle */
         @keyframes sunlightDrift {
-          0%   { background-position: 0% 0%;   }
-          50%  { background-position: 30% 10%; }
-          100% { background-position: 15% 0%;  }
+          0%   { background-position: 0% 0%; }
+          50%  { background-position: 28% 12%; }
+          100% { background-position: 14% 0%; }
         }
 
-        @keyframes cardGlow {
-          0%   { border-color: rgba(255,211,105,0.40); box-shadow: 0 10px 28px rgba(0,0,0,0.75); }
-          50%  { border-color: rgba(255,211,105,0.70); box-shadow: 0 12px 34px rgba(0,0,0,0.85); }
-          100% { border-color: rgba(255,211,105,0.40); box-shadow: 0 10px 28px rgba(0,0,0,0.75); }
+        /* Card border glow — ultra soft */
+        @keyframes cardGlowSoft {
+          0%   { border-color: rgba(255,211,105,0.40); }
+          50%  { border-color: rgba(255,211,105,0.72); }
+          100% { border-color: rgba(255,211,105,0.40); }
         }
 
+        /* Fade up intro */
         @keyframes fadeUp {
-          0%   { opacity: 0; transform: translateY(8px); }
-          100% { opacity: 1; transform: translateY(0);   }
+          0%   { opacity: 0; transform: translateY(9px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
 
+        /* Fade up grid */
         @keyframes fadeUpSoft {
-          0%   { opacity: 0; transform: translateY(6px); }
-          100% { opacity: 1; transform: translateY(0);   }
+          0%   { opacity: 0; transform: translateY(7px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hover depth — H1-A.1 (subtle) */
+        .hover-depth {
+          transition:
+            transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1),
+            box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.3, 1),
+            border-color 0.25s ease-in-out;
+        }
+
+        .hover-depth:hover {
+          transform: translateY(-3px) scale(1.02);
+          box-shadow:
+            0 12px 34px rgba(0,0,0,0.85),
+            0 0 14px rgba(255,211,105,0.25);
+          border-color: rgba(255,211,105,0.75);
         }
       `}
     </style>
@@ -46,29 +65,23 @@ function AnimationStyles() {
 }
 
 /* ============================================================================
-   Sparkline — clean white line + soft gold glow, slightly bolder for mobile
+   Sparkline — clean white line + soft gold glow, mobile enhanced
 ============================================================================ */
 
 function smooth(values: number[]) {
   if (!values || values.length < 3) return values ?? [];
   const out = [...values];
-  for (let i = 1; i < values.length - 1; i++) {
+  for (let i = 1; i < values.length - 1; i++)
     out[i] = (values[i - 1] + values[i] + values[i + 1]) / 3;
-  }
   return out;
 }
 
-interface SparkProps {
-  values: number[];
-}
-
-function Sparkline({ values }: SparkProps) {
+function Sparkline({ values }: { values: number[] }) {
   const smoothed = smooth(values);
 
   const { points, lastX, lastY } = React.useMemo(() => {
-    if (!smoothed || smoothed.length < 2) {
+    if (!smoothed || smoothed.length < 2)
       return { points: "0,20 100,20", lastX: 100, lastY: 20 };
-    }
 
     const min = Math.min(...smoothed);
     const max = Math.max(...smoothed);
@@ -95,69 +108,33 @@ function Sparkline({ values }: SparkProps) {
   }, [smoothed]);
 
   return (
-    <div className="relative h-16 w-full overflow-hidden rounded-xl border border-neutral-800/70 bg-black/85 sm:h-16">
-      <svg
-        viewBox="0 0 100 40"
-        className="h-full w-full"
-        preserveAspectRatio="none"
-      >
+    <div className="relative h-16 sm:h-16 w-full overflow-hidden rounded-xl border border-neutral-800/70 bg-black/85">
+      <svg viewBox="0 0 100 40" className="h-full w-full">
         <defs>
-          <filter
-            id="sparkline-glow"
-            x="-40%"
-            y="-40%"
-            width="180%"
-            height="180%"
-          >
+          <filter id="sparkline-glow" x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="1.4" result="blur" />
             <feBlend in="SourceGraphic" in2="blur" mode="screen" />
           </filter>
         </defs>
 
-        {/* soft grid lines */}
-        <line
-          x1="0"
-          y1="30"
-          x2="100"
-          y2="30"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth={0.5}
-        />
-        <line
-          x1="0"
-          y1="22"
-          x2="100"
-          y2="22"
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth={0.5}
-        />
-        <line
-          x1="0"
-          y1="14"
-          x2="100"
-          y2="14"
-          stroke="rgba(255,255,255,0.04)"
-          strokeWidth={0.5}
-        />
+        {/* Soft grid */}
+        <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(255,255,255,0.08)" />
+        <line x1="0" y1="22" x2="100" y2="22" stroke="rgba(255,255,255,0.06)" />
+        <line x1="0" y1="14" x2="100" y2="14" stroke="rgba(255,255,255,0.04)" />
 
-        {/* gold glow behind line */}
+        {/* Gold glow */}
         <polyline
           points={points}
-          fill="none"
           stroke="rgba(255,211,105,0.45)"
           strokeWidth={2.5}
+          fill="none"
           filter="url(#sparkline-glow)"
         />
 
-        {/* main white line */}
-        <polyline
-          points={points}
-          fill="none"
-          stroke="white"
-          strokeWidth={1.6}
-        />
+        {/* Main line */}
+        <polyline points={points} stroke="white" strokeWidth={1.6} fill="none" />
 
-        {/* last point highlight */}
+        {/* End point */}
         <circle cx={lastX} cy={lastY} r={1.7} fill="white" />
       </svg>
     </div>
@@ -165,17 +142,8 @@ function Sparkline({ values }: SparkProps) {
 }
 
 /* ============================================================================
-   Metric Insight Card — premium broadcast-style with animated border glow
+   Insight Card (with H1-A.1 subtle hover)
 ============================================================================ */
-
-interface InsightCardProps {
-  title: string;
-  team: string;
-  metricValue: string;
-  metricLabel: string;
-  values: number[];
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-}
 
 function InsightCard({
   title,
@@ -184,15 +152,20 @@ function InsightCard({
   metricLabel,
   values,
   icon: Icon,
-}: InsightCardProps) {
+}: {
+  title: string;
+  team: string;
+  metricValue: string;
+  metricLabel: string;
+  values: number[];
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+}) {
   return (
     <div
-      className="rounded-2xl bg-black/65 p-5 backdrop-blur-[1px]"
+      className="hover-depth rounded-2xl bg-black/65 p-5 backdrop-blur-[1px]"
       style={{
-        borderRadius: "1.25rem",
         border: "1px solid rgba(255,211,105,0.45)",
         boxShadow: "0 10px 28px rgba(0,0,0,0.75)",
-        animation: "cardGlow 4.8s ease-in-out infinite",
       }}
     >
       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.20em] text-[rgba(255,211,105,0.95)]">
@@ -215,33 +188,28 @@ function InsightCard({
 }
 
 /* ============================================================================
-   Headlines Card — narrative editorial content (supports className for stretch)
+   Headlines Card (HC2 — static, no hover)
 ============================================================================ */
 
-interface HeadlinesCardProps {
-  items: string[];
-  className?: string;
-}
-
-function HeadlinesCard({ items, className }: HeadlinesCardProps) {
+function HeadlinesCard({ items, className }: { items: string[]; className?: string }) {
   return (
     <div
-      className={`relative rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/72 px-7 py-6 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[2px] ${className ?? ""}`}
+      className={`relative rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/72 px-7 py-6 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[2px] ${className}`}
     >
-      {/* vertical gold beam */}
-      <div className="pointer-events-none absolute left-4 top-5 bottom-5 w-[2px] rounded-full bg-gradient-to-b from-[rgba(255,211,105,1)] via-[rgba(255,211,105,0.6)] to-transparent" />
+      <div className="absolute left-4 top-5 bottom-5 w-[2px] bg-gradient-to-b from-[rgba(255,211,105,1)] via-[rgba(255,211,105,0.6)] to-transparent rounded-full" />
 
       <div className="pl-5 flex h-full flex-col">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(255,220,138,1)]">
           <Zap className="h-4 w-4 text-[rgba(255,220,138,1)]" />
           Key Headlines
         </div>
+
         <ul className="mt-3 space-y-2 text-sm text-neutral-200 leading-relaxed">
           {items.map((h, i) => (
             <li key={i}>• {h}</li>
           ))}
         </ul>
-        {/* optional spacer to push content if needed */}
+
         <div className="flex-1" />
       </div>
     </div>
@@ -249,42 +217,34 @@ function HeadlinesCard({ items, className }: HeadlinesCardProps) {
 }
 
 /* ============================================================================
-   Main Section — T1 Prime Edition v2
+   Main Section
 ============================================================================ */
 
 export default function TeamMomentumPulse() {
   const roundIndex = 22;
   const prev = roundIndex - 1;
+
   const teams = MOCK_TEAMS;
 
-  // Card stats
-  const fantasyTeam = [...teams].sort(
-    (a, b) => b.attackRating - a.attackRating
-  )[0];
-
-  const scoringTeam = [...teams].sort(
-    (a, b) => b.scores[roundIndex] - a.scores[roundIndex]
-  )[0];
-
-  const defenceTeam = [...teams].sort(
-    (a, b) => b.defenceRating - a.defenceRating
-  )[0];
+  const fantasyTeam = [...teams].sort((a, b) => b.attackRating - a.attackRating)[0];
+  const scoringTeam = [...teams].sort((a, b) => b.scores[roundIndex] - a.scores[roundIndex])[0];
+  const defenceTeam = [...teams].sort((a, b) => b.defenceRating - a.defenceRating)[0];
 
   const momentum = teams
-    .map((t) => ({
+    .map(t => ({
       team: t,
       delta: (t.margins?.[roundIndex] ?? 0) - (t.margins?.[prev] ?? 0),
     }))
     .sort((a, b) => b.delta - a.delta)[0];
 
-  // Narrative headlines — round-level stories, not duplicated metrics
+  /* Narrative Headlines (non-duplicate) */
   const headlines = [
     "Midfield usage shifted significantly this round, with multiple clubs experimenting in key rotations.",
     `${fantasyTeam.name} benefited from increased stoppage presence, driving a surge in fantasy opportunity.`,
     `${defenceTeam.name}'s back-half structure showed exceptional consistency late in the match.`,
-    `${momentum.team.name} generated sustained forward-half pressure, producing the strongest momentum lift.`,
+    `${momentum.team.name} generated forward-half pressure, producing the strongest momentum lift.`,
     "Several clubs trialled hybrid forward–mid roles, creating pockets of elevated scoring volatility.",
-    "Defensive structures tightened late across multiple games, keeping overall scoring in check despite momentum swings.",
+    "Defensive structures tightened late across multiple matches, reducing free-flow scoring during key momentum swings.",
   ];
 
   return (
@@ -300,46 +260,32 @@ export default function TeamMomentumPulse() {
           animation: "sunlightDrift 14s ease-in-out infinite alternate",
         }}
       >
-        {/* subtle vignette */}
         <div className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_bottom,rgba(0,0,0,0.55),transparent_65%)]" />
 
-        {/* content */}
-        <div
-          className="relative"
-          style={{
-            animation: "fadeUp 650ms ease-out forwards",
-            opacity: 0,
-          }}
-        >
-          {/* Section Label */}
+        <div className="relative" style={{ animation: "fadeUp 650ms ease-out forwards", opacity: 0 }}>
           <div className="inline-flex items-center gap-[6px] rounded-full border border-[rgba(255,211,105,0.75)] bg-black/80 px-4 py-1 text-[10px] uppercase tracking-[0.22em] text-[rgba(255,220,138,1)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,220,138,1)]" />
             Round Momentum Pulse • R23
           </div>
 
-          {/* Headline + Subcopy */}
           <h2 className="mt-5 text-[22px] font-semibold text-white md:text-[24px]">
             League-wide fantasy trends &amp; team momentum highlights
           </h2>
+
           <p className="mt-2 max-w-3xl text-[15px] leading-snug text-neutral-200">
-            Round 23 fantasy trends reveal usage spikes, role changes and
-            matchup edges driving team performance across the league. This
-            Neeko+ view highlights the key team-level stories from the latest
-            round.
+            Round 23 fantasy trends reveal usage spikes, role changes and matchup
+            edges driving team performance across the league. This Neeko+ view highlights
+            the key team-level stories from the latest round.
           </p>
 
           <div className="mt-5 h-px w-full bg-gradient-to-r from-[rgba(255,211,105,0.4)] via-neutral-700/65 to-transparent" />
 
-          {/* Main grid */}
           <div
             className="mt-8 grid items-stretch gap-12 lg:grid-cols-[1.35fr_0.9fr]"
-            style={{
-              animation: "fadeUpSoft 700ms ease-out 120ms forwards",
-              opacity: 0,
-            }}
+            style={{ animation: "fadeUpSoft 700ms ease-out 120ms forwards", opacity: 0 }}
           >
-            {/* Left: metrics cards */}
-            <div className="flex flex-col">
+            {/* Left — metric cards */}
+            <div>
               <h3 className="text-[11px] uppercase tracking-[0.24em] text-[rgba(255,211,105,0.95)]">
                 Round 23 Summary Metrics
               </h3>
@@ -383,7 +329,7 @@ export default function TeamMomentumPulse() {
               </div>
             </div>
 
-            {/* Right: headlines – stretched to bottom-align with cards */}
+            {/* Right — headlines static card */}
             <div className="lg:pt-4 flex lg:h-full">
               <HeadlinesCard items={headlines} className="h-full w-full" />
             </div>
