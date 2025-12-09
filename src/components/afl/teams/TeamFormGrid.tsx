@@ -1,203 +1,208 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
+import clsx from "clsx";
 import { MOCK_TEAMS } from "./mockTeams";
 import {
+  ArrowDownRight,
+  ArrowUpRight,
   Flame,
   CircleDot,
   Snowflake,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                          MINI SPARKLINE (ANALYTICS)                        */
+/*                         UTILITIES & SMALL COMPONENTS                        */
 /* -------------------------------------------------------------------------- */
 
-function MiniSparkline({ values }: { values: number[] }) {
-  // Visual placeholder – you can wire this to a real chart later
+const formatSigned = (v: number) => `${v >= 0 ? "+" : ""}${v}`;
+
+function TinyBar({ value, tint }: { value: number; tint: string }) {
+  const abs = Math.min(Math.abs(value), 100);
+
+  const tintClass =
+    tint === "yellow"
+      ? "from-yellow-400 to-yellow-200"
+      : tint === "lime"
+      ? "from-lime-400 to-lime-200"
+      : "from-sky-400 to-sky-200";
+
   return (
-    <div className="h-8 w-full rounded-md bg-gradient-to-r from-neutral-900 via-neutral-800/70 to-black shadow-inner" />
+    <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-neutral-800/70">
+      <div
+        className={clsx("h-full rounded-full bg-gradient-to-r", tintClass)}
+        style={{ width: `${abs}%` }}
+      />
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="flex flex-col">
+      <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-neutral-200">
+        {value}
+      </div>
+    </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                        CLASSIFICATION + METRIC LOGIC                        */
+/*                  CLASSIFY TEAMS INTO HOT / STABLE / COLD                   */
 /* -------------------------------------------------------------------------- */
 
-type ClassifiedTeam = (typeof MOCK_TEAMS)[number] & {
-  metric: number;
-  category: "hot" | "stable" | "cold";
-  attackDelta: number;
-  defenceDelta: number;
-};
+function classify(teams = MOCK_TEAMS, filter: string) {
+  return teams.map((t) => {
+    const last = t.margins.length - 1;
+    const prev = last - 1;
 
-function classifyTeams(filter: "momentum" | "fantasy" | "disposals" | "goals") {
-  const last = 22; // R23 index
-  const prev = 19; // R20 index
-
-  return MOCK_TEAMS.map<ClassifiedTeam>((team) => {
     let metric = 0;
 
-    if (filter === "momentum") {
-      metric = team.margins[last] - team.margins[prev];
-    } else if (filter === "fantasy") {
-      metric = team.attackRating - 50;
-    } else if (filter === "disposals") {
-      metric = team.midfieldTrend[team.midfieldTrend.length - 1] - 50;
-    } else if (filter === "goals") {
-      metric = team.scores[last] - team.scores[last - 1];
-    }
+    if (filter === "momentum") metric = t.margins[last] - t.margins[last - 3];
+    if (filter === "fantasy") metric = t.attackRating - 50;
+    if (filter === "disposals") metric = t.midfieldTrend[last] - 50;
+    if (filter === "goals") metric = t.attackTrend[last] - 50;
 
-    const attackDelta =
-      team.attackTrend[team.attackTrend.length - 1] -
-      team.attackTrend[team.attackTrend.length - 2];
-
-    const defenceDelta =
-      team.defenceTrend[team.defenceTrend.length - 1] -
-      team.defenceTrend[team.defenceTrend.length - 2];
-
-    let category: "hot" | "stable" | "cold" = "stable";
-    if (metric >= 12) category = "hot";
-    else if (metric <= -12) category = "cold";
+    const category =
+      metric >= 12 ? "hot" : metric <= -12 ? "cold" : "stable";
 
     return {
-      ...team,
+      ...t,
       metric,
       category,
-      attackDelta,
-      defenceDelta,
     };
   });
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                  WRAPPER                                   */
+/*                                 MAIN VIEW                                   */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamFormGrid() {
-  const [filter, setFilter] = useState<
-    "momentum" | "fantasy" | "disposals" | "goals"
-  >("momentum");
+  const [filter, setFilter] = useState<"momentum" | "fantasy" | "disposals" | "goals">(
+    "momentum"
+  );
 
-  const teams = useMemo(() => classifyTeams(filter), [filter]);
+  const classified = useMemo(() => classify(MOCK_TEAMS, filter), [filter]);
 
-  const hotTeams = teams.filter((t) => t.category === "hot").slice(0, 3);
-  const stableTeams = teams.filter((t) => t.category === "stable").slice(0, 3);
-  const coldTeams = teams.filter((t) => t.category === "cold").slice(0, 3);
+  const hot = classified.filter((t) => t.category === "hot").slice(0, 3);
+  const stable = classified.filter((t) => t.category === "stable").slice(0, 3);
+  const cold = classified.filter((t) => t.category === "cold").slice(0, 3);
+
+  const filters = [
+    { key: "momentum", label: "Momentum" },
+    { key: "fantasy", label: "Fantasy" },
+    { key: "disposals", label: "Disposals" },
+    { key: "goals", label: "Goals" },
+  ];
 
   return (
-    <section className="mt-12 w-full">
-      {/* Outer premium container */}
-      <div className="rounded-3xl border border-neutral-800/60 bg-gradient-to-b from-neutral-900/70 via-neutral-950/90 to-black/95 px-5 py-10 shadow-[0_0_40px_rgba(0,0,0,0.45)] backdrop-blur-xl md:px-10 md:py-12">
-        {/* Header pill */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/12 px-4 py-1.5 shadow-[0_0_20px_rgba(250,204,21,0.45)]">
-          <span className="h-2 w-2 rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-            Team Form Grid
-          </span>
-        </div>
+    <section className="relative mt-14 rounded-3xl border border-neutral-800/60 bg-gradient-to-b from-black/40 to-black/70 px-4 py-10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-lg md:px-8">
+      {/* HEADER PILL */}
+      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent px-4 py-1.5 shadow-[0_0_18px_rgba(250,204,21,0.45)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+          Team Form Grid
+        </span>
+      </div>
 
-        {/* Heading */}
-        <h2 className="mt-5 text-2xl font-semibold text-neutral-50 md:text-3xl">
-          Hot, stable and cold clubs by performance lens
-        </h2>
+      <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
+        Hot, stable and cold clubs by performance lens
+      </h2>
 
-        <p className="mt-2 max-w-xl text-xs text-neutral-400">
-          Switch between momentum, fantasy, disposals and goals to see how each
-          club is trending. Tap a pill on mobile or hover on desktop to reveal a
-          deeper analytics panel.
-        </p>
+      <p className="mt-2 max-w-2xl text-sm text-neutral-400 md:text-[15px]">
+        Switch between momentum, fantasy, disposals and goals to see how each
+        club is trending. Tap a pill on mobile or hover on desktop to reveal a
+        deeper analytics panel.
+      </p>
 
-        {/* Filter tabs */}
-        <div className="mt-6 flex w-full gap-2 overflow-x-auto rounded-full border border-neutral-800/60 bg-black/50 p-1 text-sm backdrop-blur no-scrollbar">
-          {(["momentum", "fantasy", "disposals", "goals"] as const).map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setFilter(tab)}
-                className={`flex-shrink-0 rounded-full px-5 py-2.5 font-semibold capitalize transition-all duration-300 ${
-                  filter === tab
-                    ? "bg-yellow-500/18 text-yellow-200 shadow-[0_0_16px_rgba(250,204,21,0.45)]"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                {tab}
-              </button>
-            )
-          )}
-        </div>
+      {/* FILTER TABS */}
+      <div className="mt-5 flex w-full gap-2 overflow-x-auto rounded-full border border-neutral-800/60 bg-black/50 p-1.5 text-sm">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key as any)}
+            className={clsx(
+              "flex-shrink-0 rounded-full px-6 py-2.5 font-medium transition-all",
+              filter === f.key
+                ? "bg-gradient-to-r from-yellow-500/40 via-yellow-500/20 to-transparent text-yellow-200 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
+                : "text-neutral-400 hover:text-neutral-200"
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Categories grid */}
-        <div className="mt-10 grid gap-10 md:grid-cols-3">
-          <CategoryColumn
-            title="Hot Teams"
-            icon={
-              <Flame className="h-4 w-4 text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-            }
-            tint="yellow"
-            teams={hotTeams}
-          />
-
-          <CategoryColumn
-            title="Stable Teams"
-            icon={
-              <CircleDot className="h-4 w-4 text-lime-300 drop-shadow-[0_0_10px_rgba(132,204,22,0.9)]" />
-            }
-            tint="lime"
-            teams={stableTeams}
-          />
-
-          <CategoryColumn
-            title="Cold Teams"
-            icon={
-              <Snowflake className="h-4 w-4 text-sky-300 drop-shadow-[0_0_10px_rgba(56,189,248,0.9)]" />
-            }
-            tint="sky"
-            teams={coldTeams}
-          />
-        </div>
+      {/* GRID */}
+      <div className="mt-8 space-y-12">
+        <CategoryBlock
+          title="Hot Teams"
+          icon={<Flame className="h-4 w-4 text-yellow-300" />}
+          tint="yellow"
+          teams={hot}
+        />
+        <CategoryBlock
+          title="Stable Teams"
+          icon={<CircleDot className="h-4 w-4 text-lime-300" />}
+          tint="lime"
+          teams={stable}
+        />
+        <CategoryBlock
+          title="Cold Teams"
+          icon={<Snowflake className="h-4 w-4 text-sky-300" />}
+          tint="sky"
+          teams={cold}
+        />
       </div>
     </section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               CATEGORY COLUMN                               */
+/*                              CATEGORY BLOCK                                 */
 /* -------------------------------------------------------------------------- */
 
-function CategoryColumn({
+function CategoryBlock({
   title,
   icon,
-  teams,
   tint,
+  teams,
 }: {
   title: string;
   icon: React.ReactNode;
-  teams: ClassifiedTeam[];
   tint: "yellow" | "lime" | "sky";
+  teams: any[];
 }) {
-  const dividerGradient =
+  const divider =
     tint === "yellow"
-      ? "from-amber-400/70 via-amber-300/35 to-transparent"
+      ? "from-yellow-500/40"
       : tint === "lime"
-      ? "from-lime-400/70 via-lime-300/35 to-transparent"
-      : "from-sky-400/70 via-sky-300/35 to-transparent";
+      ? "from-lime-400/40"
+      : "from-sky-400/40";
 
   return (
-    <div className="space-y-4">
-      {/* Sticky header on mobile */}
-      <div className="sticky top-[70px] z-10 bg-gradient-to-b from-neutral-950 via-neutral-950/95 to-transparent pb-2 pt-1 md:static md:bg-transparent md:pb-0 md:pt-0">
-        <div className={`h-px w-full bg-gradient-to-r ${dividerGradient}`} />
+    <div className="relative">
+      <div className="sticky top-[64px] z-10 bg-gradient-to-b from-neutral-950 via-neutral-950/95 to-transparent py-2 md:static md:bg-transparent">
+        <div className="h-px w-full bg-gradient-to-r opacity-70" style={{ backgroundImage: `linear-gradient(to right, ${divider}, transparent)` }} />
         <div className="mt-2 flex items-center gap-2">
           {icon}
-          <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-300">
+          <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-200">
             {title}
           </span>
         </div>
       </div>
 
-      <div className="space-y-4">
-        {teams.map((team) => (
-          <FormPill key={team.id} team={team} tint={tint} />
+      <div className="mt-4 space-y-4 md:space-y-3">
+        {teams.map((t) => (
+          <TeamPill key={t.id} team={t} tint={tint} />
         ))}
       </div>
     </div>
@@ -205,138 +210,94 @@ function CategoryColumn({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            PILL + INLINE SPARKLINE                          */
+/*                                  TEAM PILL                                  */
 /* -------------------------------------------------------------------------- */
 
-function FormPill({ team, tint }: { team: ClassifiedTeam; tint: "yellow" | "lime" | "sky" }) {
+function TeamPill({ team, tint }: any) {
   const [open, setOpen] = useState(false);
 
-  const badgeClass =
+  const tintGlow =
     tint === "yellow"
-      ? "bg-yellow-500/18 border-yellow-500/45 text-yellow-300"
+      ? "shadow-[0_0_18px_rgba(250,204,21,0.35)]"
       : tint === "lime"
-      ? "bg-lime-500/18 border-lime-500/45 text-lime-300"
-      : "bg-sky-500/18 border-sky-500/45 text-sky-300";
+      ? "shadow-[0_0_18px_rgba(163,230,53,0.35)]"
+      : "shadow-[0_0_18px_rgba(56,189,248,0.35)]";
 
-  const barFillClass =
+  const tintBadge =
     tint === "yellow"
-      ? "bg-yellow-400/95"
+      ? "border-yellow-500/50 text-yellow-200"
       : tint === "lime"
-      ? "bg-lime-400/95"
-      : "bg-sky-400/95";
+      ? "border-lime-500/50 text-lime-200"
+      : "border-sky-500/50 text-sky-200";
 
-  // clamp metric into [0, 100] for bar length
-  const absMetric = Math.min(Math.abs(team.metric), 100);
+  const tintArrow = team.metric >= 0 ? (
+    <ArrowUpRight className="h-4 w-4 text-lime-300" />
+  ) : (
+    <ArrowDownRight className="h-4 w-4 text-red-300" />
+  );
 
   return (
-    <div className="group">
-      {/* FRONT / MAIN CARD */}
+    <div className={clsx("group rounded-2xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/70 to-black p-4 transition-all", tintGlow)}>
+      {/* COLLAPSED HEADER */}
       <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full rounded-2xl border border-neutral-800/70 bg-gradient-to-br from-neutral-900/80 via-neutral-950/95 to-black px-4 py-4 text-left shadow-[0_0_28px_rgba(0,0,0,0.7)] backdrop-blur-md transition-all duration-300 hover:border-neutral-500/80 hover:shadow-[0_0_40px_rgba(0,0,0,0.9)] md:px-5 md:py-4.5"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
       >
-        {/* Top row: name + bar + badge */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-neutral-50">
-              {team.name}
-            </div>
+        <div>
+          <div className="text-base font-medium text-neutral-50">
+            {team.name}
           </div>
-
-          <div className="flex items-center gap-2">
-            {/* micro momentum bar */}
-            <div className="relative h-1.5 w-14 overflow-hidden rounded-full bg-neutral-800/80">
-              <div
-                className={`h-full ${barFillClass}`}
-                style={{ width: `${absMetric}%` }}
-              />
-            </div>
-
-            {/* soft glow badge */}
-            <span
-              className={`rounded-md border px-2 py-1 text-xs font-semibold tracking-wide shadow-[0_0_10px_rgba(0,0,0,0.7)] ${badgeClass}`}
-            >
-              {team.metric >= 0 ? "+" : ""}
-              {team.metric.toFixed(1)}
-            </span>
-
-            {/* chevron */}
-            <span className="ml-1 flex items-center justify-center">
-              {open ? (
-                <ChevronUp className="h-4 w-4 text-neutral-500" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-neutral-500" />
-              )}
-            </span>
+          <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+            Momentum • Last 5
           </div>
         </div>
 
-        {/* inline sparkline strip */}
-        <div className="mt-3 h-6 w-full rounded-xl bg-gradient-to-r from-neutral-900 via-neutral-800/75 to-neutral-950 shadow-inner" />
+        <div className="flex items-center gap-3">
+          <TinyBar value={team.metric} tint={tint} />
 
-        {/* descriptor row */}
-        <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-            Momentum • last 5
+          <span
+            className={clsx(
+              "rounded-full border px-2.5 py-1 text-xs font-semibold",
+              tintBadge
+            )}
+          >
+            {formatSigned(team.metric.toFixed(1))}
           </span>
-          <span className="hidden text-[10px] uppercase tracking-[0.16em] text-neutral-600 md:inline">
-            Hover for analytics
+
+          <span
+            className={clsx(
+              "transition-transform",
+              open ? "rotate-180" : "rotate-0"
+            )}
+          >
+            {tintArrow}
           </span>
         </div>
       </button>
 
-      {/* ANALYTICS PANEL - mobile tap, desktop hover */}
+      {/* EXPANDED ANALYTICS */}
       <div
-        className={`
-          overflow-hidden transition-[max-height,opacity,margin-top] duration-500 ease-out
-          ${open ? "max-h-[420px] opacity-100 mt-3" : "max-h-0 opacity-0 mt-0"}
-          md:max-h-0 md:opacity-0 md:mt-0 md:group-hover:max-h-[420px] md:group-hover:opacity-100 md:group-hover:mt-3
-        `}
+        className={clsx(
+          "overflow-hidden transition-[max-height,opacity,margin-top] duration-500 ease-out",
+          open ? "max-h-[400px] opacity-100 mt-4" : "max-h-0 opacity-0 mt-0",
+          "md:max-h-0 md:opacity-0 md:mt-0 md:group-hover:max-h-[400px] md:group-hover:opacity-100 md:group-hover:mt-4"
+        )}
       >
-        <div className="relative rounded-2xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/95 to-black px-4 py-4 shadow-[0_0_30px_rgba(0,0,0,0.7)] md:px-5 md:py-5">
-          {/* shimmer overlay on show */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.12),transparent_55%)] opacity-0 transition-opacity duration-700 md:group-hover:opacity-100" />
+        <div className="rounded-xl border border-neutral-800/60 bg-gradient-to-b from-neutral-900/50 to-black px-4 py-4 shadow-inner">
 
-          <div className="relative">
-            {/* sparkline / chart */}
-            <MiniSparkline values={team.margins.slice(-5)} />
-
-            {/* metrics grid */}
-            <div className="mt-4 grid grid-cols-2 gap-4 text-[11px] text-neutral-200">
-              <Metric label="Attack Δ" value={team.attackDelta} />
-              <Metric label="Defence Δ" value={team.defenceDelta} />
-              <Metric
-                label="Clearance %"
-                value={`${Math.round(team.clearanceDom.slice(-5).reduce((a, b) => a + b, 0) / 5)}%`}
-              />
-              <Metric label="Consistency" value={team.consistencyIndex} />
-              <Metric
-                label="Fixture diff"
-                value={team.fixtureDifficulty.score}
-              />
-              <Metric
-                label="Opponents"
-                value={team.fixtureDifficulty.opponents.join(", ")}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[11px]">
+            <Metric label="Attack Δ" value={formatSigned(team.attackRating - 50)} />
+            <Metric label="Defence Δ" value={formatSigned(team.defenceRating - 50)} />
+            <Metric label="Clearance %" value={`${team.clearanceDom[0]}%`} />
+            <Metric label="Consistency" value={team.consistencyIndex} />
+            <Metric label="Fixture Difficulty" value={team.fixtureDifficulty.score} />
+            <Metric
+              label="Opponents"
+              value={team.fixtureDifficulty.opponents.join(", ")}
+            />
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                METRIC ITEM                                 */
-/* -------------------------------------------------------------------------- */
-
-function Metric({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div>
-      <div className="text-[9px] uppercase tracking-[0.14em] text-neutral-500">
-        {label}
-      </div>
-      <div className="mt-1 font-semibold text-neutral-100">{value}</div>
     </div>
   );
 }
