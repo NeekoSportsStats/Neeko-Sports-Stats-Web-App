@@ -39,9 +39,8 @@ type TileProps = {
 
 function GoldIconPlate({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-yellow-500/70 bg-gradient-to-b from-yellow-500/25 via-yellow-500/10 to-black/95 shadow-[0_0_24px_rgba(250,204,21,0.7)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-2 group-hover:scale-105">
-      <div className="absolute inset-[2px] rounded-full bg-gradient-to-b from-black/80 via-black/60 to-black/90 opacity-90" />
-
+    <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-yellow-500/70 bg-gradient-to-b from-yellow-500/30 via-yellow-500/15 to-black/95 shadow-[0_0_26px_rgba(250,204,21,0.75)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-2 group-hover:scale-105">
+      <div className="absolute inset-[2px] rounded-full bg-gradient-to-b from-black/80 via-black/65 to-black/90 opacity-90" />
       <div className="relative text-yellow-100 drop-shadow-[0_0_10px_rgba(250,204,21,0.95)]">
         {children}
       </div>
@@ -55,7 +54,7 @@ function GoldIconPlate({ children }: { children: React.ReactNode }) {
 
 function TeamIdentityBar({ team }: { team: AFLTeam }) {
   return (
-    <div className="mt-5 flex items-center justify-between rounded-full border border-yellow-500/25 bg-gradient-to-r from-black/70 via-black/45 to-black/70 px-3 py-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+    <div className="mt-5 flex items-center justify-between rounded-full border border-yellow-500/25 bg-gradient-to-r from-black/70 via-black/45 to-black/65 px-3 py-1.5 shadow-[0_4px_14px_rgba(0,0,0,0.45)]">
       <div className="flex items-center gap-2">
         <span
           className="h-2.5 w-2.5 rounded-full"
@@ -68,6 +67,7 @@ function TeamIdentityBar({ team }: { team: AFLTeam }) {
           {team.name}
         </span>
       </div>
+
       <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-400">
         {team.code}
       </span>
@@ -94,13 +94,13 @@ function GoldRipple() {
 function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
   return (
     <div
-      className="group relative overflow-hidden rounded-3xl border border-yellow-500/10 bg-gradient-to-b from-black/95 via-neutral-950 to-black px-5 py-5 shadow-[0_0_60px_rgba(0,0,0,0.9)] transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_0_90px_rgba(250,204,21,0.6)]"
+      className="group relative overflow-hidden rounded-3xl border border-yellow-500/15 bg-gradient-to-b from-black/95 via-neutral-950 to-black px-5 py-5 shadow-[0_0_70px_rgba(0,0,0,0.9)] transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_0_95px_rgba(250,204,21,0.6)]"
       style={{
         boxShadow:
-          "0 0 0 1px rgba(250,204,21,0.2), inset 0 0 0 0.5px rgba(250,204,21,0.25)",
+          "0 0 0 1px rgba(250,204,21,0.18), inset 0 0 0 0.5px rgba(250,204,21,0.25)",
       }}
     >
-      {/* TEAM TINT OVERLAY */}
+      {/* SOFT TEAM TINT */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.1] group-hover:opacity-[0.18] transition-opacity duration-400"
         style={{
@@ -108,22 +108,22 @@ function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
         }}
       />
 
-      {/* ASYMMETRIC GOLD LIGHTING */}
-      <div className="pointer-events-none absolute -top-24 -right-32 h-48 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.28),transparent_65%)] opacity-80" />
-      <div className="pointer-events-none absolute -bottom-20 -left-36 h-48 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.17),transparent_65%)] opacity-70" />
+      {/* ASYMMETRIC GOLD GLOWS */}
+      <div className="pointer-events-none absolute -top-24 -right-36 h-52 w-60 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.28),transparent_68%)] opacity-80" />
+      <div className="pointer-events-none absolute -bottom-20 -left-40 h-52 w-60 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.17),transparent_70%)] opacity-70" />
 
-      {/* GOLD RIPPLE */}
+      {/* RIPPLE */}
       <GoldRipple />
 
-      {/* CONTENT */}
+      {/* FRONT CONTENT */}
       <div className="relative">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            {/* LABEL + LEADER TAG */}
             <div className="flex items-center gap-2">
-              <div className="text-[10px] uppercase tracking-[0.25em] text-yellow-300/90">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-yellow-300/95">
                 {label}
               </div>
+
               {leaderLabel && (
                 <div className="inline-flex items-center gap-1 rounded-full border border-yellow-500/60 bg-yellow-500/15 px-2 py-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
                   <Crown className="h-3 w-3 text-yellow-200" />
@@ -133,9 +133,8 @@ function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
                 </div>
               )}
             </div>
-            <div className="mt-1 text-[11px] text-neutral-400">
-              {caption}
-            </div>
+
+            <div className="mt-1 text-[11px] text-neutral-400">{caption}</div>
           </div>
 
           <GoldIconPlate>{icon}</GoldIconPlate>
@@ -149,7 +148,7 @@ function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
                 {value}
               </span>
 
-              {/* VALUE SHIMMER BAR */}
+              {/* SHIMMER BAR */}
               <div className="relative h-[2px] w-14 overflow-hidden rounded-full bg-gradient-to-r from-yellow-500/80 via-yellow-300/45 to-transparent group-hover:w-20 transition-all duration-300">
                 <div className="absolute inset-0 -translate-x-full animate-[pulse_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-yellow-50 to-transparent" />
               </div>
@@ -164,11 +163,11 @@ function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           MAIN DASHBOARD SECTION                            */
+/*                      MAIN DASHBOARD WITH OIL-GLOW PILL                      */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamDashboardTiles() {
-  // PRECOMPUTED METRIC LEADERS
+  // METRIC LEADERS
   const bestAttack = [...MOCK_TEAMS].sort((a, b) => b.attackRating - a.attackRating)[0];
   const bestDefence = [...MOCK_TEAMS].sort((a, b) => b.defenceRating - a.defenceRating)[0];
   const bestClearance = [...MOCK_TEAMS].sort((a, b) => avg(b.clearanceDom) - avg(a.clearanceDom))[0];
@@ -180,35 +179,61 @@ export default function TeamDashboardTiles() {
 
   return (
     <section className="mt-10 rounded-3xl border border-yellow-500/15 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-8 shadow-[0_0_80px_rgba(250,204,21,0.15)]">
-      
-      {/* HEADER */}
+
+      {/* ---------------- BRIGHT GOLD ELITE OIL PILL ---------------- */}
       <div className="mb-7 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          {/* MATCHED TO SECTION 1 STYLE */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/60 bg-gradient-to-r from-yellow-500/30 via-yellow-500/15 to-yellow-500/5 px-4 py-1.5 shadow-[0_0_36px_rgba(250,204,21,0.6)]">
-            <span className="relative flex h-1.5 w-6 overflow-hidden rounded-full bg-yellow-300/90 shadow-[0_0_12px_rgba(250,204,21,0.8)]">
-              <span className="absolute inset-0 -translate-x-full animate-[pulse_2.2s_linear_infinite] bg-gradient-to-r from-transparent via-yellow-50 to-transparent" />
+
+          <div className="relative inline-flex items-center gap-2 px-5 py-1.5 rounded-full 
+            border border-yellow-400/80
+            bg-gradient-to-r from-yellow-500/40 via-yellow-500/20 to-yellow-600/10
+            shadow-[0_0_45px_rgba(250,204,21,0.65)] overflow-hidden">
+
+            {/* GOLD DEPTH */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.32),transparent_75%)] opacity-80" />
+
+            {/* OIL WAVE */}
+            <div className="
+              pointer-events-none absolute inset-0 
+              bg-[linear-gradient(135deg,rgba(250,204,21,0)_0%,rgba(250,204,21,0.38)_50%,rgba(250,204,21,0)_100%)]
+              animate-[oilFlow_8s_ease-in-out_infinite]
+              mix-blend-screen opacity-55
+            " />
+
+            {/* GLOSS PASS */}
+            <div className="
+              pointer-events-none absolute inset-0 
+              bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,210,0.9)_50%,rgba(255,255,255,0)_100%)]
+              animate-[goldGloss_4.5s_linear_infinite]
+              mix-blend-overlay opacity-25
+            " />
+
+            {/* LEFT SHIMMER BAR */}
+            <span className="relative flex h-1.5 w-7 overflow-hidden rounded-full bg-yellow-300/95 shadow-[0_0_12px_rgba(250,204,21,0.8)]">
+              <span className="absolute inset-0 -translate-x-full animate-[barShimmer_2.2s_linear_infinite] bg-gradient-to-r from-transparent via-yellow-50/90 to-transparent" />
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-50 drop-shadow-[0_0_6px_rgba(250,204,21,0.55)]">
+
+            <span className="relative text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-50 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]">
               Team Dashboard
             </span>
+
           </div>
 
           <h3 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
             Snapshot of league-wide team performance
           </h3>
+
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
             Rolling form, attack and defence ratings, clearance dominance and upcoming fixture difficulty – distilled into six premium, gold-tinted tiles.
           </p>
 
-          {/* STRONGER GOLD UNDERLINE */}
           <div className="mt-3 h-px w-40 bg-gradient-to-r from-yellow-500/90 via-yellow-300/60 to-transparent" />
         </div>
       </div>
 
-      {/* TILES GRID */}
+      {/* -------------------------- TILES GRID -------------------------- */}
       <div className="grid gap-5 md:grid-cols-3">
-        
+
         <Tile
           label="Recent Form"
           caption="Last 6 rounds scoring margin trend"
@@ -264,6 +289,7 @@ export default function TeamDashboardTiles() {
         />
 
       </div>
+
     </section>
   );
 }
