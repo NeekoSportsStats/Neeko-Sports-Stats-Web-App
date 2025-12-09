@@ -29,7 +29,6 @@ function getBaseMomentum(team: AFLTeam): number {
   return avg;
 }
 
-// deterministic “fake” jitter based on id + metric
 function metricJitter(team: AFLTeam, metric: Metric): number {
   const seed =
     team.id *
@@ -40,7 +39,7 @@ function metricJitter(team: AFLTeam, metric: Metric): number {
       : metric === "goals"
       ? 3.1
       : 0.9);
-  return Math.sin(seed) * 6; // -6 to +6
+  return Math.sin(seed) * 6;
 }
 
 function getMetricScore(team: AFLTeam, metric: Metric): number {
@@ -65,9 +64,8 @@ function classifyTeams(metric: Metric): ClassifiedTeams {
     (a, b) => getMetricScore(b, metric) - getMetricScore(a, metric)
   );
 
-  // 18 teams → 3 hot / 3 stable (middle) / 3 cold
   const hot = sorted.slice(0, 3);
-  const stableStart = Math.floor(sorted.length / 2) - 1; // around the middle
+  const stableStart = Math.floor(sorted.length / 2) - 1;
   const stable = sorted.slice(stableStart, stableStart + 3);
   const cold = sorted.slice(-3);
 
@@ -75,7 +73,7 @@ function classifyTeams(metric: Metric): ClassifiedTeams {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            Small Visual Helpers                             */
+/*                                 Visual                                     */
 /* -------------------------------------------------------------------------- */
 
 const metricLabels: Record<Metric, string> = {
@@ -92,15 +90,7 @@ const metricPrefix: Record<Metric, string> = {
   goals: "Goals",
 };
 
-const variantClasses: Record<
-  Variant,
-  {
-    halo: string;
-    bar: string;
-    accent: string;
-    badge: string;
-  }
-> = {
+const variantClasses = {
   hot: {
     halo: "shadow-[0_0_40px_rgba(250,204,21,0.18)]",
     bar: "from-yellow-300 to-yellow-400",
@@ -122,21 +112,21 @@ const variantClasses: Record<
     badge:
       "border-sky-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(56,189,248,0.45),transparent_55%),linear-gradient(to_right,rgba(56,189,248,0.15),rgba(0,0,0,0.6))]",
   },
-};
+} as const;
 
-function formatMetric(value: number): string {
+function formatMetric(value: number) {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
 }
 
-function intensityWidth(value: number): string {
+function intensityWidth(value: number) {
   const clamped = Math.max(-40, Math.min(40, value));
   const width = (Math.abs(clamped) / 40) * 100;
   return `${Math.max(6, Math.min(100, width))}%`;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Sparkline (zigzag)                             */
+/*                              Zigzag Sparkline                               */
 /* -------------------------------------------------------------------------- */
 
 function SoftZigZagSparkline({ variant }: { variant: Variant }) {
@@ -168,12 +158,11 @@ function SoftZigZagSparkline({ variant }: { variant: Variant }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Main Section Component                          */
+/*                               Main Component                                */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamFormGrid() {
   const [metric, setMetric] = useState<Metric>("momentum");
-
   const classified = useMemo(() => classifyTeams(metric), [metric]);
 
   return (
@@ -187,10 +176,10 @@ export default function TeamFormGrid() {
           </span>
         </div>
 
-        {/* Title + copy */}
         <h2 className="mt-5 text-2xl font-semibold text-neutral-50 sm:text-3xl md:text-[32px]">
           Hot, stable and cold clubs by performance lens
         </h2>
+
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
           Switch between momentum, fantasy, disposals and goals to see how each
           club is trending. Tap a pill on mobile or click a card on desktop to
@@ -223,7 +212,6 @@ export default function TeamFormGrid() {
           })}
         </div>
 
-        {/* Columns: Hot / Stable / Cold */}
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <FormColumn
             variant="hot"
@@ -253,7 +241,7 @@ export default function TeamFormGrid() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Column + Divider                               */
+/*                            Column + Divider                                 */
 /* -------------------------------------------------------------------------- */
 
 function FormColumn({
@@ -273,7 +261,6 @@ function FormColumn({
 
   return (
     <div className="relative">
-      {/* Category header */}
       <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
         {icon}
         <span
@@ -289,7 +276,6 @@ function FormColumn({
         </span>
       </div>
 
-      {/* Divider line */}
       <div
         className={`mb-4 h-px w-full bg-gradient-to-r ${
           variant === "hot"
@@ -343,23 +329,22 @@ function TeamFormCard({
     team.margins[team.margins.length - 2];
   const clearance = team.clearanceDom[team.clearanceDom.length - 1];
   const consistency = team.consistencyIndex;
-  const fixtureDiff = team.fixtureDifficulty.score;
-  const opponents = team.fixtureDifficulty.opponents.join(", ");
 
   return (
     <div
-      className={`relative h-[190px] transform-gpu transition-[transform,box-shadow] duration-300 ease-out ${
+      className={`relative min-h-[176px] h-auto pb-1 transform-gpu transition-[transform,box-shadow] duration-300 ease-out ${
         !flipped ? "hover:scale-[1.025]" : ""
-      } cursor-pointer rounded-2xl border border-neutral-700/55 bg-gradient-to-b from-neutral-900/95 via-black to-black/95 ${colors.halo}`}
-      onClick={() => setFlipped((prev) => !prev)}
+      } cursor-pointer rounded-2xl border border-neutral-700/55 
+      bg-gradient-to-b from-neutral-900/95 via-black to-black/95 ${colors.halo}`}
+      onClick={() => setFlipped(!flipped)}
     >
       <div
         className={`relative h-full w-full transform-gpu transition-transform duration-500 [transform-style:preserve-3d] ${
           flipped ? "[transform:rotateY(180deg)]" : ""
         }`}
       >
-        {/* FRONT FACE */}
-        <div className="absolute inset-0 flex flex-col justify-between px-4 py-4 [backface-visibility:hidden] sm:px-5 sm:py-4">
+        {/* FRONT */}
+        <div className="absolute inset-0 h-full flex flex-col justify-between px-4 py-4 [backface-visibility:hidden] sm:px-5 sm:py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
@@ -373,14 +358,14 @@ function TeamFormCard({
             <div className="flex flex-col items-end gap-1">
               <SoftZigZagSparkline variant={variant} />
               <div
-                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold text-black ${colors.badge}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 
+                text-[10px] font-semibold text-black ${colors.badge}`}
               >
                 <span>{formattedScore}</span>
               </div>
             </div>
           </div>
 
-          {/* Metric bar */}
           <div className="mt-4">
             <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-neutral-800/90">
               <div
@@ -390,7 +375,6 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* Footer row */}
           <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
             <span>{metricLabels[metric]}</span>
             <span className="flex items-center gap-1 text-[9px] text-neutral-400">
@@ -400,8 +384,10 @@ function TeamFormCard({
           </div>
         </div>
 
-        {/* BACK FACE */}
-        <div className="absolute inset-0 px-4 py-3 [backface-visibility:hidden] [transform:rotateY(180deg)] sm:px-5 sm:py-3 bg-black/90 backdrop-blur-[1px]">
+        {/* BACK */}
+        <div className="absolute inset-0 h-full px-4 py-3 [backface-visibility:hidden] [transform:rotateY(180deg)]
+          sm:px-5 sm:py-3 bg-black/85 backdrop-blur-[2px] shadow-inner shadow-black/40"
+        >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
@@ -416,7 +402,7 @@ function TeamFormCard({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-neutral-200 leading-tight">
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-neutral-200 leading-tight">
             <div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
                 Attack Δ
@@ -451,19 +437,21 @@ function TeamFormCard({
               <div className="mt-1 font-semibold">{consistency}</div>
             </div>
 
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                Fixture diff
-              </div>
-              <div className="mt-1 font-semibold">{fixtureDiff}</div>
-            </div>
-
+            {/* Opponents — ALWAYS one line, badge-style */}
             <div className="col-span-2">
               <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
                 Opponents
               </div>
-              <div className="mt-1 text-[10px] leading-tight font-semibold text-neutral-200 break-words">
-                {opponents}
+
+              <div className="mt-1 flex gap-1">
+                {team.fixtureDifficulty.opponents.map((op) => (
+                  <span
+                    key={op}
+                    className="px-1.5 py-[1px] text-[9px] rounded bg-neutral-800/80 text-neutral-200"
+                  >
+                    {op}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
