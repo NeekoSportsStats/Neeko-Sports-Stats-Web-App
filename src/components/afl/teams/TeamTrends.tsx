@@ -1,7 +1,12 @@
 // src/components/afl/teams/TeamTrends.tsx
 import React, { useMemo } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
-import { TrendingUp, Shield, Activity } from "lucide-react";
+import {
+  TrendingUp,
+  Shield,
+  Activity,
+  MoveVertical,
+} from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*                         Sparkline Large Placeholder                         */
@@ -16,12 +21,13 @@ function SparklineLarge({ values }: { values: number[] }) {
 /*                             TEAM TRENDS SECTION                             */
 /* -------------------------------------------------------------------------- */
 export default function TeamTrends() {
+  const rounds = 23;
+
   /* ---------------------------------------------------------------------- */
-  /*                           LEAGUE-WIDE OFFENCE                           */
+  /*                                  ATTACK                                */
   /* ---------------------------------------------------------------------- */
 
-  const offenceTrend = useMemo(() => {
-    const rounds = 23;
+  const attackPoints = useMemo(() => {
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
       const roundScores = MOCK_TEAMS.map((t) => t.scores[r]);
@@ -34,31 +40,32 @@ export default function TeamTrends() {
     return arr;
   }, []);
 
-  // Expected score proxy (smooth version of offence trend)
-  const expectedTrend = useMemo(() => {
-    return offenceTrend.map((v, i) => {
-      const prev = offenceTrend[i - 1] ?? v;
+  const attackExpected = useMemo(() => {
+    return attackPoints.map((v, i) => {
+      const prev = attackPoints[i - 1] ?? v;
       return Math.round((v + prev) / 2);
     });
-  }, [offenceTrend]);
+  }, [attackPoints]);
 
-  // Conversion rate placeholder (65%–85%)
-  const conversionTrend = useMemo(() => {
-    return offenceTrend.map(
-      () => Math.floor(65 + Math.random() * 20)
+  const attackF50 = useMemo(() => {
+    return attackPoints.map(
+      () => Math.floor(40 + Math.random() * 30) // placeholder: 40%–70%
+    );
+  }, []);
+
+  const attackTrend = useMemo(() => {
+    return attackPoints.map(
+      () => Math.floor(50 + Math.random() * 30)
     );
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /*                           LEAGUE-WIDE DEFENCE                           */
+  /*                                 DEFENCE                                */
   /* ---------------------------------------------------------------------- */
 
-  const defenceTrend = useMemo(() => {
-    const rounds = 23;
+  const defenceConceded = useMemo(() => {
     const arr: number[] = [];
-
     for (let r = 0; r < rounds; r++) {
-      // Conceded points = negative margin adjustment
       const conceded = MOCK_TEAMS.map(
         (t) => t.scores[r] - t.margins[r]
       );
@@ -69,41 +76,92 @@ export default function TeamTrends() {
     return arr;
   }, []);
 
-  // Pressure index placeholder (0–100)
-  const pressureTrend = useMemo(() => {
-    return defenceTrend.map((_, i) =>
-      Math.floor(40 + Math.random() * 50)
+  const pressureIndex = useMemo(() => {
+    return defenceConceded.map(
+      () => Math.floor(40 + Math.random() * 50)
+    );
+  }, []);
+
+  const interceptMarks = useMemo(() => {
+    return defenceConceded.map(
+      () => Math.floor(45 + Math.random() * 25)
+    );
+  }, []);
+
+  const defenceTrend = useMemo(() => {
+    return defenceConceded.map(
+      () => Math.floor(50 + Math.random() * 30)
     );
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /*                          LEAGUE-WIDE MIDFIELD                            */
+  /*                                MIDFIELD                                */
   /* ---------------------------------------------------------------------- */
 
-  // Contested possession proxy — combine clearanceDom + margins
-  const midfieldTrend = useMemo(() => {
+  const contestedInfluence = useMemo(() => {
     const arr: number[] = [];
-
-    for (let r = 0; r < 23; r++) {
-      const contestedProxy = MOCK_TEAMS.map(
-        (t) => t.clearanceDom[r] + (t.margins[r] / 3)
+    for (let r = 0; r < rounds; r++) {
+      const contested = MOCK_TEAMS.map(
+        (t) => t.clearanceDom[r] + t.margins[r] / 3
       );
       arr.push(
         Math.round(
-          contestedProxy.reduce((a, b) => a + b, 0) /
-            contestedProxy.length
+          contested.reduce((a, b) => a + b, 0) / contested.length
         )
       );
     }
     return arr;
   }, []);
 
-  // Stoppage wins proxy (random variance)
-  const stoppageTrend = useMemo(() => {
-    return midfieldTrend.map(
+  const stoppageWins = useMemo(() => {
+    return contestedInfluence.map(
       (v) => v - Math.floor(5 - Math.random() * 10)
     );
-  }, [midfieldTrend]);
+  }, [contestedInfluence]);
+
+  const midfieldClearances = useMemo(() => {
+    return contestedInfluence.map(
+      () => Math.floor(35 + Math.random() * 20)
+    );
+  }, []);
+
+  const midfieldTrend = useMemo(() => {
+    return contestedInfluence.map(
+      () => Math.floor(50 + Math.random() * 30)
+    );
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /*                                   RUCK                                 */
+  /* ---------------------------------------------------------------------- */
+
+  const ruckHitOuts = useMemo(() => {
+    return Array.from({ length: rounds }, () =>
+      Math.floor(35 + Math.random() * 20)
+    );
+  }, []);
+
+  const ruckHitOutsAdv = useMemo(() => {
+    return ruckHitOuts.map(
+      () => Math.floor(8 + Math.random() * 10)
+    );
+  }, [ruckHitOuts]);
+
+  const ruckClearances = useMemo(() => {
+    return Array.from({ length: rounds }, () =>
+      Math.floor(20 + Math.random() * 15)
+    );
+  }, []);
+
+  const ruckTrend = useMemo(() => {
+    return ruckHitOuts.map(
+      () => Math.floor(50 + Math.random() * 30)
+    );
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /*                                 RENDER                                 */
+  /* ---------------------------------------------------------------------- */
 
   return (
     <section className="mt-14">
@@ -116,54 +174,66 @@ export default function TeamTrends() {
       </div>
 
       <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
-        Offence, defence & midfield evolution across the league
+        League-wide evolution across all four key positions
       </h2>
 
       <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-        Rolling trends highlighting scoring quality, defensive strength, pressure indicators
-        and centre-bounce dominance.
+        Rolling trends highlighting attacking quality, defensive solidity,
+        midfield control and ruck dominance.
       </p>
 
-      {/* GRID OF 3 TRENDS */}
+      {/* GRID OF 4 POSITIONAL TRENDS */}
       <div className="mt-10 space-y-10">
 
-        {/* -------------------------------------------------------------- */}
-        {/* OFFENCE TREND                                                   */}
-        {/* -------------------------------------------------------------- */}
+        {/* ATTACK */}
         <TrendBlock
-          title="Offence Trend"
+          title="Attack Trend"
           icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
-          description="Average points scored, expected scoring flow and conversion rate across the league."
+          description="Scoring output, expected conversion and forward-50 strength."
           series={[
-            { label: "Points Scored", values: offenceTrend },
-            { label: "Expected Score", values: expectedTrend },
-            { label: "Conversion Rate %", values: conversionTrend },
+            { label: "Points Scored", values: attackPoints },
+            { label: "Expected Score", values: attackExpected },
+            { label: "Forward-50 Efficiency (%)", values: attackF50 },
+            { label: "Trend", values: attackTrend },
           ]}
         />
 
-        {/* -------------------------------------------------------------- */}
-        {/* DEFENCE TREND                                                   */}
-        {/* -------------------------------------------------------------- */}
+        {/* DEFENCE */}
         <TrendBlock
           title="Defence Trend"
           icon={<Shield className="h-4 w-4 text-teal-300" />}
-          description="Points conceded trend, defensive solidity and league-wide pressure indicators."
+          description="Conceded scoring, pressure indicators and intercept capability."
           series={[
-            { label: "Points Conceded", values: defenceTrend },
-            { label: "Pressure Index", values: pressureTrend },
+            { label: "Points Conceded", values: defenceConceded },
+            { label: "Pressure Index", values: pressureIndex },
+            { label: "Intercept Marks", values: interceptMarks },
+            { label: "Trend", values: defenceTrend },
           ]}
         />
 
-        {/* -------------------------------------------------------------- */}
-        {/* MIDFIELD TREND                                                  */}
-        {/* -------------------------------------------------------------- */}
+        {/* MIDFIELD */}
         <TrendBlock
           title="Midfield Trend"
           icon={<Activity className="h-4 w-4 text-orange-300" />}
-          description="Clearances, contested ball influence and stoppage-win effectiveness."
+          description="Contested strength, stoppage craft and clearance control."
           series={[
-            { label: "Contested Influence", values: midfieldTrend },
-            { label: "Stoppage Wins", values: stoppageTrend },
+            { label: "Contested Influence", values: contestedInfluence },
+            { label: "Stoppage Wins", values: stoppageWins },
+            { label: "Clearance", values: midfieldClearances },
+            { label: "Trend", values: midfieldTrend },
+          ]}
+        />
+
+        {/* RUCK */}
+        <TrendBlock
+          title="Ruck Trend"
+          icon={<MoveVertical className="h-4 w-4 text-purple-300" />}
+          description="Hit-out strength, advantage taps and ruck-led clearances."
+          series={[
+            { label: "Hit Outs", values: ruckHitOuts },
+            { label: "Hit Outs to Advantage", values: ruckHitOutsAdv },
+            { label: "Clearances", values: ruckClearances },
+            { label: "Trend", values: ruckTrend },
           ]}
         />
       </div>
