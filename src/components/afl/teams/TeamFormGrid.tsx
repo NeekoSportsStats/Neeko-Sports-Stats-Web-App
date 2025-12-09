@@ -336,8 +336,8 @@ function TeamFormCard({
   const formattedScore = formatMetric(score);
   const barWidth = intensityWidth(score);
 
-  const attackDelta = team.scores[team.scores.length - 1] -
-    team.scores[team.scores.length - 2];
+  const attackDelta =
+    team.scores[team.scores.length - 1] - team.scores[team.scores.length - 2];
   const defenceDelta =
     team.margins[team.margins.length - 1] -
     team.margins[team.margins.length - 2];
@@ -348,7 +348,7 @@ function TeamFormCard({
 
   return (
     <div
-      className={`relative h-[176px] transform-gpu transition-[transform,box-shadow] duration-300 ease-out ${
+      className={`relative h-[190px] transform-gpu transition-[transform,box-shadow] duration-300 ease-out ${
         !flipped ? "hover:scale-[1.025]" : ""
       } cursor-pointer rounded-2xl border border-neutral-700/55 bg-gradient-to-b from-neutral-900/95 via-black to-black/95 ${colors.halo}`}
       onClick={() => setFlipped((prev) => !prev)}
@@ -401,7 +401,7 @@ function TeamFormCard({
         </div>
 
         {/* BACK FACE */}
-        <div className="absolute inset-0 px-4 py-4 [backface-visibility:hidden] [transform:rotateY(180deg)] sm:px-5 sm:py-4">
+        <div className="absolute inset-0 px-4 py-3 [backface-visibility:hidden] [transform:rotateY(180deg)] sm:px-5 sm:py-3 bg-black/90 backdrop-blur-[1px]">
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
@@ -416,7 +416,7 @@ function TeamFormCard({
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 text-[11px] text-neutral-200">
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-neutral-200 leading-tight">
             <div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
                 Attack Δ
@@ -462,13 +462,13 @@ function TeamFormCard({
               <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
                 Opponents
               </div>
-              <div className="mt-1 text-[11px] font-semibold text-neutral-100">
+              <div className="mt-1 text-[10px] leading-tight font-semibold text-neutral-200 break-words">
                 {opponents}
               </div>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
             <span>Tap to return</span>
             <span className="text-xs">↺</span>
           </div>
