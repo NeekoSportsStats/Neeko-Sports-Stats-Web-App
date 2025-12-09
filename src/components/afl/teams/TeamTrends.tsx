@@ -1,10 +1,10 @@
-// src/components/afl/teams/TeamTrends.tsx
 import React, { useMemo } from "react";
-import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
+// If you keep MOCK_TEAMS elsewhere, adjust this import:
+import { MOCK_TEAMS } from "./mockTeams";
 
 /* -------------------------------------------------------------------------- */
-/*                           Sparkline (smoothed line)                         */
+/*                           Sparkline (smoothed line)                        */
 /* -------------------------------------------------------------------------- */
 
 function buildSmoothPath(
@@ -26,7 +26,7 @@ function buildSmoothPath(
     values.length === 1 ? 0 : innerWidth / (values.length - 1);
 
   const points = values.map((v, i) => {
-    const norm = (v - min) / range; // 0–1
+    const norm = (v - min) / range;
     const x = paddingX + i * stepX;
     const y = paddingY + (1 - norm) * innerHeight;
     return { x, y };
@@ -61,12 +61,12 @@ function SparklineLarge({
   const height = 40;
 
   const pathD = useMemo(
-    () => buildSmoothPath(values, width, height, 6, 4),
+    () => buildSmoothPath(values, width, height, 6, 6), // a bit more vertical padding
     [values]
   );
 
   return (
-    <div className="group relative h-10 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-800/70 via-neutral-900/80 to-black border border-slate-500/25 shadow-[0_6px_18px_rgba(0,0,0,0.65)] transition-colors duration-200 hover:border-slate-100/20">
+    <div className="group relative h-10 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)] transition-colors duration-200 hover:border-slate-100/25">
       {/* Top light strip */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-white/8" />
 
@@ -75,6 +75,22 @@ function SparklineLarge({
 
       {/* Subtle bottom fade */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/0" />
+
+      {/* Mid-line ghost */}
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="pointer-events-none absolute inset-0"
+      >
+        <line
+          x1={0}
+          y1={height / 2}
+          x2={width}
+          y2={height / 2}
+          stroke="rgba(148,163,184,0.18)"
+          strokeWidth={0.6}
+        />
+      </svg>
 
       {/* Actual sparkline */}
       <svg
@@ -105,16 +121,16 @@ function SparklineLarge({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                        Metric summary (5-round smoothing)                  */
+/*                         Metric summary (5-round smoothing)                 */
 /* -------------------------------------------------------------------------- */
 
 type TrendDirection = "up" | "down" | "flat";
 
 type MetricSummary = {
-  current: number; // last 5-round average
-  deltaPct: number | null; // last5 vs prev5
-  direction: TrendDirection; // arrow direction based on delta sign
-  isGood: boolean | null; // whether that change is good for this metric
+  current: number;
+  deltaPct: number | null;
+  direction: TrendDirection;
+  isGood: boolean | null;
 };
 
 function average(arr: number[]): number {
@@ -141,7 +157,6 @@ function computeMetricSummary(
   }
 
   if (values.length < 10) {
-    // Not enough history: just use overall average and no delta
     const current = average(values);
     return {
       current,
@@ -166,17 +181,18 @@ function computeMetricSummary(
     };
   }
 
-  const delta = lastAvg - prevAvg;
-  const deltaPct = (delta / prevAvg) * 100;
-  let direction: TrendDirection = "flat";
+  let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
+  // clamp extreme volatility a bit so it feels realistic
+  if (deltaPct > 15) deltaPct = 15;
+  if (deltaPct < -15) deltaPct = -15;
+
+  let direction: TrendDirection = "flat";
   if (deltaPct > 0.1) direction = "up";
   else if (deltaPct < -0.1) direction = "down";
 
   const isGood =
-    goodDirection === "up"
-      ? deltaPct >= 0
-      : deltaPct <= 0;
+    goodDirection === "up" ? deltaPct >= 0 : deltaPct <= 0;
 
   return {
     current: lastAvg,
@@ -190,19 +206,206 @@ function formatNumber(value: number, isPercentMetric: boolean): string {
   if (isPercentMetric) {
     return `${value.toFixed(1)}%`;
   }
-  // For points etc. 1 decimal looks good at this scale
   return value.toFixed(1);
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             TEAM TRENDS SECTION                            */
+/*                              TeamTrends section                            */
 /* -------------------------------------------------------------------------- */
-export default function TeamTrends() {
+
+type TrendSeries = {
+  label: string;
+  values: number[];
+  goodDirection: "up" | "down";
+};
+
+function TrendBlock({
+  title,
+  icon,
+  description,
+  accent,
+  series,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  accent: string;
+  series: TrendSeries[];
+}) {
+  return (
+    <div
+      className="group relative rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/85 via-black to-black/95 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.85)] transition-all duration-300 hover:-translate-y-[3px] hover:border-neutral-700 hover:shadow-[0_24px_60px_rgba(0,0,0,0.95)] active:translate-y-0 active:scale-[0.995] md:p-5"
+      style={{
+        boxShadow:
+          "0 18px 48px rgba(0,0,0,0.85), 0 0 22px rgba(15,23,42,0.6)",
+      }}
+    >
+      {/* Thin accent halo */}
+      <div
+        className="pointer-events-none absolute -inset-px rounded-[26px] opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+        style={{
+          background: `radial-gradient(circle_at_top, ${accent}14, transparent 60%)`,
+        }}
+      />
+
+      <div className="relative">
+        {/* Header row with thin accent bar */}
+        <div className="flex items-center gap-3">
+          <div
+            className="h-4 w-[1.5px] rounded-full"
+            style={{
+              background: `linear-gradient(to bottom, ${accent}, transparent)`,
+              boxShadow: `0 0 8px ${accent}44`,
+            }}
+          />
+          <div className="flex items-center gap-2">
+            {icon}
+            <h3 className="text-base font-semibold text-neutral-50 md:text-lg">
+              {title}
+            </h3>
+          </div>
+        </div>
+
+        <p className="mt-1 max-w-xl text-[11px] text-neutral-300 leading-snug md:text-xs">
+          {description}
+        </p>
+
+        <div className="mt-4 border-t border-neutral-800/70 pt-4 md:mt-4 md:pt-4" />
+
+        {/* Metric grid */}
+        <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
+          {series.map((s, index) => {
+            const summary = computeMetricSummary(
+              s.values,
+              s.goodDirection
+            );
+            const isPercent = s.label.includes("%");
+            const isTrendLabel = s.label.toLowerCase() === "trend";
+
+            let deltaLabel = "– 0.0%";
+            let deltaClass = "text-neutral-400";
+            let arrow = "";
+
+            if (summary.deltaPct !== null) {
+              const absPct = Math.abs(summary.deltaPct);
+              const formattedPct = `${absPct.toFixed(1)}%`;
+
+              if (absPct < 0.1) {
+                deltaLabel = "– 0.0%";
+                deltaClass = "text-neutral-400";
+                arrow = "";
+              } else {
+                const isUp = summary.direction === "up";
+                const isGood = summary.isGood ?? false;
+
+                arrow = isUp ? "▲" : "▼";
+                deltaLabel = `${arrow} ${formattedPct}`;
+
+                if (isGood) {
+                  deltaClass = "text-emerald-400";
+                } else {
+                  deltaClass = "text-rose-400";
+                }
+              }
+            }
+
+            const valueLabel = formatNumber(
+              summary.current,
+              isPercent
+            );
+
+            return (
+              <div
+                key={s.label}
+                className={
+                  index % 2 === 1
+                    ? "space-y-2 md:border-l md:border-neutral-900/70 md:pl-4"
+                    : "space-y-2 md:pr-4"
+                }
+              >
+                {/* Label + numbers row */}
+                <div className="flex items-baseline justify-between gap-3">
+                  <div
+                    className={`text-[9px] md:text-[10px] uppercase tracking-[0.16em] ${
+                      isTrendLabel
+                        ? "text-neutral-400"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    {isTrendLabel && (
+                      <span
+                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                        style={{
+                          background: accent,
+                          boxShadow: `0 0 8px ${accent}a0`,
+                        }}
+                      />
+                    )}
+                    {s.label}
+                  </div>
+
+                  <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums md:text-xs">
+                    <span className="font-semibold text-neutral-100">
+                      {valueLabel}
+                    </span>
+                    <span
+                      className={deltaClass}
+                      style={{ opacity: 0.85 }}
+                    >
+                      {deltaLabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sparkline */}
+                <SparklineLarge values={s.values} color={accent} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Mocked rolling data helpers                       */
+/* -------------------------------------------------------------------------- */
+
+function buildPressureSeries(length: number): number[] {
+  const values: number[] = [];
+  for (let i = 0; i < length; i++) {
+    const base =
+      55 + Math.sin(i / 3) * 8 + (Math.random() * 8 - 4);
+    values.push(Math.round(base));
+  }
+  return values;
+}
+
+function buildPercentSeries(
+  length: number,
+  base: number,
+  swing: number
+): number[] {
+  const values: number[] = [];
+  for (let i = 0; i < length; i++) {
+    const v =
+      base +
+      Math.sin(i / 4) * (swing * 0.6) +
+      (Math.random() * swing - swing / 2);
+    values.push(Math.max(0, Math.min(100, v)));
+  }
+  return values;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Top-level TeamTrends page                       */
+/* -------------------------------------------------------------------------- */
+
+function TeamTrendsSection() {
   const rounds = 23;
 
-  /* ---------------------------------------------------------------------- */
-  /*                                  ATTACK                                */
-  /* ---------------------------------------------------------------------- */
+  /* ------------------------------- ATTACK -------------------------------- */
 
   const attackPoints = useMemo(() => {
     const arr: number[] = [];
@@ -210,33 +413,34 @@ export default function TeamTrends() {
       const roundScores = MOCK_TEAMS.map((t) => t.scores[r]);
       arr.push(
         Math.round(
-          roundScores.reduce((a, b) => a + b, 0) / roundScores.length
+          roundScores.reduce((a, b) => a + b, 0) /
+            roundScores.length
         )
       );
     }
     return arr;
   }, [rounds]);
 
-  const attackExpected = useMemo(() => {
-    return attackPoints.map((v, i) => {
-      const prev = attackPoints[i - 1] ?? v;
-      return Math.round((v + prev) / 2);
-    });
-  }, [attackPoints]);
+  const attackExpected = useMemo(
+    () =>
+      attackPoints.map((v, i) => {
+        const prev = attackPoints[i - 1] ?? v;
+        return (v + prev) / 2;
+      }),
+    [attackPoints]
+  );
 
   const attackF50 = useMemo(
-    () => attackPoints.map(() => Math.floor(40 + Math.random() * 30)),
-    [attackPoints]
+    () => buildPercentSeries(rounds, 56, 12),
+    [rounds]
   );
 
   const attackTrend = useMemo(
-    () => attackPoints.map(() => Math.floor(50 + Math.random() * 30)),
-    [attackPoints]
+    () => buildPercentSeries(rounds, 68, 10),
+    [rounds]
   );
 
-  /* ---------------------------------------------------------------------- */
-  /*                                 DEFENCE                                */
-  /* ---------------------------------------------------------------------- */
+  /* ------------------------------ DEFENCE -------------------------------- */
 
   const defenceConceded = useMemo(() => {
     const arr: number[] = [];
@@ -245,30 +449,30 @@ export default function TeamTrends() {
         (t) => t.scores[r] - t.margins[r]
       );
       arr.push(
-        Math.round(conceded.reduce((a, b) => a + b, 0) / conceded.length)
+        Math.round(
+          conceded.reduce((a, b) => a + b, 0) / conceded.length
+        )
       );
     }
     return arr;
   }, [rounds]);
 
   const pressureIndex = useMemo(
-    () => defenceConceded.map(() => Math.floor(40 + Math.random() * 50)),
-    [defenceConceded]
+    () => buildPressureSeries(rounds),
+    [rounds]
   );
 
   const interceptMarks = useMemo(
-    () => defenceConceded.map(() => Math.floor(45 + Math.random() * 25)),
-    [defenceConceded]
+    () => buildPercentSeries(rounds, 60, 14),
+    [rounds]
   );
 
   const defenceTrend = useMemo(
-    () => defenceConceded.map(() => Math.floor(50 + Math.random() * 30)),
-    [defenceConceded]
+    () => buildPercentSeries(rounds, 65, 11),
+    [rounds]
   );
 
-  /* ---------------------------------------------------------------------- */
-  /*                                MIDFIELD                                */
-  /* ---------------------------------------------------------------------- */
+  /* ------------------------------ MIDFIELD ------------------------------- */
 
   const contestedInfluence = useMemo(() => {
     const arr: number[] = [];
@@ -288,67 +492,76 @@ export default function TeamTrends() {
   const stoppageWins = useMemo(
     () =>
       contestedInfluence.map(
-        (v) => v - Math.floor(5 - Math.random() * 10)
+        (v) => v - (5 - Math.random() * 10)
       ),
     [contestedInfluence]
   );
 
   const midfieldClearances = useMemo(
-    () => contestedInfluence.map(() => Math.floor(35 + Math.random() * 20)),
-    [contestedInfluence]
+    () => buildPercentSeries(rounds, 52, 10),
+    [rounds]
   );
 
   const midfieldTrend = useMemo(
-    () => contestedInfluence.map(() => Math.floor(50 + Math.random() * 30)),
-    [contestedInfluence]
+    () => buildPercentSeries(rounds, 66, 9),
+    [rounds]
   );
 
-  /* ---------------------------------------------------------------------- */
-  /*                                   RUCK                                 */
-  /* ---------------------------------------------------------------------- */
+  /* -------------------------------- RUCK --------------------------------- */
 
   const ruckHitOuts = useMemo(
     () =>
-      Array.from({ length: rounds }, () =>
-        Math.floor(35 + Math.random() * 20)
+      Array.from({ length: rounds }, (_, i) =>
+        Math.round(
+          40 +
+            Math.sin(i / 3) * 6 +
+            (Math.random() * 10 - 5)
+        )
       ),
     [rounds]
   );
 
   const ruckHitOutsAdv = useMemo(
-    () => ruckHitOuts.map(() => Math.floor(8 + Math.random() * 10)),
-    [ruckHitOuts]
+    () =>
+      Array.from({ length: rounds }, (_, i) =>
+        Math.round(
+          12 +
+            Math.sin(i / 4) * 4 +
+            (Math.random() * 6 - 3)
+        )
+      ),
+    [rounds]
   );
 
   const ruckClearances = useMemo(
     () =>
-      Array.from({ length: rounds }, () =>
-        Math.floor(20 + Math.random() * 15)
+      Array.from({ length: rounds }, (_, i) =>
+        Math.round(
+          22 +
+            Math.sin(i / 3.5) * 5 +
+            (Math.random() * 6 - 3)
+        )
       ),
     [rounds]
   );
 
   const ruckTrend = useMemo(
-    () => ruckHitOuts.map(() => Math.floor(50 + Math.random() * 30)),
-    [ruckHitOuts]
+    () => buildPercentSeries(rounds, 60, 10),
+    [rounds]
   );
 
-  /* ---------------------------------------------------------------------- */
-  /*                                 RENDER                                 */
-  /* ---------------------------------------------------------------------- */
-
   return (
-    <section className="mt-14">
+    <section className="mt-10">
       {/* Entire section glass panel with gold outline */}
-      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/35 bg-[radial-gradient(circle_at_top,_rgba(17,24,39,0.96),transparent_60%)] px-4 pb-7 pt-5 shadow-[0_28px_80px_rgba(0,0,0,0.9)] md:px-7 md:pb-9 md:pt-7">
+      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(17,24,39,0.96),transparent_60%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] md:px-7 md:pb-9 md:pt-7">
         {/* Soft outer halo */}
-        <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] opacity-60" />
+        <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
         {/* Content */}
         <div className="relative">
           {/* Header pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_12px_rgba(250,204,21,0.35)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.85)]" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
               Team Trends
             </span>
@@ -359,12 +572,13 @@ export default function TeamTrends() {
           </h2>
 
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Rolling trends highlighting attacking quality, defensive solidity,
-            midfield control and ruck dominance.
+            Rolling trends highlighting attacking quality, defensive
+            solidity, midfield control and ruck dominance.
           </p>
 
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-            League averages • Last 23 rounds • Synthetic positional trend lenses
+            League averages • Last 23 rounds • Synthetic positional
+            trend lenses
           </p>
 
           {/* Grid of positional cards */}
@@ -409,7 +623,7 @@ export default function TeamTrends() {
                 {
                   label: "Points Conceded",
                   values: defenceConceded,
-                  goodDirection: "down", // lower is better
+                  goodDirection: "down",
                 },
                 {
                   label: "Pressure Index",
@@ -432,8 +646,8 @@ export default function TeamTrends() {
             {/* MIDFIELD */}
             <TrendBlock
               title="Midfield Trend"
-              icon={<Activity className="h-4 w-4 text-amber-300" />}
-              accent="#FBBF24"
+              icon={<Activity className="h-4 w-4 text-orange-300" />}
+              accent="#FB923C"
               description="Contested strength, stoppage craft and clearance control."
               series={[
                 {
@@ -496,156 +710,15 @@ export default function TeamTrends() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             TREND BLOCK COMPONENT                          */
+/*                                Page wrapper                                */
 /* -------------------------------------------------------------------------- */
 
-type TrendSeries = {
-  label: string;
-  values: number[];
-  goodDirection: "up" | "down";
-};
-
-function TrendBlock({
-  title,
-  icon,
-  description,
-  accent,
-  series,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  description: string;
-  accent: string;
-  series: TrendSeries[];
-}) {
+export default function AFLTeamTrendsPage() {
   return (
-    <div
-      className="group relative rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/85 via-black to-black/95 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] transition-all duration-300 hover:-translate-y-[3px] hover:border-neutral-700 hover:shadow-[0_26px_60px_rgba(0,0,0,0.92)] active:translate-y-0 active:scale-[0.995] md:p-6"
-      style={{
-        boxShadow:
-          "0 20px 50px rgba(0,0,0,0.8), 0 0 24px rgba(15,23,42,0.6)",
-      }}
-    >
-      {/* Thin accent halo */}
-      <div
-        className="pointer-events-none absolute -inset-px rounded-[26px] opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
-        style={{
-          background: `radial-gradient(circle_at_top, ${accent}1a, transparent 60%)`,
-        }}
-      />
-
-      <div className="relative">
-        {/* Header row with thin accent bar */}
-        <div className="flex items-center gap-3">
-          <div
-            className="h-4 w-[2px] rounded-full"
-            style={{
-              background: `linear-gradient(to bottom, ${accent}, transparent)`,
-              boxShadow: `0 0 10px ${accent}66`,
-            }}
-          />
-          <div className="flex items-center gap-2">
-            {icon}
-            <h3 className="text-base font-semibold text-neutral-50 md:text-lg">
-              {title}
-            </h3>
-          </div>
-        </div>
-
-        <p className="mt-1 max-w-xl text-[11px] text-neutral-300 leading-snug md:text-xs">
-          {description}
-        </p>
-
-        <div className="mt-4 border-t border-neutral-800/70 pt-4 md:mt-5 md:pt-5" />
-
-        {/* Metric grid */}
-        <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
-          {series.map((s, index) => {
-            const summary = computeMetricSummary(
-              s.values,
-              s.goodDirection
-            );
-            const isPercent = s.label.includes("%");
-
-            let deltaLabel = "– 0.0%";
-            let deltaClass = "text-neutral-400";
-            let arrow = "";
-
-            if (summary.deltaPct !== null) {
-              const absPct = Math.abs(summary.deltaPct);
-              const formattedPct = `${absPct.toFixed(1)}%`;
-
-              if (absPct < 0.1) {
-                deltaLabel = "– 0.0%";
-                deltaClass = "text-neutral-400";
-                arrow = "";
-              } else {
-                const isUp = summary.direction === "up";
-                const isGood = summary.isGood ?? false;
-
-                arrow = isUp ? "▲" : "▼";
-                deltaLabel = `${arrow} ${formattedPct}`;
-
-                if (isGood) {
-                  deltaClass = "text-emerald-400";
-                } else {
-                  deltaClass = "text-rose-400";
-                }
-              }
-            }
-
-            const valueLabel = formatNumber(
-              summary.current,
-              isPercent
-            );
-
-            const isTrendLabel = s.label.toLowerCase() === "trend";
-
-            return (
-              <div
-                key={s.label}
-                className={
-                  index % 2 === 1
-                    ? "space-y-2 md:border-l md:border-neutral-900/70 md:pl-4"
-                    : "space-y-2 md:pr-4"
-                }
-              >
-                {/* Label + numbers row (left-aligned numbers) */}
-                <div className="flex items-baseline justify-between gap-3">
-                  <div
-                    className={`text-[9px] md:text-[10px] uppercase tracking-[0.18em] ${
-                      isTrendLabel
-                        ? "text-neutral-400"
-                        : "text-neutral-500"
-                    }`}
-                  >
-                    {isTrendLabel && (
-                      <span
-                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
-                        style={{
-                          background: accent,
-                          boxShadow: `0 0 8px ${accent}a0`,
-                        }}
-                      />
-                    )}
-                    {s.label}
-                  </div>
-
-                  <div className="flex items-baseline gap-2 text-[11px] md:text-xs">
-                    <span className="font-semibold text-neutral-100">
-                      {valueLabel}
-                    </span>
-                    <span className={deltaClass}>{deltaLabel}</span>
-                  </div>
-                </div>
-
-                {/* Sparkline */}
-                <SparklineLarge values={s.values} color={accent} />
-              </div>
-            );
-          })}
-        </div>
+    <main className="min-h-screen bg-[#020617] text-white">
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 md:px-6 md:pt-12">
+        <TeamTrendsSection />
       </div>
-    </div>
+    </main>
   );
 }
