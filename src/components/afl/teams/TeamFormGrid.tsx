@@ -1,5 +1,4 @@
-// src/components/afl/teams/TeamFormGrid.tsx
-
+// IMPORTS
 import React, { useMemo, useState } from "react";
 import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
 import { Flame, CircleDot, Snowflake } from "lucide-react";
@@ -10,23 +9,21 @@ import { Flame, CircleDot, Snowflake } from "lucide-react";
 
 const METRICS = ["momentum", "fantasy", "disposals", "goals"] as const;
 type Metric = (typeof METRICS)[number];
-
 type Variant = "hot" | "stable" | "cold";
 
-type ClassifiedTeams = {
+interface ClassifiedTeams {
   hot: AFLTeam[];
   stable: AFLTeam[];
   cold: AFLTeam[];
-};
+}
 
 /* -------------------------------------------------------------------------- */
-/*                           Metric + Fake Data Logic                          */
+/*                        Metric + Fake Data Logic                            */
 /* -------------------------------------------------------------------------- */
 
 function getBaseMomentum(team: AFLTeam): number {
   const last5 = team.margins.slice(-5);
-  const avg = last5.reduce((a, b) => a + b, 0) / last5.length;
-  return avg;
+  return last5.reduce((a, b) => a + b, 0) / last5.length;
 }
 
 function metricJitter(team: AFLTeam, metric: Metric): number {
@@ -44,19 +41,10 @@ function metricJitter(team: AFLTeam, metric: Metric): number {
 
 function getMetricScore(team: AFLTeam, metric: Metric): number {
   const base = getBaseMomentum(team);
-
-  switch (metric) {
-    case "momentum":
-      return base;
-    case "fantasy":
-      return base * 0.7 + metricJitter(team, metric);
-    case "disposals":
-      return base * 0.5 + metricJitter(team, metric);
-    case "goals":
-      return base * 0.35 + metricJitter(team, metric);
-    default:
-      return base;
-  }
+  if (metric === "momentum") return base;
+  if (metric === "fantasy") return base * 0.7 + metricJitter(team, metric);
+  if (metric === "disposals") return base * 0.5 + metricJitter(team, metric);
+  return base * 0.35 + metricJitter(team, metric);
 }
 
 function classifyTeams(metric: Metric): ClassifiedTeams {
@@ -64,16 +52,15 @@ function classifyTeams(metric: Metric): ClassifiedTeams {
     (a, b) => getMetricScore(b, metric) - getMetricScore(a, metric)
   );
 
-  const hot = sorted.slice(0, 3);
-  const stableStart = Math.floor(sorted.length / 2) - 1;
-  const stable = sorted.slice(stableStart, stableStart + 3);
-  const cold = sorted.slice(-3);
-
-  return { hot, stable, cold };
+  return {
+    hot: sorted.slice(0, 3),
+    stable: sorted.slice(8, 11),
+    cold: sorted.slice(-3),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                 Visual                                     */
+/*                              Visual Helpers                                */
 /* -------------------------------------------------------------------------- */
 
 const metricLabels: Record<Metric, string> = {
@@ -90,47 +77,36 @@ const metricPrefix: Record<Metric, string> = {
   goals: "Goals",
 };
 
-const variantClasses = {
-  hot: {
-    halo: "shadow-[0_0_40px_rgba(250,204,21,0.18)]",
-    bar: "from-yellow-300 to-yellow-400",
-    accent: "text-yellow-200",
-    badge:
-      "border-yellow-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(250,204,21,0.45),transparent_55%),linear-gradient(to_right,rgba(250,204,21,0.15),rgba(0,0,0,0.6))]",
-  },
-  stable: {
-    halo: "shadow-[0_0_40px_rgba(74,222,128,0.18)]",
-    bar: "from-lime-300 to-emerald-400",
-    accent: "text-lime-200",
-    badge:
-      "border-lime-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(74,222,128,0.45),transparent_55%),linear-gradient(to_right,rgba(74,222,128,0.15),rgba(0,0,0,0.6))]",
-  },
-  cold: {
-    halo: "shadow-[0_0_40px_rgba(56,189,248,0.2)]",
-    bar: "from-sky-300 to-cyan-400",
-    accent: "text-sky-200",
-    badge:
-      "border-sky-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(56,189,248,0.45),transparent_55%),linear-gradient(to_right,rgba(56,189,248,0.15),rgba(0,0,0,0.6))]",
-  },
-} as const;
+const badgeStyles: Record<Variant, string> = {
+  hot: "bg-yellow-400/20 border border-yellow-400/30 text-yellow-200 shadow-[0_0_8px_rgba(255,220,0,0.25)] backdrop-blur-[2px]",
+  stable:
+    "bg-emerald-400/20 border border-emerald-400/30 text-lime-200 shadow-[0_0_8px_rgba(80,255,170,0.22)] backdrop-blur-[2px]",
+  cold: "bg-sky-400/20 border border-sky-400/30 text-sky-200 shadow-[0_0_8px_rgba(0,170,255,0.22)] backdrop-blur-[2px]",
+};
 
-function formatMetric(value: number) {
+const variantHalo: Record<Variant, string> = {
+  hot: "shadow-[0_0_30px_rgba(250,204,21,0.15)]",
+  stable: "shadow-[0_0_30px_rgba(74,222,128,0.15)]",
+  cold: "shadow-[0_0_30px_rgba(56,189,248,0.15)]",
+};
+
+function formatMetric(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
 }
 
-function intensityWidth(value: number) {
+function intensityWidth(value: number): string {
   const clamped = Math.max(-40, Math.min(40, value));
-  const width = (Math.abs(clamped) / 40) * 100;
-  return `${Math.max(6, Math.min(100, width))}%`;
+  const pct = (Math.abs(clamped) / 40) * 100;
+  return `${Math.max(6, Math.min(100, pct))}%`;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Zigzag Sparkline                               */
+/*                             Zigzag Sparkline                               */
 /* -------------------------------------------------------------------------- */
 
 function SoftZigZagSparkline({ variant }: { variant: Variant }) {
-  const colorClass =
+  const color =
     variant === "hot"
       ? "text-yellow-300"
       : variant === "stable"
@@ -138,12 +114,8 @@ function SoftZigZagSparkline({ variant }: { variant: Variant }) {
       : "text-sky-300";
 
   return (
-    <div className={`h-5 w-14 md:w-16 ${colorClass}`}>
-      <svg
-        viewBox="0 0 100 24"
-        className="h-full w-full opacity-90"
-        aria-hidden="true"
-      >
+    <div className={`h-5 w-14 ${color}`}>
+      <svg viewBox="0 0 100 24" className="h-full w-full opacity-90">
         <path
           d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
           fill="none"
@@ -158,7 +130,7 @@ function SoftZigZagSparkline({ variant }: { variant: Variant }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               Main Component                                */
+/*                         Main TeamFormGrid Component                        */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamFormGrid() {
@@ -168,10 +140,9 @@ export default function TeamFormGrid() {
   return (
     <section className="mt-16">
       <div className="rounded-[32px] border border-yellow-500/12 bg-gradient-to-b from-yellow-900/10 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-        {/* Header pill */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/45 bg-[radial-gradient(circle_at_15%_0,rgba(250,204,21,0.55),transparent_55%),linear-gradient(to_right,rgba(250,204,21,0.28),rgba(17,17,17,0.9))] px-4 py-1 shadow-[0_0_25px_rgba(250,204,21,0.5)]">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-50">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-[rgba(250,204,21,0.25)] px-4 py-1 backdrop-blur-[2px] shadow-[0_0_20px_rgba(250,204,21,0.3)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.8)]" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-yellow-50">
             Team Form Grid
           </span>
         </div>
@@ -181,30 +152,27 @@ export default function TeamFormGrid() {
         </h2>
 
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between momentum, fantasy, disposals and goals to see how each
-          club is trending. Tap a pill on mobile or click a card on desktop to
-          reveal a deeper analytics panel.
+          Switch between different lenses to reveal movement and trends.
+          Click cards to reveal deeper analytics.
         </p>
 
-        {/* Metric tabs */}
         <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/70">
           {METRICS.map((m) => {
             const active = metric === m;
             return (
               <button
                 key={m}
-                type="button"
                 onClick={() => setMetric(m)}
-                className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold capitalize tracking-wide transition ${
+                className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
                   active
                     ? "text-black"
                     : "text-neutral-400 hover:text-neutral-100"
                 }`}
               >
                 {active && (
-                  <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_20%_0,rgba(250,204,21,0.5),transparent_55%),linear-gradient(to_right,rgba(250,204,21,0.45),rgba(0,0,0,1))] shadow-[0_0_25px_rgba(250,204,21,0.7)]" />
+                  <span className="absolute inset-0 rounded-full bg-yellow-400/40 shadow-[0_0_20px_rgba(250,204,21,0.4)]" />
                 )}
-                <span className="relative z-10">
+                <span className="relative z-10 capitalize">
                   {m.charAt(0).toUpperCase() + m.slice(1)}
                 </span>
               </button>
@@ -241,7 +209,7 @@ export default function TeamFormGrid() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            Column + Divider                                 */
+/*                          Column Component                                  */
 /* -------------------------------------------------------------------------- */
 
 function FormColumn({
@@ -257,10 +225,8 @@ function FormColumn({
   teams: AFLTeam[];
   metric: Metric;
 }) {
-  const colors = variantClasses[variant];
-
   return (
-    <div className="relative">
+    <div>
       <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
         {icon}
         <span
@@ -277,12 +243,12 @@ function FormColumn({
       </div>
 
       <div
-        className={`mb-4 h-px w-full bg-gradient-to-r ${
+        className={`mb-4 h-px bg-gradient-to-r ${
           variant === "hot"
-            ? "from-yellow-400/40 via-yellow-500/10 to-transparent"
+            ? "from-yellow-400/40"
             : variant === "stable"
-            ? "from-lime-400/40 via-lime-500/10 to-transparent"
-            : "from-sky-400/40 via-sky-500/10 to-transparent"
+            ? "from-lime-400/40"
+            : "from-sky-400/40"
         }`}
       />
 
@@ -293,7 +259,6 @@ function FormColumn({
             variant={variant}
             team={team}
             metric={metric}
-            colors={colors}
           />
         ))}
       </div>
@@ -302,19 +267,17 @@ function FormColumn({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                 Team Card                                   */
+/*                               Team Card                                    */
 /* -------------------------------------------------------------------------- */
 
 function TeamFormCard({
   variant,
   team,
   metric,
-  colors,
 }: {
   variant: Variant;
   team: AFLTeam;
   metric: Metric;
-  colors: (typeof variantClasses)[Variant];
 }) {
   const [flipped, setFlipped] = useState(false);
 
@@ -332,10 +295,9 @@ function TeamFormCard({
 
   return (
     <div
-      className={`relative min-h-[176px] h-auto pb-1 transform-gpu transition-[transform,box-shadow] duration-300 ease-out ${
-        !flipped ? "hover:scale-[1.025]" : ""
-      } cursor-pointer rounded-2xl border border-neutral-700/55 
-      bg-gradient-to-b from-neutral-900/95 via-black to-black/95 ${colors.halo}`}
+      className={`relative min-h-[176px] h-auto pb-1 cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[1px] transform-gpu transition duration-300 ${
+        variantHalo[variant]
+      }`}
       onClick={() => setFlipped(!flipped)}
     >
       <div
@@ -344,13 +306,13 @@ function TeamFormCard({
         }`}
       >
         {/* FRONT */}
-        <div className="absolute inset-0 h-full flex flex-col justify-between px-4 py-4 [backface-visibility:hidden] sm:px-5 sm:py-4">
-          <div className="flex items-start justify-between gap-3">
+        <div className="absolute inset-0 h-full flex flex-col justify-between px-4 py-4 [backface-visibility:hidden]">
+          <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
                 {team.name}
               </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="mt-1 text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 {metricLabels[metric]}
               </div>
             </div>
@@ -358,24 +320,29 @@ function TeamFormCard({
             <div className="flex flex-col items-end gap-1">
               <SoftZigZagSparkline variant={variant} />
               <div
-                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 
-                text-[10px] font-semibold text-black ${colors.badge}`}
+                className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
               >
-                <span>{formattedScore}</span>
+                {formattedScore}
               </div>
             </div>
           </div>
 
           <div className="mt-4">
-            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-neutral-800/90">
+            <div className="relative h-1.5 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
-                className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${colors.bar}`}
+                className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
+                  variant === "hot"
+                    ? "from-yellow-300 to-yellow-400"
+                    : variant === "stable"
+                    ? "from-lime-300 to-emerald-400"
+                    : "from-sky-300 to-cyan-400"
+                }`}
                 style={{ width: barWidth }}
               />
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          <div className="mt-3 flex items-center justify-between text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
             <span>{metricLabels[metric]}</span>
             <span className="flex items-center gap-1 text-[9px] text-neutral-400">
               <span className="hidden sm:inline">Analytics</span>
@@ -385,26 +352,33 @@ function TeamFormCard({
         </div>
 
         {/* BACK */}
-        <div className="absolute inset-0 h-full px-4 py-3 [backface-visibility:hidden] [transform:rotateY(180deg)]
-          sm:px-5 sm:py-3 bg-black/85 backdrop-blur-[2px] shadow-inner shadow-black/40"
-        >
+        <div className="absolute inset-0 h-full px-4 py-3 bg-black/60 backdrop-blur-[3px] border border-white/5 rounded-xl flex flex-col justify-between [transform:rotateY(180deg)] [backface-visibility:hidden]">
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
                 {team.name}
               </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="mt-1 text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 {metricPrefix[metric]} analytics snapshot
               </div>
             </div>
-            <div className={`text-[10px] font-semibold ${colors.accent}`}>
+
+            <div
+              className={`text-[10px] font-semibold ${
+                variant === "hot"
+                  ? "text-yellow-200"
+                  : variant === "stable"
+                  ? "text-lime-200"
+                  : "text-sky-200"
+              }`}
+            >
               {formattedScore}
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-neutral-200 leading-tight">
+          <div className="mt-3 grid grid-cols-2 gap-y-1.5 gap-x-4 text-[11px] text-neutral-300 leading-tight">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 Attack Δ
               </div>
               <div className="mt-1 font-semibold">
@@ -414,7 +388,7 @@ function TeamFormCard({
             </div>
 
             <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 Defence Δ
               </div>
               <div className="mt-1 font-semibold">
@@ -424,39 +398,37 @@ function TeamFormCard({
             </div>
 
             <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 Clearance %
               </div>
               <div className="mt-1 font-semibold">{clearance}%</div>
             </div>
 
             <div>
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 Consistency
               </div>
               <div className="mt-1 font-semibold">{consistency}</div>
             </div>
 
-            {/* Opponents — ALWAYS one line, badge-style */}
             <div className="col-span-2">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              <div className="text-[10px] uppercase text-neutral-500 tracking-[0.16em]">
                 Opponents
               </div>
-
               <div className="mt-1 flex gap-1">
                 {team.fixtureDifficulty.opponents.map((op) => (
-                  <span
+                  <code
                     key={op}
-                    className="px-1.5 py-[1px] text-[9px] rounded bg-neutral-800/80 text-neutral-200"
+                    className="rounded bg-white/5 px-1.5 py-[1px] text-[10px] text-neutral-300"
                   >
                     {op}
-                  </span>
+                  </code>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
             <span>Tap to return</span>
             <span className="text-xs">↺</span>
           </div>
