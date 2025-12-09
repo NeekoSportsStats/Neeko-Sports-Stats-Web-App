@@ -69,7 +69,6 @@ function getModeSeries(team: ClassifiedTeam, mode: FilterMode): number[] {
       return team.disposals;
     case "goals":
       return team.goals;
-    case "momentum":
     default:
       return team.margins;
   }
@@ -79,9 +78,7 @@ function getModeMetric(team: ClassifiedTeam, mode: FilterMode): number {
   const series = getModeSeries(team, mode);
   const last = series.length - 1;
   const prev = Math.max(0, last - 3);
-  // use average of last 3–4 rounds as ranking metric
-  const window = series.slice(prev, last + 1);
-  return avg(window);
+  return avg(series.slice(prev, last + 1));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,32 +88,20 @@ function getModeMetric(team: ClassifiedTeam, mode: FilterMode): number {
 function partitionTeamsByMode(
   teams: ClassifiedTeam[],
   mode: FilterMode
-): {
-  hot: ClassifiedTeam[];
-  stable: ClassifiedTeam[];
-  cold: ClassifiedTeam[];
-} {
-  const scored = teams.map((t) => ({
-    team: t,
-    metric: getModeMetric(t, mode),
+) {
+  const scored = teams.map((team) => ({
+    team,
+    metric: getModeMetric(team, mode),
   }));
 
-  const sortedDesc = scored.sort((a, b) => b.metric - a.metric);
-  const n = sortedDesc.length;
+  const sorted = scored.sort((a, b) => b.metric - a.metric);
+  const n = sorted.length;
 
-  if (n <= 9) {
-    // simple split if somehow fewer than 9 teams
-    const third = Math.max(1, Math.floor(n / 3));
-    const hot = sortedDesc.slice(0, third).map((x) => x.team);
-    const stable = sortedDesc.slice(third, third * 2).map((x) => x.team);
-    const cold = sortedDesc.slice(third * 2).map((x) => x.team);
-    return { hot, stable, cold };
-  }
+  const hot = sorted.slice(0, 3).map((x) => x.team);
+  const cold = sorted.slice(n - 3).map((x) => x.team);
 
-  const hot = sortedDesc.slice(0, 3).map((x) => x.team);
-  const cold = sortedDesc.slice(n - 3).map((x) => x.team);
   const midStart = Math.floor(n / 2) - 1;
-  const stable = sortedDesc.slice(midStart, midStart + 3).map((x) => x.team);
+  const stable = sorted.slice(midStart, midStart + 3).map((x) => x.team);
 
   return { hot, stable, cold };
 }
@@ -146,10 +131,9 @@ export default function TeamFormGrid() {
 
   return (
     <section className="mt-12 rounded-3xl border border-yellow-500/15 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-8 shadow-[0_0_80px_rgba(0,0,0,0.85)]">
-      {/* Header + filters */}
+      {/* Header */}
       <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          {/* Unified static gold pill */}
           <div
             className="inline-flex items-center gap-2 rounded-full
             border border-yellow-500/60
@@ -168,15 +152,14 @@ export default function TeamFormGrid() {
           </h2>
 
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Toggle between momentum, fantasy, disposals and goals to see which
-            clubs are running hot, holding steady or dropping off across key
-            metrics.
+            Switch between momentum, fantasy, disposals and goals to see
+            how each club is trending.
           </p>
 
           <div className="mt-3 h-px w-40 bg-gradient-to-r from-yellow-500/90 via-yellow-300/60 to-transparent" />
         </div>
 
-        {/* Filter pill control */}
+        {/* Filter pill */}
         <div className="flex justify-start md:justify-end">
           <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/70 bg-black/70 px-1 py-1">
             {MODE_LABELS.map((m) => {
@@ -200,14 +183,12 @@ export default function TeamFormGrid() {
         </div>
       </div>
 
-      {/* Columns grid */}
+      {/* Columns */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <FormColumn
           title="Hot Teams"
           tone="hot"
-          icon={
-            <Flame className="h-4 w-4 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
-          }
+          icon={<Flame className="h-4 w-4 text-amber-300" />}
           teams={hot}
           mode={mode}
         />
@@ -215,9 +196,7 @@ export default function TeamFormGrid() {
         <FormColumn
           title="Stable Teams"
           tone="stable"
-          icon={
-            <CircleDot className="h-4 w-4 text-lime-300 drop-shadow-[0_0_7px_rgba(190,242,100,0.6)]" />
-          }
+          icon={<CircleDot className="h-4 w-4 text-lime-300" />}
           teams={stable}
           mode={mode}
         />
@@ -225,9 +204,7 @@ export default function TeamFormGrid() {
         <FormColumn
           title="Cold Teams"
           tone="cold"
-          icon={
-            <Snowflake className="h-4 w-4 text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
-          }
+          icon={<Snowflake className="h-4 w-4 text-sky-300" />}
           teams={cold}
           mode={mode}
         />
@@ -297,23 +274,8 @@ function FormCard({
   const modeMetric = getModeMetric(team, mode);
   const trendUp = modeMetric >= 0;
 
-  // extra momentum-specific values
   const attackUp = team.attackDelta >= 0;
   const defenceUp = team.defenceDelta >= 0;
-
-  const toneBorder =
-    tone === "hot"
-      ? "border-amber-400/50"
-      : tone === "stable"
-      ? "border-lime-400/45"
-      : "border-sky-400/45";
-
-  const toneGlow =
-    tone === "hot"
-      ? "shadow-[0_0_40px_rgba(251,191,36,0.35)]"
-      : tone === "stable"
-      ? "shadow-[0_0_40px_rgba(74,222,128,0.35)]"
-      : "shadow-[0_0_40px_rgba(56,189,248,0.4)]";
 
   const toneArrow =
     tone === "hot"
@@ -339,17 +301,9 @@ function FormCard({
 
   return (
     <div
-      className={`group relative h-full rounded-2xl border bg-gradient-to-b from-neutral-950/95 via-black/98 to-black px-4 py-3 ${toneBorder} ${toneGlow} overflow-hidden`}
-      style={{
-        boxShadow:
-          tone === "hot"
-            ? "0 0 0 1px rgba(251,191,36,0.15), inset 0 0 0 0.5px rgba(251,191,36,0.25)"
-            : tone === "stable"
-            ? "0 0 0 1px rgba(132,204,22,0.18), inset 0 0 0 0.5px rgba(132,204,22,0.25)"
-            : "0 0 0 1px rgba(56,189,248,0.18), inset 0 0 0 0.5px rgba(56,189,248,0.25)",
-      }}
+      className={`group relative h-full rounded-2xl border bg-gradient-to-b from-neutral-950/95 via-black/98 to-black px-4 py-3 overflow-hidden`}
     >
-      {/* team tint glow */}
+      {/* Team tint */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.09]"
         style={{
@@ -357,21 +311,23 @@ function FormCard({
         }}
       />
 
-      {/* 3D flip container */}
+      {/* Flip container */}
       <button
         type="button"
         className="relative block h-full w-full text-left [perspective:1200px] md:cursor-pointer"
         onClick={() => setFlipped((v) => !v)}
       >
         <div
-          className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]${
-            flipped ? " [transform:rotateY(180deg)]" : ""
-          }`}
+          className={`relative h-full w-full transition-transform duration-500
+            [transform-style:preserve-3d]
+            md:group-hover:[transform:rotateY(180deg)]
+            ${flipped ? "[transform:rotateY(180deg)]" : ""}
+          `}
         >
-          {/* FRONT: basic stats */}
+          {/* FRONT */}
           <div className="absolute inset-0 [backface-visibility:hidden]">
-            {/* Header row */}
-            <div className="flex items-center justify-between gap-2">
+            {/* Header */}
+            <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold text-neutral-50">
                   {team.name}
@@ -380,7 +336,6 @@ function FormCard({
                   {modeLabel} • last 5 rounds
                 </div>
               </div>
-
               {trendUp ? (
                 <ArrowUpRight className={`h-5 w-5 ${toneArrow}`} />
               ) : (
@@ -393,7 +348,7 @@ function FormCard({
               <SparklineSmall values={series5} />
             </div>
 
-            {/* Deltas – mode-aware */}
+            {/* Deltas */}
             <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-neutral-300">
               {mode === "momentum" ? (
                 <>
@@ -403,9 +358,7 @@ function FormCard({
                     </div>
                     <div
                       className={`mt-1 font-semibold ${
-                        attackUp
-                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
-                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                        attackUp ? "text-lime-300" : "text-red-300"
                       }`}
                     >
                       {attackUp ? "+" : ""}
@@ -419,9 +372,7 @@ function FormCard({
                     </div>
                     <div
                       className={`mt-1 font-semibold ${
-                        defenceUp
-                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
-                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                        defenceUp ? "text-lime-300" : "text-red-300"
                       }`}
                     >
                       {defenceUp ? "+" : ""}
@@ -437,9 +388,7 @@ function FormCard({
                     </div>
                     <div
                       className={`mt-1 font-semibold ${
-                        deltaShort >= 0
-                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
-                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                        deltaShort >= 0 ? "text-lime-300" : "text-red-300"
                       }`}
                     >
                       {deltaShort >= 0 ? "+" : ""}
@@ -453,9 +402,7 @@ function FormCard({
                     </div>
                     <div
                       className={`mt-1 font-semibold ${
-                        deltaLong >= 0
-                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
-                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                        deltaLong >= 0 ? "text-lime-300" : "text-red-300"
                       }`}
                     >
                       {deltaLong >= 0 ? "+" : ""}
@@ -467,14 +414,13 @@ function FormCard({
             </div>
 
             <div className="mt-3 text-[10px] text-neutral-500">
-              Hover or tap to view analytics
+              Tap to view analytics
             </div>
           </div>
 
-          {/* BACK: analytics side */}
+          {/* BACK */}
           <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
             <div className="flex h-full flex-col justify-between">
-              {/* Title */}
               <div>
                 <div className="text-sm font-semibold text-neutral-50">
                   {team.name} analytics
@@ -484,11 +430,10 @@ function FormCard({
                 </div>
               </div>
 
-              {/* Analytics stack */}
               <div className="mt-3 space-y-2 text-[11px] text-neutral-300">
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-400">
-                    {modeLabel} score (last 3–4 Rd avg)
+                    {modeLabel} score (last 3–4 avg)
                   </span>
                   <span
                     className={`font-semibold ${
@@ -501,7 +446,7 @@ function FormCard({
 
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-400">
-                    Volatility (last 5 rounds)
+                    Volatility (last 5)
                   </span>
                   <span className="font-semibold text-neutral-200">
                     {volatility.toFixed(1)}
@@ -533,10 +478,8 @@ function FormCard({
                 </div>
               </div>
 
-              {/* Footer line */}
               <div className="mt-3 text-[10px] text-neutral-500">
-                Tap again to flip back • Full team breakdown lives on the club
-                page.
+                Tap again to flip back
               </div>
             </div>
           </div>
