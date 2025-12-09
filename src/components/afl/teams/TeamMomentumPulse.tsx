@@ -1,20 +1,52 @@
 // src/components/afl/teams/TeamMomentumPulse.tsx
-// T1 PRIME EDITION — Updated Headlines Layout + Narrative Headlines
-//
-// - AFLPlayers-style layout
-// - Headlines panel aligned with metric cards (correct editorial balance)
-// - Narrative headlines (no duplication)
-// - Warm gold sunlight background (subtle, premium)
-// - Strong but refined card elevation
-// - Sparkline with gold glow + white line
-// - Fully responsive
+// T1 PRIME EDITION v2 — Final polish:
+// - 6 narrative headlines
+// - Headlines panel bottom-aligned with metric cards
+// - Animated sunlight shimmer (background only)
+// - Animated border glow on cards
+// - Fade-in animations
+// - Sparkline tuned for better visibility (including mobile)
 
 import React from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import { Flame, Shield, TrendingUp, BarChart3, Zap } from "lucide-react";
 
 /* ============================================================================
-   Sparkline — clean white line + soft gold glow
+   Shared animation styles (keyframes injected via <style>)
+============================================================================ */
+
+function AnimationStyles() {
+  return (
+    <style>
+      {`
+        @keyframes sunlightDrift {
+          0%   { background-position: 0% 0%;   }
+          50%  { background-position: 30% 10%; }
+          100% { background-position: 15% 0%;  }
+        }
+
+        @keyframes cardGlow {
+          0%   { border-color: rgba(255,211,105,0.40); box-shadow: 0 10px 28px rgba(0,0,0,0.75); }
+          50%  { border-color: rgba(255,211,105,0.70); box-shadow: 0 12px 34px rgba(0,0,0,0.85); }
+          100% { border-color: rgba(255,211,105,0.40); box-shadow: 0 10px 28px rgba(0,0,0,0.75); }
+        }
+
+        @keyframes fadeUp {
+          0%   { opacity: 0; transform: translateY(8px); }
+          100% { opacity: 1; transform: translateY(0);   }
+        }
+
+        @keyframes fadeUpSoft {
+          0%   { opacity: 0; transform: translateY(6px); }
+          100% { opacity: 1; transform: translateY(0);   }
+        }
+      `}
+    </style>
+  );
+}
+
+/* ============================================================================
+   Sparkline — clean white line + soft gold glow, slightly bolder for mobile
 ============================================================================ */
 
 function smooth(values: number[]) {
@@ -63,7 +95,7 @@ function Sparkline({ values }: SparkProps) {
   }, [smoothed]);
 
   return (
-    <div className="relative h-16 w-full overflow-hidden rounded-xl border border-neutral-800/70 bg-black/85">
+    <div className="relative h-16 w-full overflow-hidden rounded-xl border border-neutral-800/70 bg-black/85 sm:h-16">
       <svg
         viewBox="0 0 100 40"
         className="h-full w-full"
@@ -77,7 +109,7 @@ function Sparkline({ values }: SparkProps) {
             width="180%"
             height="180%"
           >
-            <feGaussianBlur stdDeviation="1.3" result="blur" />
+            <feGaussianBlur stdDeviation="1.4" result="blur" />
             <feBlend in="SourceGraphic" in2="blur" mode="screen" />
           </filter>
         </defs>
@@ -112,8 +144,8 @@ function Sparkline({ values }: SparkProps) {
         <polyline
           points={points}
           fill="none"
-          stroke="rgba(255,211,105,0.4)"
-          strokeWidth={2.3}
+          stroke="rgba(255,211,105,0.45)"
+          strokeWidth={2.5}
           filter="url(#sparkline-glow)"
         />
 
@@ -122,18 +154,18 @@ function Sparkline({ values }: SparkProps) {
           points={points}
           fill="none"
           stroke="white"
-          strokeWidth={1.4}
+          strokeWidth={1.6}
         />
 
         {/* last point highlight */}
-        <circle cx={lastX} cy={lastY} r={1.6} fill="white" />
+        <circle cx={lastX} cy={lastY} r={1.7} fill="white" />
       </svg>
     </div>
   );
 }
 
 /* ============================================================================
-   Metric Insight Card — premium broadcast-grade styling
+   Metric Insight Card — premium broadcast-style with animated border glow
 ============================================================================ */
 
 interface InsightCardProps {
@@ -154,7 +186,15 @@ function InsightCard({
   icon: Icon,
 }: InsightCardProps) {
   return (
-    <div className="rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/65 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[1px]">
+    <div
+      className="rounded-2xl bg-black/65 p-5 backdrop-blur-[1px]"
+      style={{
+        borderRadius: "1.25rem",
+        border: "1px solid rgba(255,211,105,0.45)",
+        boxShadow: "0 10px 28px rgba(0,0,0,0.75)",
+        animation: "cardGlow 4.8s ease-in-out infinite",
+      }}
+    >
       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.20em] text-[rgba(255,211,105,0.95)]">
         <Icon className="h-4 w-4" />
         {title}
@@ -175,16 +215,23 @@ function InsightCard({
 }
 
 /* ============================================================================
-   Headlines Card — narrative editorial content
+   Headlines Card — narrative editorial content (supports className for stretch)
 ============================================================================ */
 
-function HeadlinesCard({ items }: { items: string[] }) {
+interface HeadlinesCardProps {
+  items: string[];
+  className?: string;
+}
+
+function HeadlinesCard({ items, className }: HeadlinesCardProps) {
   return (
-    <div className="relative rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/72 px-7 py-6 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[2px]">
+    <div
+      className={`relative rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/72 px-7 py-6 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[2px] ${className ?? ""}`}
+    >
       {/* vertical gold beam */}
       <div className="pointer-events-none absolute left-4 top-5 bottom-5 w-[2px] rounded-full bg-gradient-to-b from-[rgba(255,211,105,1)] via-[rgba(255,211,105,0.6)] to-transparent" />
 
-      <div className="pl-5">
+      <div className="pl-5 flex h-full flex-col">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[rgba(255,220,138,1)]">
           <Zap className="h-4 w-4 text-[rgba(255,220,138,1)]" />
           Key Headlines
@@ -194,13 +241,15 @@ function HeadlinesCard({ items }: { items: string[] }) {
             <li key={i}>• {h}</li>
           ))}
         </ul>
+        {/* optional spacer to push content if needed */}
+        <div className="flex-1" />
       </div>
     </div>
   );
 }
 
 /* ============================================================================
-   Main Section — T1 Prime Edition (Updated Layout)
+   Main Section — T1 Prime Edition v2
 ============================================================================ */
 
 export default function TeamMomentumPulse() {
@@ -208,7 +257,7 @@ export default function TeamMomentumPulse() {
   const prev = roundIndex - 1;
   const teams = MOCK_TEAMS;
 
-  // **Stats for cards**
+  // Card stats
   const fantasyTeam = [...teams].sort(
     (a, b) => b.attackRating - a.attackRating
   )[0];
@@ -228,27 +277,47 @@ export default function TeamMomentumPulse() {
     }))
     .sort((a, b) => b.delta - a.delta)[0];
 
-  // **Narrative Headlines (not duplicates)**
+  // Narrative headlines — round-level stories, not duplicated metrics
   const headlines = [
     "Midfield usage shifted significantly this round, with multiple clubs experimenting in key rotations.",
-    `${fantasyTeam.name} benefited from increased stoppage presence, driving a surge in opportunity.`,
+    `${fantasyTeam.name} benefited from increased stoppage presence, driving a surge in fantasy opportunity.`,
     `${defenceTeam.name}'s back-half structure showed exceptional consistency late in the match.`,
     `${momentum.team.name} generated sustained forward-half pressure, producing the strongest momentum lift.`,
+    "Several clubs trialled hybrid forward–mid roles, creating pockets of elevated scoring volatility.",
+    "Defensive structures tightened late across multiple games, keeping overall scoring in check despite momentum swings.",
   ];
 
   return (
     <section className="mt-10 px-4 sm:px-6 md:px-8">
-      <div className="relative overflow-hidden rounded-3xl border border-neutral-800/70 bg-[radial-gradient(circle_at_top_left,rgba(255,211,105,0.22),transparent_70%),linear-gradient(to_bottom,#181818,#080808,#010101)] p-6 sm:p-8 md:p-10 shadow-[0_0_60px_rgba(0,0,0,0.75)]">
+      <AnimationStyles />
+
+      <div
+        className="relative overflow-hidden rounded-3xl border border-neutral-800/70 p-6 sm:p-8 md:p-10 shadow-[0_0_60px_rgba(0,0,0,0.75)]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at top left, rgba(255,211,105,0.22), transparent 70%), linear-gradient(to bottom, #181818, #080808, #010101)",
+          backgroundSize: "140% 140%",
+          animation: "sunlightDrift 14s ease-in-out infinite alternate",
+        }}
+      >
+        {/* subtle vignette */}
         <div className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_bottom,rgba(0,0,0,0.55),transparent_65%)]" />
 
-        <div className="relative">
+        {/* content */}
+        <div
+          className="relative"
+          style={{
+            animation: "fadeUp 650ms ease-out forwards",
+            opacity: 0,
+          }}
+        >
           {/* Section Label */}
           <div className="inline-flex items-center gap-[6px] rounded-full border border-[rgba(255,211,105,0.75)] bg-black/80 px-4 py-1 text-[10px] uppercase tracking-[0.22em] text-[rgba(255,220,138,1)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,220,138,1)]" />
             Round Momentum Pulse • R23
           </div>
 
-          {/* Header Text */}
+          {/* Headline + Subcopy */}
           <h2 className="mt-5 text-[22px] font-semibold text-white md:text-[24px]">
             League-wide fantasy trends &amp; team momentum highlights
           </h2>
@@ -261,10 +330,16 @@ export default function TeamMomentumPulse() {
 
           <div className="mt-5 h-px w-full bg-gradient-to-r from-[rgba(255,211,105,0.4)] via-neutral-700/65 to-transparent" />
 
-          {/* CONTENT GRID */}
-          <div className="mt-8 grid items-start gap-12 lg:grid-cols-[1.35fr_0.9fr]">
-            {/* LEFT — Metrics */}
-            <div>
+          {/* Main grid */}
+          <div
+            className="mt-8 grid items-stretch gap-12 lg:grid-cols-[1.35fr_0.9fr]"
+            style={{
+              animation: "fadeUpSoft 700ms ease-out 120ms forwards",
+              opacity: 0,
+            }}
+          >
+            {/* Left: metrics cards */}
+            <div className="flex flex-col">
               <h3 className="text-[11px] uppercase tracking-[0.24em] text-[rgba(255,211,105,0.95)]">
                 Round 23 Summary Metrics
               </h3>
@@ -308,9 +383,9 @@ export default function TeamMomentumPulse() {
               </div>
             </div>
 
-            {/* RIGHT — Headlines (now aligned with card grid) */}
-            <div className="lg:pt-4">
-              <HeadlinesCard items={headlines} />
+            {/* Right: headlines – stretched to bottom-align with cards */}
+            <div className="lg:pt-4 flex lg:h-full">
+              <HeadlinesCard items={headlines} className="h-full w-full" />
             </div>
           </div>
         </div>
