@@ -4,7 +4,7 @@
 export type AFLTeam = {
   id: number;
   name: string;
-  code: string;            // e.g. "CAR", "COL", "ESS"
+  code: string;
   colours: {
     primary: string;
     secondary: string;
@@ -16,16 +16,21 @@ export type AFLTeam = {
   // Scoring margin per round (score for – score against)
   margins: number[];
 
+  // NEW — additional statistical lenses
+  fantasy: number[];     // AFL Fantasy team totals per round
+  disposals: number[];   // team total disposals per round
+  goals: number[];       // team total goals per round
+
   // For dashboard tiles
-  attackRating: number;     // 0–100
-  defenceRating: number;    // 0–100
-  clearanceDom: number[];   // 23 values, %, round-by-round
-  consistencyIndex: number; // 0–100 (low volatility = high consistency)
+  attackRating: number;
+  defenceRating: number;
+  clearanceDom: number[];
+  consistencyIndex: number;
 
   // Next 3 fixtures difficulty
   fixtureDifficulty: {
-    score: number;          // 0–100
-    opponents: string[];    // opponent codes
+    score: number;
+    opponents: string[];
   };
 
   // Trend sparkline data (for charts)
@@ -34,13 +39,13 @@ export type AFLTeam = {
   midfieldTrend: number[];
 };
 
-// Round labels (R1–R23) for team-level tables / panels
+// Round labels (R1–R23)
 export const ROUND_LABELS = Array.from({ length: 23 }, (_, i) => `R${i + 1}`);
 
-// Alias used by TeamMasterTable / TeamInsightsPanel
+// Alias for master tables
 export type TeamRow = AFLTeam;
 
-// AFL Club List
+// AFL Clubs
 export const TEAM_LIST = [
   "Carlton",
   "Collingwood",
@@ -68,7 +73,7 @@ const TEAM_CODES = [
   "SYD", "GWS", "BRI", "ADE", "PORT", "STK", "GC", "NMFC", "HAW", "WB"
 ];
 
-// Club colour sets (simple for now)
+// Club colours
 const TEAM_COLOURS = [
   { primary: "#0033A0", secondary: "#FFFFFF" }, // Carlton
   { primary: "#000000", secondary: "#FFFFFF" }, // Collingwood
@@ -91,21 +96,30 @@ const TEAM_COLOURS = [
 ];
 
 // Random helpers for realism
-const randomScore = () => Math.floor(60 + Math.random() * 70); // 60–130
-const randomMargin = () => Math.floor(-40 + Math.random() * 90); // -40 to +50
-const randomRating = () => Math.floor(40 + Math.random() * 60); // 40–100
+const randomScore = () => Math.floor(60 + Math.random() * 70);       // 60–130
+const randomMargin = () => Math.floor(-40 + Math.random() * 90);     // -40 to +50
+const randomRating = () => Math.floor(40 + Math.random() * 60);      // 40–100
 const randomClearances = () =>
-  Array.from({ length: 23 }, () => Math.floor(35 + Math.random() * 35)); // 35–70%
+  Array.from({ length: 23 }, () => Math.floor(35 + Math.random() * 35));
 
-// Trend sparkline: values 0–100
+// NEW — fantasy, disposals, goals
+const randomFantasy = () =>
+  Array.from({ length: 23 }, () => Math.floor(1800 + Math.random() * 550)); // 1800–2350
+
+const randomDisposals = () =>
+  Array.from({ length: 23 }, () => Math.floor(310 + Math.random() * 110));  // 310–420
+
+const randomGoals = () =>
+  Array.from({ length: 23 }, () => Math.floor(6 + Math.random() * 15));     // 6–20 goals
+
+// Trend sparkline values
 const randomTrend = () =>
   Array.from({ length: 12 }, () => Math.floor(40 + Math.random() * 45));
 
-// Generate all teams with realistic mock data
+// Generate all teams
 export const MOCK_TEAMS: AFLTeam[] = TEAM_LIST.map((name, idx) => {
   const scores = Array.from({ length: 23 }, randomScore);
   const margins = Array.from({ length: 23 }, randomMargin);
-  const clearanceDom = randomClearances();
 
   return {
     id: idx + 1,
@@ -116,14 +130,18 @@ export const MOCK_TEAMS: AFLTeam[] = TEAM_LIST.map((name, idx) => {
     scores,
     margins,
 
+    fantasy: randomFantasy(),
+    disposals: randomDisposals(),
+    goals: randomGoals(),
+
     attackRating: randomRating(),
     defenceRating: randomRating(),
-    clearanceDom,
+    clearanceDom: randomClearances(),
 
-    consistencyIndex: Math.floor(50 + Math.random() * 40), // 50–90
+    consistencyIndex: Math.floor(50 + Math.random() * 40),
 
     fixtureDifficulty: {
-      score: Math.floor(30 + Math.random() * 50), // 30–80
+      score: Math.floor(30 + Math.random() * 50),
       opponents: [
         TEAM_CODES[(idx + 1) % 18],
         TEAM_CODES[(idx + 4) % 18],
