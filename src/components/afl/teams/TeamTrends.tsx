@@ -1,4 +1,5 @@
 // src/components/afl/teams/TeamTrends.tsx
+
 import React, { useMemo } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import {
@@ -71,7 +72,14 @@ function SparklineLarge({
   );
 
   return (
-    <div className="group relative h-10 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)] transition-colors duration-200 hover:border-slate-100/25">
+    <div
+      className="group relative h-10 w-full rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)] transition-colors duration-200 hover:border-slate-100/25"
+      style={{
+        overflow: "hidden",
+        WebkitMaskImage: "linear-gradient(black, black)",
+        maskImage: "linear-gradient(black, black)",
+      }}
+    >
       {/* Top light strip */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-white/8" />
 
@@ -85,7 +93,7 @@ function SparklineLarge({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
       >
         <line
           x1={0}
@@ -101,14 +109,14 @@ function SparklineLarge({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
         style={{ color }}
       >
         <path
           d={pathD}
           fill="none"
           stroke="currentColor"
-          strokeWidth={2} // 2px as you chose (Option A)
+          strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
           style={{
@@ -143,11 +151,6 @@ function average(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-/**
- * goodDirection:
- *  - "up"   => higher is better (attack, midfield, ruck, pressure, intercepts)
- *  - "down" => lower is better (points conceded etc.)
- */
 function computeMetricSummary(
   values: number[],
   goodDirection: "up" | "down"
@@ -188,7 +191,6 @@ function computeMetricSummary(
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
-  // Clamp volatility so it feels realistic
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -306,11 +308,9 @@ function TrendBlock({
                 arrow = isUp ? "▲" : "▼";
                 deltaLabel = `${arrow} ${formattedPct}`;
 
-                if (isGood) {
-                  deltaClass = "text-emerald-400";
-                } else {
-                  deltaClass = "text-rose-400";
-                }
+                deltaClass = isGood
+                  ? "text-emerald-400"
+                  : "text-rose-400";
               }
             }
 
@@ -362,8 +362,8 @@ function TrendBlock({
                   </div>
                 </div>
 
-                {/* Sparkline – fixed height, no clipping */}
-                <div className="mt-1 h-[42px]">
+                {/* Sparkline – NOW FULLY CONTAINED */}
+                <div className="mt-1 h-[42px] rounded-xl overflow-hidden">
                   <SparklineLarge values={s.values} color={accent} />
                 </div>
               </div>
@@ -559,13 +559,10 @@ export default function TeamTrends() {
 
   return (
     <section className="mt-10">
-      {/* Entire section glass panel with neutral black glass + gold outline */}
       <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl md:px-7 md:pb-9 md:pt-7">
-        {/* Soft outer halo */}
         <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
         <div className="relative">
-          {/* Header pill */}
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
             <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.85)]" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
@@ -587,9 +584,7 @@ export default function TeamTrends() {
             lenses
           </p>
 
-          {/* Grid of positional cards */}
           <div className="mt-8 grid gap-8 md:grid-cols-2 lg:gap-10">
-            {/* ATTACK */}
             <TrendBlock
               title="Attack Trend"
               icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
@@ -619,7 +614,6 @@ export default function TeamTrends() {
               ]}
             />
 
-            {/* DEFENCE */}
             <TrendBlock
               title="Defence Trend"
               icon={<Shield className="h-4 w-4 text-cyan-200" />}
@@ -649,7 +643,6 @@ export default function TeamTrends() {
               ]}
             />
 
-            {/* MIDFIELD */}
             <TrendBlock
               title="Midfield Trend"
               icon={<Activity className="h-4 w-4 text-orange-300" />}
@@ -679,7 +672,6 @@ export default function TeamTrends() {
               ]}
             />
 
-            {/* RUCK */}
             <TrendBlock
               title="Ruck Trend"
               icon={<MoveVertical className="h-4 w-4 text-violet-200" />}
