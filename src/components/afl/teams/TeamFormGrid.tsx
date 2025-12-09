@@ -1,143 +1,324 @@
 "use client";
 
-import { useState } from "react";
-import { MOCK_TEAMS } from "@/components/afl/teams/mockTeams";
+import React, { useMemo, useState } from "react";
+import { MOCK_TEAMS } from "./mockTeams";
 
 type Lens = "momentum" | "fantasy" | "disposals" | "goals";
+type Tint = "hot" | "stable" | "cold";
+
+type ClassifiedTeam = (typeof MOCK_TEAMS)[number] & {
+  metric: number;
+  tint: Tint;
+};
+
+/* -------------------------------------------------------------------------- */
+/*                         METRIC / SEGMENT CALCULATION                        */
+/* -------------------------------------------------------------------------- */
+
+function computeLensMetric(team: (typeof MOCK_TEAMS)[number], lens: Lens) {
+  const last5Margins = team.margins.slice(-5);
+  const avgLast5Margins =
+    last5Margins.reduce((a, b) => a + b, 0) / Math.max(last5Margins.length, 1);
+
+  const lastClearance = team.clearanceDom.slice(-1)[0] ?? 50;
+  const lastAttackTrend = team.attackTrend.slice(-1)[0] ?? 50;
+  const lastMidfieldTrend = team.midfieldTrend.slice(-1)[0] ?? 50;
+
+  switch (lens) {
+    case "momentum":
+      // True momentum: average of last 5 margins
+      return avgLast5Margins;
+
+    case "fantasy":
+      // Fake fantasy edge: attack rating + clearances + consistency
+      return (
+        (team.attackRating - 50) * 0.6 +
+        (lastClearance - 50) * 0.3 +
+        (team.consistencyIndex - 60) * 0.4
+      );
+
+    case "disposals":
+      // Fake disposals trend: midfield trend + clearances
+      return (
+        (lastMidfieldTrend - 50) * 0.8 +
+        (lastClearance - 50) * 0.4
+      );
+
+    case "goals":
+      // Fake goals trend: recent attack trend + attack rating
+      return (
+        (lastAttackTrend - 50) * 0.8 +
+        (team.attackRating - 50) * 0.5
+      );
+
+    default:
+      return 0;
+  }
+}
+
+function segmentTeams(lens: Lens): {
+  hot: ClassifiedTeam[];
+  stable: ClassifiedTeam[];
+  cold: ClassifiedTeam[];
+} {
+  const scored = MOCK_TEAMS.map((t) => {
+    const metric = computeLensMetric(t, lens);
+    return { ...t, metric } as ClassifiedTeam;
+  }).sort((a, b) => b.metric - a.metric);
+
+  const hot = scored.slice(0, 3).map((t) => ({ ...t, tint: "hot" as Tint }));
+  const stable = scored.slice(3, 6).map((t) => ({ ...t, tint: "stable" as Tint }));
+  const cold = scored.slice(6, 9).map((t) => ({ ...t, tint: "cold" as Tint }));
+
+  return { hot, stable, cold };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   SPARKLINE                                */
+/* -------------------------------------------------------------------------- */
+
+function Sparkline({ values, tint }: { values: number[]; tint: Tint }) {
+  if (!values.length) return null;
+
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+
+  const normalised = values.map((v) => (v - min) / range);
+
+  const points = normalised
+    .map((v, i) => {
+      const x =
+        normalised.length === 1
+          ? 50
+          : (i / (normalised.length - 1)) * 100;
+      const y = 18 - v * 12; // 2–14 range
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const stroke =
+    tint === "hot"
+      ? "#facc15"
+      : tint === "stable"
+      ? "#a3e635"
+      : "#38bdf8";
+
+  return (
+    <svg
+      viewBox="0 0 100 20"
+      preserveAspectRatio="none"
+      className="h-6 w-16 opacity-70"
+    >
+      <polyline
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               MICRO METRIC BAR                             */
+/* -------------------------------------------------------------------------- */
+
+function TinyMetricBar({
+  value,
+  maxAbsValue,
+  tint,
+}: {
+  value: number;
+  maxAbsValue: number;
+  tint: Tint;
+}) {
+  const max = Math.max(maxAbsValue, 1);
+  const abs = Math.min(Math.abs(value), max);
+  const widthPercent = (abs / max) * 100;
+
+  const gradientClass =
+    tint === "hot"
+      ? "from-yellow-400 to-yellow-200"
+      : tint === "stable"
+      ? "from-lime-400 to-lime-200"
+      : "from-sky-400 to-sky-200";
+
+  return (
+    <div className="relative h-1.5 w-24 overflow-hidden rounded-full bg-neutral-900/90">
+      <div
+        className={`h-full rounded-full bg-gradient-to-r ${gradientClass} transition-[width] duration-500 ease-out`}
+        style={{ width: `${widthPercent}%` }}
+      />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   HELPERS                                  */
+/* -------------------------------------------------------------------------- */
+
+const formatSigned = (v: number) =>
+  `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
+
+const lensLabel: Record<Lens, string> = {
+  momentum: "Momentum • Last 5",
+  fantasy: "Fantasy edge",
+  disposals: "Disposals trend",
+  goals: "Goals trend",
+};
+
+const filters: { key: Lens; label: string }[] = [
+  { key: "momentum", label: "Momentum" },
+  { key: "fantasy", label: "Fantasy" },
+  { key: "disposals", label: "Disposals" },
+  { key: "goals", label: "Goals" },
+];
+
+/* -------------------------------------------------------------------------- */
+/*                               MAIN COMPONENT                                */
+/* -------------------------------------------------------------------------- */
 
 export default function TeamFormGrid() {
   const [lens, setLens] = useState<Lens>("momentum");
-  const [openTeam, setOpenTeam] = useState<number | null>(null);
 
-  // --- SCORING LOGIC FOR PERFORMANCE GROUPING ---
-  const getScore = (team: any) => {
-    const last5 = team.margins.slice(-5);
-    return last5.reduce((a: number, b: number) => a + b, 0);
-  };
-
-  const sorted = [...MOCK_TEAMS].sort((a, b) => getScore(b) - getScore(a));
-
-  const hotTeams = sorted.slice(0, 3);
-  const stableTeams = sorted.slice(3, 6);
-  const coldTeams = sorted.slice(6, 9);
-
-  const toggleTeam = (id: number) => {
-    setOpenTeam((prev) => (prev === id ? null : id));
-  };
+  const { hot, stable, cold } = useMemo(
+    () => segmentTeams(lens),
+    [lens]
+  );
 
   return (
-    <section className="w-full px-4 md:px-8 py-10">
-      {/* HEADER PILL */}
-      <div className="inline-flex items-center px-4 py-1.5 mb-6 rounded-full bg-[#1b1b1b] border border-yellow-500/20 shadow-[0_0_22px_rgba(255,200,0,0.28)]">
-        <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2" />
-        <span className="text-yellow-300 tracking-wide text-sm font-medium">
-          TEAM FORM GRID
-        </span>
-      </div>
+    <section className="mt-14 px-4 md:px-8">
+      {/* Glass section wrapper */}
+      <div className="rounded-3xl border border-yellow-500/14 bg-gradient-to-b from-neutral-900/55 via-neutral-950/85 to-black/95 px-4 py-8 shadow-[0_0_45px_rgba(0,0,0,0.80)] ring-1 ring-white/6 backdrop-blur-2xl md:px-8 md:py-10">
+        {/* Header pill */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/22 via-yellow-500/10 to-transparent px-4 py-1.5 shadow-[0_0_20px_rgba(250,204,21,0.65)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.95)]" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
+            Team Form Grid
+          </span>
+        </div>
 
-      {/* TITLE + DESCRIPTION */}
-      <h2 className="text-2xl md:text-3xl font-semibold mb-3">
-        Hot, stable and cold clubs by performance lens
-      </h2>
+        <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
+          Hot, stable and cold clubs by performance lens
+        </h2>
 
-      <p className="text-gray-300 text-sm md:text-base max-w-2xl mb-8">
-        Switch between momentum, fantasy, disposals and goals to see how each
-        club is trending. Tap a pill on mobile or hover on desktop to reveal a
-        deeper analytics panel.
-      </p>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-400 md:text-[15px]">
+          Switch between momentum, fantasy, disposals and goals to see how each
+          club is trending. Tap a pill on mobile or click a card on desktop to
+          flip into a deeper analytics panel.
+        </p>
 
-      {/* LENS SWITCHER */}
-      <div className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-full px-2 py-2 w-full max-w-xl mb-10">
-        {["momentum", "fantasy", "disposals", "goals"].map((key) => (
-          <button
-            key={key}
-            onClick={() => setLens(key as Lens)}
-            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all
-              ${
-                lens === key
-                  ? "bg-yellow-500/20 shadow-[0_0_12px_rgba(255,200,0,0.3)] text-yellow-300"
-                  : "text-gray-400 hover:text-white"
-              }
-            `}
-          >
-            {key.charAt(0).toUpperCase() + key.slice(1)}
-          </button>
-        ))}
-      </div>
+        {/* Lens switcher */}
+        <div className="mt-6 flex w-full gap-2 overflow-x-auto rounded-full border border-neutral-800/70 bg-black/75 p-1.5 text-sm">
+          {filters.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setLens(f.key)}
+              className={`flex-1 rounded-full px-5 py-2.5 font-medium transition-all
+                ${
+                  lens === f.key
+                    ? "bg-gradient-to-r from-yellow-500/55 via-yellow-500/30 to-transparent text-yellow-50 shadow-[0_0_14px_rgba(250,204,21,0.45)]"
+                    : "text-neutral-400 hover:text-neutral-100"
+                }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
-      {/* ====== GRID WRAPPER (Mobile = 1 col, Desktop = 3 col) ====== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-        {/* HOT COLUMN */}
-        <ColumnBlock
-          title="HOT TEAMS"
-          icon="🔥"
-          tint="yellow"
-          teams={hotTeams}
-          openTeam={openTeam}
-          toggleTeam={toggleTeam}
-        />
-
-        {/* STABLE COLUMN */}
-        <ColumnBlock
-          title="STABLE TEAMS"
-          icon="🟢"
-          tint="green"
-          teams={stableTeams}
-          openTeam={openTeam}
-          toggleTeam={toggleTeam}
-        />
-
-        {/* COLD COLUMN */}
-        <ColumnBlock
-          title="COLD TEAMS"
-          icon="❄️"
-          tint="blue"
-          teams={coldTeams}
-          openTeam={openTeam}
-          toggleTeam={toggleTeam}
-        />
+        {/* Grid layout: 1 col mobile, 3 cols desktop */}
+        <div className="mt-8 grid grid-cols-1 gap-10 md:mt-9 md:grid-cols-3 md:gap-8">
+          <CategoryColumn
+            title="Hot Teams"
+            icon="🔥"
+            tint="hot"
+            teams={hot}
+            lens={lens}
+          />
+          <CategoryColumn
+            title="Stable Teams"
+            icon="●"
+            tint="stable"
+            teams={stable}
+            lens={lens}
+          />
+          <CategoryColumn
+            title="Cold Teams"
+            icon="❄"
+            tint="cold"
+            teams={cold}
+            lens={lens}
+          />
+        </div>
       </div>
     </section>
   );
 }
 
-/* ===========================================================
-   COLUMN BLOCK
-=========================================================== */
-function ColumnBlock({
+/* -------------------------------------------------------------------------- */
+/*                              CATEGORY COLUMN                                */
+/* -------------------------------------------------------------------------- */
+
+function CategoryColumn({
   title,
   icon,
   tint,
   teams,
-  openTeam,
-  toggleTeam,
-}: any) {
-  const tintColor =
-    tint === "yellow"
-      ? "yellow"
-      : tint === "green"
-      ? "lime"
-      : "sky";
+  lens,
+}: {
+  title: string;
+  icon: string;
+  tint: Tint;
+  teams: ClassifiedTeam[];
+  lens: Lens;
+}) {
+  const headerColor =
+    tint === "hot"
+      ? "text-yellow-300"
+      : tint === "stable"
+      ? "text-lime-300"
+      : "text-sky-300";
+
+  const dividerGradient =
+    tint === "hot"
+      ? "from-yellow-500/40"
+      : tint === "stable"
+      ? "from-lime-400/40"
+      : "from-sky-400/40";
+
+  const maxAbsValue =
+    teams.length > 0
+      ? Math.max(...teams.map((t) => Math.abs(t.metric)))
+      : 1;
 
   return (
-    <div>
-      {/* Category Header */}
-      <h3
-        className={`flex items-center gap-2 text-${tintColor}-400 font-semibold tracking-wide text-sm mb-4`}
-      >
-        <span className="text-lg">{icon}</span>
-        {title}
-      </h3>
+    <div className="relative">
+      {/* Sticky header on mobile to show category while scrolling */}
+      <div className="sticky top-[76px] z-10 bg-gradient-to-b from-neutral-950 via-neutral-950/97 to-transparent pb-2 md:static md:bg-transparent">
+        <div
+          className={`h-px w-full bg-gradient-to-r ${dividerGradient} to-transparent opacity-85`}
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <span className={`text-base ${headerColor}`}>{icon}</span>
+          <span
+            className={`text-[11px] uppercase tracking-[0.18em] ${headerColor}`}
+          >
+            {title}
+          </span>
+        </div>
+      </div>
 
-      {/* Team Pills */}
-      <div className="space-y-4">
-        {teams.map((team: any) => (
-          <TeamPill
+      <div className="mt-4 space-y-4 md:space-y-3">
+        {teams.map((team) => (
+          <TeamFlipCard
             key={team.id}
             team={team}
-            openTeam={openTeam}
-            toggleTeam={toggleTeam}
             tint={tint}
+            lens={lens}
+            maxAbsValue={maxAbsValue}
           />
         ))}
       </div>
@@ -145,102 +326,172 @@ function ColumnBlock({
   );
 }
 
-/* ===========================================================
-   TEAM PILL COMPONENT
-=========================================================== */
-function TeamPill({ team, openTeam, toggleTeam, tint }: any) {
-  const isOpen = openTeam === team.id;
+/* -------------------------------------------------------------------------- */
+/*                                TEAM FLIP CARD                               */
+/* -------------------------------------------------------------------------- */
 
-  const tintColor =
-    tint === "yellow"
-      ? {
-          bar: "bg-yellow-400",
-          glow: "shadow-[0_0_18px_rgba(255,200,0,0.35)]",
-          badge: "bg-yellow-400/20 border-yellow-500/40 text-yellow-300",
-        }
-      : tint === "green"
-      ? {
-          bar: "bg-lime-400",
-          glow: "shadow-[0_0_18px_rgba(140,255,120,0.35)]",
-          badge: "bg-lime-400/20 border-lime-500/40 text-lime-300",
-        }
-      : {
-          bar: "bg-sky-400",
-          glow: "shadow-[0_0_18px_rgba(110,180,255,0.35)]",
-          badge: "bg-sky-400/20 border-sky-500/40 text-sky-300",
-        };
+function TeamFlipCard({
+  team,
+  tint,
+  lens,
+  maxAbsValue,
+}: {
+  team: ClassifiedTeam;
+  tint: Tint;
+  lens: Lens;
+  maxAbsValue: number;
+}) {
+  const [flipped, setFlipped] = useState(false);
 
-  const momentumVal =
-    team.margins.slice(-5).reduce((a: number, b: number) => a + b, 0) || 0;
+  const glowClass =
+    tint === "hot"
+      ? "shadow-[0_0_32px_8px_rgba(250,204,21,0.22)]"
+      : tint === "stable"
+      ? "shadow-[0_0_28px_6px_rgba(132,204,22,0.20)]"
+      : "shadow-[0_0_28px_6px_rgba(56,189,248,0.19)]";
+
+  const badgeClass =
+    tint === "hot"
+      ? "border-yellow-500/60 bg-yellow-500/18 text-yellow-100"
+      : tint === "stable"
+      ? "border-lime-500/60 bg-lime-500/18 text-lime-100"
+      : "border-sky-500/60 bg-sky-500/18 text-sky-100";
+
+  const label = lensLabel[lens];
+
+  const trendValues =
+    lens === "disposals"
+      ? team.midfieldTrend
+      : lens === "goals"
+      ? team.attackTrend
+      : lens === "fantasy"
+      ? team.attackTrend
+      : team.margins.slice(-12);
+
+  const handleToggle = () => setFlipped((prev) => !prev);
 
   return (
-    <div>
-      {/* MAIN PILL */}
-      <button
-        onClick={() => toggleTeam(team.id)}
-        className={`w-full rounded-2xl bg-black/40 border border-white/5 p-4 text-left relative transition-all hover:bg-black/50 ${tintColor.glow}`}
+    <div
+      className={`group rounded-2xl border border-neutral-800/80 bg-black/40 px-[3px] py-[3px] ${glowClass} backdrop-blur-xl transition-shadow`}
+    >
+      <div
+        className="relative h-40 w-full rounded-2xl"
+        style={{ perspective: "1100px" }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-base font-medium">{team.name}</span>
-
-          {/* Badge */}
-          <span
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${tintColor.badge}`}
-          >
-            {momentumVal > 0 ? `+${momentumVal.toFixed(1)}` : momentumVal.toFixed(1)}
-          </span>
-        </div>
-
-        {/* MICRO BAR */}
-        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mb-3">
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="relative h-full w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          style={{
+            transformStyle: "preserve-3d",
+            transition:
+              "transform 650ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          }}
+        >
+          {/* FRONT FACE */}
           <div
-            className={`h-full ${tintColor.bar}`}
-            style={{ width: `${Math.min(Math.abs(momentumVal), 50) * 2}%` }}
-          />
-        </div>
+            className="absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-b from-neutral-900/95 via-neutral-950/95 to-black/95 p-4"
+            style={{ backfaceVisibility: "hidden" }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[15px] font-medium text-neutral-50">
+                  {team.name}
+                </div>
+                <div className="mt-0.5 text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+                  {label}
+                </div>
+              </div>
 
-        {/* Subtext */}
-        <p className="text-[11px] tracking-widest text-gray-400 uppercase">
-          Momentum • Last 5
-        </p>
+              <div className="flex flex-col items-end gap-1.5">
+                <Sparkline values={trendValues} tint={tint} />
+                <div className="flex items-center gap-2">
+                  <TinyMetricBar
+                    value={team.metric}
+                    maxAbsValue={maxAbsValue}
+                    tint={tint}
+                  />
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeClass}`}
+                  >
+                    {formatSigned(team.metric)}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-        {/* Expand Arrow */}
-        <div className="absolute right-4 top-4 text-gray-300 opacity-60">
-          {openTeam === team.id ? "▾" : "▸"}
-        </div>
-      </button>
-
-      {/* EXPANDED PANEL */}
-      {isOpen && (
-        <div className="mt-3 rounded-2xl bg-black/40 border border-white/5 p-5 animate-fadeIn shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]">
-          {/* Analytics Grid */}
-          <div className="grid grid-cols-2 gap-y-4 text-sm">
-            <Stat label="Attack Δ" value={team.attackRating} />
-            <Stat label="Defence Δ" value={team.defenceRating} />
-
-            <Stat label="Clearance %" value={`${team.clearanceDom.slice(-1)[0]}%`} />
-            <Stat label="Consistency" value={team.consistencyIndex} />
-
-            <Stat label="Fixture Diff" value={team.fixtureDifficulty.score} />
-            <Stat
-              label="Opponents"
-              value={team.fixtureDifficulty.opponents.join(", ")}
-            />
+            {/* Subtle baseline bar */}
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gradient-to-r from-neutral-800/80 via-neutral-900/90 to-neutral-950/95">
+              <div className="h-full w-0 rounded-full bg-gradient-to-r from-white/20 to-white/0 opacity-60 group-hover:w-1/3 group-hover:opacity-80 transition-all duration-700" />
+            </div>
           </div>
-        </div>
-      )}
+
+          {/* BACK FACE */}
+          <div
+            className="absolute inset-0 rounded-2xl bg-gradient-to-b from-neutral-900/98 via-neutral-950/98 to-black/98 p-4"
+            style={{
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+            }}
+          >
+            <div className="flex h-full flex-col justify-between">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                  {team.name}
+                </div>
+                <div className="mt-1 text-[11px] text-neutral-300">
+                  Analytics snapshot
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-neutral-200">
+                <MetricCell
+                  label="Attack Δ"
+                  value={formatSigned(team.attackRating - 50)}
+                />
+                <MetricCell
+                  label="Defence Δ"
+                  value={formatSigned(team.defenceRating - 50)}
+                />
+                <MetricCell
+                  label="Clearance %"
+                  value={`${team.clearanceDom.slice(-1)[0] ?? 0}%`}
+                />
+                <MetricCell
+                  label="Consistency"
+                  value={team.consistencyIndex.toString()}
+                />
+                <MetricCell
+                  label="Fixture diff"
+                  value={team.fixtureDifficulty.score.toString()}
+                />
+                <MetricCell
+                  label="Opponents"
+                  value={team.fixtureDifficulty.opponents.join(", ")}
+                />
+              </div>
+            </div>
+          </div>
+        </button>
+      </div>
     </div>
   );
 }
 
-/* ===========================================================
-   SMALL STAT CELL
-=========================================================== */
-function Stat({ label, value }: any) {
+/* -------------------------------------------------------------------------- */
+/*                                 METRIC CELL                                 */
+/* -------------------------------------------------------------------------- */
+
+function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-[11px] uppercase tracking-widest text-gray-400">{label}</p>
-      <p className="font-semibold">{value}</p>
+    <div className="min-w-0">
+      <div className="truncate text-[9px] uppercase tracking-[0.16em] text-neutral-500">
+        {label}
+      </div>
+      <div className="mt-0.5 truncate text-sm font-semibold text-neutral-50">
+        {value}
+      </div>
     </div>
   );
 }
