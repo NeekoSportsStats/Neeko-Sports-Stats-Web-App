@@ -83,18 +83,17 @@ const metricPrefix: Record<Metric, string> = {
 
 /** Variant badge styles (HOT = deep red, R1) */
 const badgeStyles: Record<Variant, string> = {
-  hot: "bg-gradient-to-b from-red-500/25 to-red-700/20 border border-red-500/50 text-red-200 shadow-[0_0_12px_rgba(255,80,80,0.35)]",
+  hot: "bg-gradient-to-b from-red-500/25 to-red-700/20 border border-red-500/45 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.3)]",
   stable:
-    "bg-gradient-to-b from-emerald-400/20 to-emerald-700/20 border border-emerald-400/40 text-lime-200 shadow-[0_0_12px_rgba(80,255,170,0.35)]",
-  cold: "bg-gradient-to-b from-sky-400/20 to-sky-700/20 border border-sky-400/40 text-sky-200 shadow-[0_0_12px_rgba(0,170,255,0.35)]",
+    "bg-gradient-to-b from-emerald-400/20 to-emerald-700/20 border border-emerald-400/40 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.28)]",
+  cold: "bg-gradient-to-b from-sky-400/20 to-sky-700/20 border border-sky-400/40 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.28)]",
 };
 
-/** G2: halo glow + rim glow per variant */
+/** R1: soft halo per variant (card-only) */
 const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_32px_rgba(255,60,60,0.25),0_0_6px_rgba(255,100,100,0.45)]",
-  stable:
-    "shadow-[0_0_32px_rgba(60,220,150,0.25),0_0_6px_rgba(80,255,170,0.45)]",
-  cold: "shadow-[0_0_32px_rgba(0,180,255,0.25),0_0_6px_rgba(110,220,255,0.45)]",
+  hot: "shadow-[0_0_16px_rgba(255,70,70,0.18)]",
+  stable: "shadow-[0_0_16px_rgba(80,255,170,0.15)]",
+  cold: "shadow-[0_0_16px_rgba(0,180,255,0.15)]",
 };
 
 function formatMetric(value: number): string {
@@ -123,7 +122,7 @@ function FullWidthSparkline({ variant }: { variant: Variant }) {
       : "text-sky-300";
 
   return (
-    <div className={`w-full h-6 ${strokeClass}`}>
+    <div className={`w-full h-5 ${strokeClass}`}>
       <svg viewBox="0 0 100 24" className="h-full w-full opacity-95">
         <path
           d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
@@ -149,10 +148,10 @@ export default function TeamFormGrid() {
   return (
     <section className="mt-16">
       <div className="rounded-[32px] border border-neutral-800 bg-gradient-to-b from-neutral-900/40 via-black/80 to-black px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-        {/* Header */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-4 py-1 shadow-[0_0_16px_rgba(255,60,60,0.45)] backdrop-blur-[2px]">
-          <span className="h-1.5 w-1.5 rounded-full bg-red-300 shadow-[0_0_6px_rgba(255,80,80,0.9)]" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-50">
+        {/* Header (GOLD, not red) */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/15 px-4 py-1 shadow-[0_0_16px_rgba(250,204,21,0.5)] backdrop-blur-[2px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
             Team Form Grid
           </span>
         </div>
@@ -162,11 +161,11 @@ export default function TeamFormGrid() {
         </h2>
 
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between different lenses to reveal movement and trends. Tap cards
-          for deeper analytics.
+          Switch between different lenses to reveal movement and trends. Tap
+          cards for deeper analytics.
         </p>
 
-        {/* Metric Tabs */}
+        {/* Metric Tabs (gold accent) */}
         <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/60">
           {METRICS.map((m) => {
             const active = metric === m;
@@ -179,7 +178,7 @@ export default function TeamFormGrid() {
                 }`}
               >
                 {active && (
-                  <span className="absolute inset-0 rounded-full bg-red-400/35 shadow-[0_0_22px_rgba(255,70,70,0.55)]" />
+                  <span className="absolute inset-0 rounded-full bg-yellow-400/40 shadow-[0_0_22px_rgba(250,204,21,0.6)]" />
                 )}
                 <span className="relative z-10 capitalize">
                   {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -297,7 +296,7 @@ function TeamFormCard(props: {
 
   return (
     <div
-      className={`relative min-h-[190px] cursor-pointer rounded-2xl border border-neutral-700/50 bg-black/90 backdrop-blur-[3px] transform-gpu transition duration-300 hover:-translate-y-[2px] ${variantHalo[variant]}`}
+      className={`relative min-h-[180px] cursor-pointer rounded-2xl border border-neutral-700/50 bg-black/90 backdrop-blur-[3px] transform-gpu transition duration-300 hover:-translate-y-[2px] ${variantHalo[variant]}`}
       onClick={() => setFlipped((prev) => !prev)}
     >
       <div
@@ -382,7 +381,7 @@ function TeamFormCard(props: {
             </div>
           </div>
 
-          {/* Stats grid (tighter) */}
+          {/* Stats grid (tight) */}
           <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2 text-[10px] leading-tight text-neutral-300">
             <div>
               <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">
