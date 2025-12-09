@@ -1,303 +1,246 @@
-import React, { useState, useMemo } from "react";
-import clsx from "clsx";
-import { MOCK_TEAMS } from "./mockTeams";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Flame,
-  CircleDot,
-  Snowflake,
-} from "lucide-react";
+"use client";
 
-/* -------------------------------------------------------------------------- */
-/*                         UTILITIES & SMALL COMPONENTS                        */
-/* -------------------------------------------------------------------------- */
+import { useState } from "react";
+import { MOCK_TEAMS } from "@/components/afl/teams/mockTeams";
 
-const formatSigned = (v: number) => `${v >= 0 ? "+" : ""}${v}`;
-
-function TinyBar({ value, tint }: { value: number; tint: string }) {
-  const abs = Math.min(Math.abs(value), 100);
-
-  const tintClass =
-    tint === "yellow"
-      ? "from-yellow-400 to-yellow-200"
-      : tint === "lime"
-      ? "from-lime-400 to-lime-200"
-      : "from-sky-400 to-sky-200";
-
-  return (
-    <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-neutral-800/70">
-      <div
-        className={clsx("h-full rounded-full bg-gradient-to-r", tintClass)}
-        style={{ width: `${abs}%` }}
-      />
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <div className="flex flex-col">
-      <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-semibold text-neutral-200">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                  CLASSIFY TEAMS INTO HOT / STABLE / COLD                   */
-/* -------------------------------------------------------------------------- */
-
-function classify(teams = MOCK_TEAMS, filter: string) {
-  return teams.map((t) => {
-    const last = t.margins.length - 1;
-    const prev = last - 1;
-
-    let metric = 0;
-
-    if (filter === "momentum") metric = t.margins[last] - t.margins[last - 3];
-    if (filter === "fantasy") metric = t.attackRating - 50;
-    if (filter === "disposals") metric = t.midfieldTrend[last] - 50;
-    if (filter === "goals") metric = t.attackTrend[last] - 50;
-
-    const category =
-      metric >= 12 ? "hot" : metric <= -12 ? "cold" : "stable";
-
-    return {
-      ...t,
-      metric,
-      category,
-    };
-  });
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                 MAIN VIEW                                   */
-/* -------------------------------------------------------------------------- */
+type Lens = "momentum" | "fantasy" | "disposals" | "goals";
 
 export default function TeamFormGrid() {
-  const [filter, setFilter] = useState<"momentum" | "fantasy" | "disposals" | "goals">(
-    "momentum"
-  );
+  const [lens, setLens] = useState<Lens>("momentum");
+  const [openTeam, setOpenTeam] = useState<number | null>(null);
 
-  const classified = useMemo(() => classify(MOCK_TEAMS, filter), [filter]);
+  // --- SCORING LOGIC FOR PERFORMANCE GROUPING ---
+  const getScore = (team: any) => {
+    const last5 = team.margins.slice(-5);
+    return last5.reduce((a: number, b: number) => a + b, 0);
+  };
 
-  const hot = classified.filter((t) => t.category === "hot").slice(0, 3);
-  const stable = classified.filter((t) => t.category === "stable").slice(0, 3);
-  const cold = classified.filter((t) => t.category === "cold").slice(0, 3);
+  const sorted = [...MOCK_TEAMS].sort((a, b) => getScore(b) - getScore(a));
 
-  const filters = [
-    { key: "momentum", label: "Momentum" },
-    { key: "fantasy", label: "Fantasy" },
-    { key: "disposals", label: "Disposals" },
-    { key: "goals", label: "Goals" },
-  ];
+  const hotTeams = sorted.slice(0, 3);
+  const stableTeams = sorted.slice(3, 6);
+  const coldTeams = sorted.slice(6, 9);
+
+  const toggleTeam = (id: number) => {
+    setOpenTeam((prev) => (prev === id ? null : id));
+  };
 
   return (
-    <section className="relative mt-14 rounded-3xl border border-neutral-800/60 bg-gradient-to-b from-black/40 to-black/70 px-4 py-10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-lg md:px-8">
+    <section className="w-full px-4 md:px-8 py-10">
       {/* HEADER PILL */}
-      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent px-4 py-1.5 shadow-[0_0_18px_rgba(250,204,21,0.45)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
-          Team Form Grid
+      <div className="inline-flex items-center px-4 py-1.5 mb-6 rounded-full bg-[#1b1b1b] border border-yellow-500/20 shadow-[0_0_22px_rgba(255,200,0,0.28)]">
+        <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2" />
+        <span className="text-yellow-300 tracking-wide text-sm font-medium">
+          TEAM FORM GRID
         </span>
       </div>
 
-      <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
+      {/* TITLE + DESCRIPTION */}
+      <h2 className="text-2xl md:text-3xl font-semibold mb-3">
         Hot, stable and cold clubs by performance lens
       </h2>
 
-      <p className="mt-2 max-w-2xl text-sm text-neutral-400 md:text-[15px]">
+      <p className="text-gray-300 text-sm md:text-base max-w-2xl mb-8">
         Switch between momentum, fantasy, disposals and goals to see how each
         club is trending. Tap a pill on mobile or hover on desktop to reveal a
         deeper analytics panel.
       </p>
 
-      {/* FILTER TABS */}
-      <div className="mt-5 flex w-full gap-2 overflow-x-auto rounded-full border border-neutral-800/60 bg-black/50 p-1.5 text-sm">
-        {filters.map((f) => (
+      {/* LENS SWITCHER */}
+      <div className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-full px-2 py-2 w-full max-w-xl mb-10">
+        {["momentum", "fantasy", "disposals", "goals"].map((key) => (
           <button
-            key={f.key}
-            onClick={() => setFilter(f.key as any)}
-            className={clsx(
-              "flex-shrink-0 rounded-full px-6 py-2.5 font-medium transition-all",
-              filter === f.key
-                ? "bg-gradient-to-r from-yellow-500/40 via-yellow-500/20 to-transparent text-yellow-200 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
-                : "text-neutral-400 hover:text-neutral-200"
-            )}
+            key={key}
+            onClick={() => setLens(key as Lens)}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all
+              ${
+                lens === key
+                  ? "bg-yellow-500/20 shadow-[0_0_12px_rgba(255,200,0,0.3)] text-yellow-300"
+                  : "text-gray-400 hover:text-white"
+              }
+            `}
           >
-            {f.label}
+            {key.charAt(0).toUpperCase() + key.slice(1)}
           </button>
         ))}
       </div>
 
-      {/* GRID */}
-      <div className="mt-8 space-y-12">
-        <CategoryBlock
-          title="Hot Teams"
-          icon={<Flame className="h-4 w-4 text-yellow-300" />}
+      {/* ====== GRID WRAPPER (Mobile = 1 col, Desktop = 3 col) ====== */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+        {/* HOT COLUMN */}
+        <ColumnBlock
+          title="HOT TEAMS"
+          icon="🔥"
           tint="yellow"
-          teams={hot}
+          teams={hotTeams}
+          openTeam={openTeam}
+          toggleTeam={toggleTeam}
         />
-        <CategoryBlock
-          title="Stable Teams"
-          icon={<CircleDot className="h-4 w-4 text-lime-300" />}
-          tint="lime"
-          teams={stable}
+
+        {/* STABLE COLUMN */}
+        <ColumnBlock
+          title="STABLE TEAMS"
+          icon="🟢"
+          tint="green"
+          teams={stableTeams}
+          openTeam={openTeam}
+          toggleTeam={toggleTeam}
         />
-        <CategoryBlock
-          title="Cold Teams"
-          icon={<Snowflake className="h-4 w-4 text-sky-300" />}
-          tint="sky"
-          teams={cold}
+
+        {/* COLD COLUMN */}
+        <ColumnBlock
+          title="COLD TEAMS"
+          icon="❄️"
+          tint="blue"
+          teams={coldTeams}
+          openTeam={openTeam}
+          toggleTeam={toggleTeam}
         />
       </div>
     </section>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              CATEGORY BLOCK                                 */
-/* -------------------------------------------------------------------------- */
-
-function CategoryBlock({
+/* ===========================================================
+   COLUMN BLOCK
+=========================================================== */
+function ColumnBlock({
   title,
   icon,
   tint,
   teams,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  tint: "yellow" | "lime" | "sky";
-  teams: any[];
-}) {
-  const divider =
+  openTeam,
+  toggleTeam,
+}: any) {
+  const tintColor =
     tint === "yellow"
-      ? "from-yellow-500/40"
-      : tint === "lime"
-      ? "from-lime-400/40"
-      : "from-sky-400/40";
+      ? "yellow"
+      : tint === "green"
+      ? "lime"
+      : "sky";
 
   return (
-    <div className="relative">
-      <div className="sticky top-[64px] z-10 bg-gradient-to-b from-neutral-950 via-neutral-950/95 to-transparent py-2 md:static md:bg-transparent">
-        <div className="h-px w-full bg-gradient-to-r opacity-70" style={{ backgroundImage: `linear-gradient(to right, ${divider}, transparent)` }} />
-        <div className="mt-2 flex items-center gap-2">
-          {icon}
-          <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-200">
-            {title}
-          </span>
-        </div>
-      </div>
+    <div>
+      {/* Category Header */}
+      <h3
+        className={`flex items-center gap-2 text-${tintColor}-400 font-semibold tracking-wide text-sm mb-4`}
+      >
+        <span className="text-lg">{icon}</span>
+        {title}
+      </h3>
 
-      <div className="mt-4 space-y-4 md:space-y-3">
-        {teams.map((t) => (
-          <TeamPill key={t.id} team={t} tint={tint} />
+      {/* Team Pills */}
+      <div className="space-y-4">
+        {teams.map((team: any) => (
+          <TeamPill
+            key={team.id}
+            team={team}
+            openTeam={openTeam}
+            toggleTeam={toggleTeam}
+            tint={tint}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                  TEAM PILL                                  */
-/* -------------------------------------------------------------------------- */
+/* ===========================================================
+   TEAM PILL COMPONENT
+=========================================================== */
+function TeamPill({ team, openTeam, toggleTeam, tint }: any) {
+  const isOpen = openTeam === team.id;
 
-function TeamPill({ team, tint }: any) {
-  const [open, setOpen] = useState(false);
-
-  const tintGlow =
+  const tintColor =
     tint === "yellow"
-      ? "shadow-[0_0_18px_rgba(250,204,21,0.35)]"
-      : tint === "lime"
-      ? "shadow-[0_0_18px_rgba(163,230,53,0.35)]"
-      : "shadow-[0_0_18px_rgba(56,189,248,0.35)]";
+      ? {
+          bar: "bg-yellow-400",
+          glow: "shadow-[0_0_18px_rgba(255,200,0,0.35)]",
+          badge: "bg-yellow-400/20 border-yellow-500/40 text-yellow-300",
+        }
+      : tint === "green"
+      ? {
+          bar: "bg-lime-400",
+          glow: "shadow-[0_0_18px_rgba(140,255,120,0.35)]",
+          badge: "bg-lime-400/20 border-lime-500/40 text-lime-300",
+        }
+      : {
+          bar: "bg-sky-400",
+          glow: "shadow-[0_0_18px_rgba(110,180,255,0.35)]",
+          badge: "bg-sky-400/20 border-sky-500/40 text-sky-300",
+        };
 
-  const tintBadge =
-    tint === "yellow"
-      ? "border-yellow-500/50 text-yellow-200"
-      : tint === "lime"
-      ? "border-lime-500/50 text-lime-200"
-      : "border-sky-500/50 text-sky-200";
-
-  const tintArrow = team.metric >= 0 ? (
-    <ArrowUpRight className="h-4 w-4 text-lime-300" />
-  ) : (
-    <ArrowDownRight className="h-4 w-4 text-red-300" />
-  );
+  const momentumVal =
+    team.margins.slice(-5).reduce((a: number, b: number) => a + b, 0) || 0;
 
   return (
-    <div className={clsx("group rounded-2xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/70 to-black p-4 transition-all", tintGlow)}>
-      {/* COLLAPSED HEADER */}
+    <div>
+      {/* MAIN PILL */}
       <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+        onClick={() => toggleTeam(team.id)}
+        className={`w-full rounded-2xl bg-black/40 border border-white/5 p-4 text-left relative transition-all hover:bg-black/50 ${tintColor.glow}`}
       >
-        <div>
-          <div className="text-base font-medium text-neutral-50">
-            {team.name}
-          </div>
-          <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500">
-            Momentum • Last 5
-          </div>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-base font-medium">{team.name}</span>
+
+          {/* Badge */}
+          <span
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${tintColor.badge}`}
+          >
+            {momentumVal > 0 ? `+${momentumVal.toFixed(1)}` : momentumVal.toFixed(1)}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <TinyBar value={team.metric} tint={tint} />
+        {/* MICRO BAR */}
+        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mb-3">
+          <div
+            className={`h-full ${tintColor.bar}`}
+            style={{ width: `${Math.min(Math.abs(momentumVal), 50) * 2}%` }}
+          />
+        </div>
 
-          <span
-            className={clsx(
-              "rounded-full border px-2.5 py-1 text-xs font-semibold",
-              tintBadge
-            )}
-          >
-            {formatSigned(team.metric.toFixed(1))}
-          </span>
+        {/* Subtext */}
+        <p className="text-[11px] tracking-widest text-gray-400 uppercase">
+          Momentum • Last 5
+        </p>
 
-          <span
-            className={clsx(
-              "transition-transform",
-              open ? "rotate-180" : "rotate-0"
-            )}
-          >
-            {tintArrow}
-          </span>
+        {/* Expand Arrow */}
+        <div className="absolute right-4 top-4 text-gray-300 opacity-60">
+          {openTeam === team.id ? "▾" : "▸"}
         </div>
       </button>
 
-      {/* EXPANDED ANALYTICS */}
-      <div
-        className={clsx(
-          "overflow-hidden transition-[max-height,opacity,margin-top] duration-500 ease-out",
-          open ? "max-h-[400px] opacity-100 mt-4" : "max-h-0 opacity-0 mt-0",
-          "md:max-h-0 md:opacity-0 md:mt-0 md:group-hover:max-h-[400px] md:group-hover:opacity-100 md:group-hover:mt-4"
-        )}
-      >
-        <div className="rounded-xl border border-neutral-800/60 bg-gradient-to-b from-neutral-900/50 to-black px-4 py-4 shadow-inner">
+      {/* EXPANDED PANEL */}
+      {isOpen && (
+        <div className="mt-3 rounded-2xl bg-black/40 border border-white/5 p-5 animate-fadeIn shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]">
+          {/* Analytics Grid */}
+          <div className="grid grid-cols-2 gap-y-4 text-sm">
+            <Stat label="Attack Δ" value={team.attackRating} />
+            <Stat label="Defence Δ" value={team.defenceRating} />
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[11px]">
-            <Metric label="Attack Δ" value={formatSigned(team.attackRating - 50)} />
-            <Metric label="Defence Δ" value={formatSigned(team.defenceRating - 50)} />
-            <Metric label="Clearance %" value={`${team.clearanceDom[0]}%`} />
-            <Metric label="Consistency" value={team.consistencyIndex} />
-            <Metric label="Fixture Difficulty" value={team.fixtureDifficulty.score} />
-            <Metric
+            <Stat label="Clearance %" value={`${team.clearanceDom.slice(-1)[0]}%`} />
+            <Stat label="Consistency" value={team.consistencyIndex} />
+
+            <Stat label="Fixture Diff" value={team.fixtureDifficulty.score} />
+            <Stat
               label="Opponents"
               value={team.fixtureDifficulty.opponents.join(", ")}
             />
           </div>
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
+
+/* ===========================================================
+   SMALL STAT CELL
+=========================================================== */
+function Stat({ label, value }: any) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-widest text-gray-400">{label}</p>
+      <p className="font-semibold">{value}</p>
     </div>
   );
 }
