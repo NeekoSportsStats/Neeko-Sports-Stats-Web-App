@@ -33,17 +33,25 @@ type TileProps = {
   leaderLabel?: string;
 };
 
+/* -------------------------------------------------------------------------- */
+/*                      GOLD ICON PLATE — PREMIUM BUTTON                       */
+/* -------------------------------------------------------------------------- */
+
 function GoldIconPlate({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-yellow-500/60 bg-gradient-to-b from-yellow-500/25 via-yellow-500/10 to-black/95 shadow-[0_0_22px_rgba(250,204,21,0.65)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-2 group-hover:scale-105">
-      {/* Inner dark glass layer */}
+    <div className="relative flex h-10 w-10 items-center justify-center rounded-full border border-yellow-500/70 bg-gradient-to-b from-yellow-500/25 via-yellow-500/10 to-black/95 shadow-[0_0_24px_rgba(250,204,21,0.7)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-2 group-hover:scale-105">
       <div className="absolute inset-[2px] rounded-full bg-gradient-to-b from-black/80 via-black/60 to-black/90 opacity-90" />
-      <div className="relative text-yellow-100 drop-shadow-[0_0_8px_rgba(250,204,21,0.85)]">
+
+      <div className="relative text-yellow-100 drop-shadow-[0_0_10px_rgba(250,204,21,0.95)]">
         {children}
       </div>
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/*                         TEAM IDENTITY BAR — GLASS CHIP                      */
+/* -------------------------------------------------------------------------- */
 
 function TeamIdentityBar({ team }: { team: AFLTeam }) {
   return (
@@ -53,7 +61,7 @@ function TeamIdentityBar({ team }: { team: AFLTeam }) {
           className="h-2.5 w-2.5 rounded-full"
           style={{
             backgroundColor: team.colours.primary,
-            boxShadow: `0 0 14px ${team.colours.primary}`,
+            boxShadow: `0 0 16px ${team.colours.primary}`,
           }}
         />
         <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-100">
@@ -67,58 +75,83 @@ function TeamIdentityBar({ team }: { team: AFLTeam }) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*                           GOLD RIPPLE HOVER EFFECT                          */
+/* -------------------------------------------------------------------------- */
+
+function GoldRipple() {
+  return (
+    <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-20 transition duration-500">
+      <div className="absolute inset-0 animate-[pulse_2.6s_ease-out_infinite] bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.25),transparent_70%)]" />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               TILE COMPONENT                                */
+/* -------------------------------------------------------------------------- */
+
 function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
   return (
     <div
-      className="group relative overflow-hidden rounded-3xl border border-neutral-800/80 bg-gradient-to-b from-black/95 via-neutral-950 to-black px-5 py-4 shadow-[0_0_46px_rgba(0,0,0,0.95)] transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_0_80px_rgba(250,204,21,0.55)]"
+      className="group relative overflow-hidden rounded-3xl border border-yellow-500/10 bg-gradient-to-b from-black/95 via-neutral-950 to-black px-5 py-5 shadow-[0_0_60px_rgba(0,0,0,0.9)] transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_0_90px_rgba(250,204,21,0.6)]"
       style={{
         boxShadow:
-          "0 0 0 1px rgba(250,204,21,0.12), 0 0 46px rgba(0,0,0,0.95)",
+          "0 0 0 1px rgba(250,204,21,0.2), inset 0 0 0 0.5px rgba(250,204,21,0.25)",
       }}
     >
-      {/* Team tint overlay (subtle, stronger on hover) */}
+      {/* TEAM TINT OVERLAY */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08] transition-opacity duration-300 group-hover:opacity-[0.15]"
+        className="pointer-events-none absolute inset-0 opacity-[0.1] group-hover:opacity-[0.18] transition-opacity duration-400"
         style={{
-          background: `radial-gradient(circle at 15% 0%, ${team.colours.primary}, transparent 60%)`,
+          background: `radial-gradient(circle at 18% 0%, ${team.colours.primary}, transparent 65%)`,
         }}
       />
 
-      {/* Asymmetric gold corner glows */}
-      <div className="pointer-events-none absolute -top-20 -right-24 h-40 w-44 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.2),transparent_65%)] opacity-70 md:opacity-80" />
-      <div className="pointer-events-none absolute -bottom-16 -left-28 h-40 w-44 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.13),transparent_65%)] opacity-60 md:opacity-70" />
+      {/* ASYMMETRIC GOLD LIGHTING */}
+      <div className="pointer-events-none absolute -top-24 -right-32 h-48 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.28),transparent_65%)] opacity-80" />
+      <div className="pointer-events-none absolute -bottom-20 -left-36 h-48 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.17),transparent_65%)] opacity-70" />
 
-      {/* Content */}
+      {/* GOLD RIPPLE */}
+      <GoldRipple />
+
+      {/* CONTENT */}
       <div className="relative">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
+            {/* LABEL + LEADER TAG */}
             <div className="flex items-center gap-2">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-yellow-300/80">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-yellow-300/90">
                 {label}
               </div>
               {leaderLabel && (
-                <div className="inline-flex items-center gap-1 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-[2px]">
-                  <Crown className="h-3 w-3 text-yellow-300" />
-                  <span className="text-[9px] uppercase tracking-[0.18em] text-yellow-100">
+                <div className="inline-flex items-center gap-1 rounded-full border border-yellow-500/60 bg-yellow-500/15 px-2 py-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                  <Crown className="h-3 w-3 text-yellow-200" />
+                  <span className="text-[9px] uppercase tracking-[0.17em] text-yellow-100">
                     {leaderLabel}
                   </span>
                 </div>
               )}
             </div>
-            <div className="mt-1 text-[11px] text-neutral-400">{caption}</div>
+            <div className="mt-1 text-[11px] text-neutral-400">
+              {caption}
+            </div>
           </div>
+
           <GoldIconPlate>{icon}</GoldIconPlate>
         </div>
 
+        {/* VALUE */}
         <div className="flex items-end justify-between gap-3">
           <div className="flex flex-col">
             <div className="relative inline-flex items-end gap-2">
-              <span className="text-3xl font-semibold tracking-tight text-yellow-200 drop-shadow-[0_0_12px_rgba(250,204,21,0.85)] group-hover:text-yellow-50">
+              <span className="text-3xl font-semibold tracking-tight text-yellow-200 drop-shadow-[0_0_16px_rgba(250,204,21,0.9)] group-hover:text-yellow-50 transition">
                 {value}
               </span>
-              {/* Subtle shimmer bar under value */}
-              <div className="relative h-[2px] w-14 overflow-hidden rounded-full bg-gradient-to-r from-yellow-500/60 via-yellow-300/40 to-transparent group-hover:w-20 transition-all duration-300">
-                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-yellow-50/70 to-transparent animate-[pulse_2.4s_ease-in-out_infinite]" />
+
+              {/* VALUE SHIMMER BAR */}
+              <div className="relative h-[2px] w-14 overflow-hidden rounded-full bg-gradient-to-r from-yellow-500/80 via-yellow-300/45 to-transparent group-hover:w-20 transition-all duration-300">
+                <div className="absolute inset-0 -translate-x-full animate-[pulse_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-yellow-50 to-transparent" />
               </div>
             </div>
           </div>
@@ -131,49 +164,32 @@ function Tile({ label, caption, value, team, icon, leaderLabel }: TileProps) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               REACT COMPONENT                               */
+/*                           MAIN DASHBOARD SECTION                            */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamDashboardTiles() {
-  // Attack & defence use precomputed ratings
-  const bestAttack = [...MOCK_TEAMS].sort(
-    (a, b) => b.attackRating - a.attackRating
-  )[0];
-
-  const bestDefence = [...MOCK_TEAMS].sort(
-    (a, b) => b.defenceRating - a.defenceRating
-  )[0];
-
-  // Clearance dominance: average of clearanceDom array
-  const bestClearance = [...MOCK_TEAMS].sort(
-    (a, b) => avg(b.clearanceDom) - avg(a.clearanceDom)
-  )[0];
-
-  // Consistency: highest consistencyIndex
-  const mostConsistent = [...MOCK_TEAMS].sort(
-    (a, b) => b.consistencyIndex - a.consistencyIndex
-  )[0];
-
-  // Fixture difficulty: highest fixtureDifficulty.score => toughest; we want easiest (lower)
-  const easiestFixtures = [...MOCK_TEAMS].sort(
-    (a, b) => a.fixtureDifficulty.score - b.fixtureDifficulty.score
-  )[0];
-
-  // Recent form: last 6 margins
+  // PRECOMPUTED METRIC LEADERS
+  const bestAttack = [...MOCK_TEAMS].sort((a, b) => b.attackRating - a.attackRating)[0];
+  const bestDefence = [...MOCK_TEAMS].sort((a, b) => b.defenceRating - a.defenceRating)[0];
+  const bestClearance = [...MOCK_TEAMS].sort((a, b) => avg(b.clearanceDom) - avg(a.clearanceDom))[0];
+  const mostConsistent = [...MOCK_TEAMS].sort((a, b) => b.consistencyIndex - a.consistencyIndex)[0];
+  const easiestFixtures = [...MOCK_TEAMS].sort((a, b) => a.fixtureDifficulty.score - b.fixtureDifficulty.score)[0];
   const bestMomentum = [...MOCK_TEAMS].sort(
     (a, b) => avg(lastN(b.margins, 6)) - avg(lastN(a.margins, 6))
   )[0];
 
   return (
-    <section className="mt-10 rounded-3xl border border-neutral-800/80 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-6 shadow-[0_0_70px_rgba(0,0,0,0.9)]">
-      {/* Section header */}
+    <section className="mt-10 rounded-3xl border border-yellow-500/15 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-8 shadow-[0_0_80px_rgba(250,204,21,0.15)]">
+      
+      {/* HEADER */}
       <div className="mb-7 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent px-3 py-1 shadow-[0_0_24px_rgba(250,204,21,0.45)]">
-            <span className="relative flex h-1.5 w-5 items-center overflow-hidden rounded-full bg-yellow-400/90">
-              <span className="absolute inset-0 bg-gradient-to-r from-yellow-200 via-yellow-100 to-yellow-400 animate-pulse" />
+          {/* MATCHED TO SECTION 1 STYLE */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/60 bg-gradient-to-r from-yellow-500/30 via-yellow-500/15 to-yellow-500/5 px-4 py-1.5 shadow-[0_0_36px_rgba(250,204,21,0.6)]">
+            <span className="relative flex h-1.5 w-6 overflow-hidden rounded-full bg-yellow-300/90 shadow-[0_0_12px_rgba(250,204,21,0.8)]">
+              <span className="absolute inset-0 -translate-x-full animate-[pulse_2.2s_linear_infinite] bg-gradient-to-r from-transparent via-yellow-50 to-transparent" />
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-50 drop-shadow-[0_0_6px_rgba(250,204,21,0.55)]">
               Team Dashboard
             </span>
           </div>
@@ -182,19 +198,17 @@ export default function TeamDashboardTiles() {
             Snapshot of league-wide team performance
           </h3>
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Rolling form, attack and defence ratings, clearance dominance and
-            upcoming fixture difficulty – distilled into six premium, gold-tinted
-            tiles.
+            Rolling form, attack and defence ratings, clearance dominance and upcoming fixture difficulty – distilled into six premium, gold-tinted tiles.
           </p>
 
-          {/* Gold beam underline */}
-          <div className="mt-3 h-px w-32 bg-gradient-to-r from-yellow-500/70 via-yellow-300/50 to-transparent" />
+          {/* STRONGER GOLD UNDERLINE */}
+          <div className="mt-3 h-px w-40 bg-gradient-to-r from-yellow-500/90 via-yellow-300/60 to-transparent" />
         </div>
       </div>
 
-      {/* Tiles grid */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {/* Tile 1 — Recent form / momentum */}
+      {/* TILES GRID */}
+      <div className="grid gap-5 md:grid-cols-3">
+        
         <Tile
           label="Recent Form"
           caption="Last 6 rounds scoring margin trend"
@@ -204,7 +218,6 @@ export default function TeamDashboardTiles() {
           leaderLabel="League Leader"
         />
 
-        {/* Tile 2 — Attack rating */}
         <Tile
           label="Attack Rating"
           caption="0–100 offensive quality index"
@@ -214,7 +227,6 @@ export default function TeamDashboardTiles() {
           leaderLabel="League Leader"
         />
 
-        {/* Tile 3 — Defence rating */}
         <Tile
           label="Defence Rating"
           caption="0–100 defensive solidity index"
@@ -224,7 +236,6 @@ export default function TeamDashboardTiles() {
           leaderLabel="League Leader"
         />
 
-        {/* Tile 4 — Clearance dominance */}
         <Tile
           label="Clearance Dominance"
           caption="Average clearance win % this season"
@@ -234,7 +245,6 @@ export default function TeamDashboardTiles() {
           leaderLabel="League Leader"
         />
 
-        {/* Tile 5 — Consistency index */}
         <Tile
           label="Consistency Index"
           caption="Lower volatility, tighter performance band"
@@ -244,7 +254,6 @@ export default function TeamDashboardTiles() {
           leaderLabel="League Leader"
         />
 
-        {/* Tile 6 — Fixture difficulty */}
         <Tile
           label="Next Fixture Difficulty"
           caption="Next 3 opponents difficulty score (lower is easier)"
@@ -253,6 +262,7 @@ export default function TeamDashboardTiles() {
           icon={<ArrowRight className="h-4 w-4" />}
           leaderLabel="League Leader"
         />
+
       </div>
     </section>
   );
