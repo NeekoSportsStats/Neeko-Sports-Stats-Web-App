@@ -41,6 +41,7 @@ function metricJitter(team: AFLTeam, metric: Metric): number {
 
 function getMetricScore(team: AFLTeam, metric: Metric): number {
   const base = getBaseMomentum(team);
+
   if (metric === "momentum") return base;
   if (metric === "fantasy") return base * 0.7 + metricJitter(team, metric);
   if (metric === "disposals") return base * 0.5 + metricJitter(team, metric);
@@ -77,20 +78,20 @@ const metricPrefix: Record<Metric, string> = {
   goals: "Goals",
 };
 
-/* Glow + colour system */
+/* Glow + badge palette */
 const badgeStyles: Record<Variant, string> = {
-  hot: "bg-red-500/20 border border-red-500/40 text-red-200 shadow-[0_0_12px_rgba(255,80,80,0.55)]",
-  stable: "bg-emerald-400/20 border border-emerald-400/40 text-emerald-200 shadow-[0_0_12px_rgba(80,255,170,0.55)]",
-  cold: "bg-sky-400/20 border border-sky-400/40 text-sky-200 shadow-[0_0_12px_rgba(0,180,255,0.55)]",
+  hot: "bg-red-400/15 border border-red-400/30 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.25)]",
+  stable: "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
+  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
 };
 
 const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_32px_rgba(255,40,40,0.18)]",
-  stable: "shadow-[0_0_32px_rgba(60,220,150,0.18)]",
-  cold: "shadow-[0_0_32px_rgba(0,150,255,0.18)]",
+  hot: "shadow-[0_0_32px_rgba(255,60,60,0.22)]",
+  stable: "shadow-[0_0_32px_rgba(60,220,150,0.22)]",
+  cold: "shadow-[0_0_32px_rgba(0,180,255,0.22)]",
 };
 
-function formatMetric(value: number): string {
+function formatMetric(value: number) {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
 }
@@ -101,33 +102,35 @@ function intensityWidth(value: number): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           Full-Width Sparkline                             */
+/*                             Zigzag Sparkline                               */
 /* -------------------------------------------------------------------------- */
 
-function FullWidthSparkline({ variant }: { variant: Variant }) {
+function SoftZigZagSparkline({
+  variant,
+}: {
+  variant: Variant;
+}) {
   const color =
     variant === "hot"
       ? "text-red-300"
       : variant === "stable"
-      ? "text-emerald-300"
+      ? "text-lime-300"
       : "text-sky-300";
 
   return (
-    <div className="w-full">
-      <svg
-        viewBox="0 0 120 26"
-        preserveAspectRatio="none"
-        className={`h-6 w-full opacity-90 drop-shadow-[0_0_4px_currentColor] ${color}`}
-      >
-        <path
-          d="M0 16 L14 10 L28 13 L42 8 L56 14 L70 10 L84 15 L100 12 L120 14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
-      </svg>
-    </div>
+    <svg
+      viewBox="0 0 100 24"
+      className={`w-full h-6 opacity-95 drop-shadow-[0_0_4px_currentColor] ${color}`}
+    >
+      <path
+        d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -141,17 +144,17 @@ export default function TeamFormGrid() {
 
   return (
     <section className="mt-16">
-      <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/80 to-black px-4 py-8 sm:px-6 md:px-10 lg:px-12">
+      <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
 
         {/* Header */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_22px_rgba(255,220,80,0.45)] backdrop-blur-[2px]">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(255,230,100,1)]" />
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_14px_rgba(250,204,21,0.3)] backdrop-blur-[2px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
             Team Form Grid
           </span>
         </div>
 
-        <h2 className="mt-5 text-2xl font-semibold text-neutral-50 sm:text-3xl md:text-[32px]">
+        <h2 className="mt-5 text-2xl font-semibold text-neutral-50 sm:text-3xl md:text-[32px] leading-tight">
           Hot, stable and cold clubs by performance lens
         </h2>
 
@@ -159,20 +162,25 @@ export default function TeamFormGrid() {
           Switch between lenses. Tap cards for deeper analytics.
         </p>
 
-        {/* Metric Tabs */}
-        <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/70">
+        {/* ------------------------------------------------------------------ */}
+        {/* BRIGHTER FILTER TABS (final patch applied)                        */}
+        {/* ------------------------------------------------------------------ */}
+
+        <div className="mt-6 inline-flex rounded-full bg-black/50 p-1 ring-1 ring-yellow-400/25 shadow-[0_0_26px_rgba(255,240,150,0.35)]">
           {METRICS.map((m) => {
             const active = metric === m;
             return (
               <button
                 key={m}
                 onClick={() => setMetric(m)}
-                className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
-                  active ? "text-black" : "text-neutral-400 hover:text-neutral-100"
+                className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  active
+                    ? "text-black"
+                    : "text-neutral-200 hover:text-neutral-50"
                 }`}
               >
                 {active && (
-                  <span className="absolute inset-0 rounded-full bg-yellow-400/40 shadow-[0_0_28px_rgba(255,240,120,0.55)]" />
+                  <span className="absolute inset-0 rounded-full bg-yellow-300/60 shadow-[0_0_40px_rgba(255,240,150,0.75)]" />
                 )}
                 <span className="relative z-10 capitalize">
                   {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -186,21 +194,21 @@ export default function TeamFormGrid() {
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <FormColumn
             variant="hot"
-            title="Hot teams"
+            title="Hot Teams"
             icon={<Flame className="h-4 w-4 text-red-300" />}
             teams={classified.hot}
             metric={metric}
           />
           <FormColumn
             variant="stable"
-            title="Stable teams"
-            icon={<CircleDot className="h-4 w-4 text-emerald-300" />}
+            title="Stable Teams"
+            icon={<CircleDot className="h-4 w-4 text-lime-300" />}
             teams={classified.stable}
             metric={metric}
           />
           <FormColumn
             variant="cold"
-            title="Cold teams"
+            title="Cold Teams"
             icon={<Snowflake className="h-4 w-4 text-sky-300" />}
             teams={classified.cold}
             metric={metric}
@@ -212,7 +220,7 @@ export default function TeamFormGrid() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               Column Component                             */
+/*                           Column Component                                 */
 /* -------------------------------------------------------------------------- */
 
 function FormColumn({
@@ -232,15 +240,15 @@ function FormColumn({
     variant === "hot"
       ? "text-red-300"
       : variant === "stable"
-      ? "text-emerald-300"
+      ? "text-lime-300"
       : "text-sky-300";
 
   const divider =
     variant === "hot"
-      ? "from-red-400/40"
+      ? "from-red-500/40"
       : variant === "stable"
-      ? "from-emerald-400/40"
-      : "from-sky-400/40";
+      ? "from-lime-500/40"
+      : "from-sky-500/40";
 
   return (
     <div>
@@ -305,11 +313,12 @@ function TeamFormCard({
         }`}
       >
         {/* FRONT */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-4 [backface-visibility:hidden]">
-          {/* Title + Score */}
+        <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
+
+          {/* Header row */}
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-[15px] font-semibold text-neutral-50">
+              <div className="text-[15px] font-semibold text-neutral-50 leading-tight">
                 {team.name}
               </div>
               <div className="mt-[2px] text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
@@ -317,19 +326,21 @@ function TeamFormCard({
               </div>
             </div>
 
-            <div
-              className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
-            >
-              {formattedScore}
+            <div className="flex flex-col items-end gap-2">
+              <div
+                className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
+              >
+                {formattedScore}
+              </div>
             </div>
           </div>
 
-          {/* Sparkline Full Width */}
-          <div className="mt-4">
-            <FullWidthSparkline variant={variant} />
+          {/* Sparkline (full width) */}
+          <div className="mt-3 px-[2px]">
+            <SoftZigZagSparkline variant={variant} />
           </div>
 
-          {/* Bar + Label */}
+          {/* Progress bar bottom-docked */}
           <div className="mt-4">
             <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
@@ -337,27 +348,26 @@ function TeamFormCard({
                   variant === "hot"
                     ? "from-red-300 to-red-500"
                     : variant === "stable"
-                    ? "from-emerald-200 to-emerald-400"
-                    : "from-sky-200 to-sky-400"
+                    ? "from-lime-300 to-emerald-400"
+                    : "from-sky-300 to-cyan-400"
                 }`}
                 style={{ width: barWidth }}
               />
             </div>
+          </div>
 
-            <div className="mt-3 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
-              <span>{metricLabels[metric]}</span>
-              <span className="flex items-center gap-1 text-neutral-400">
-                <span className="hidden sm:inline">Analytics</span>
-
-                <span className="text-[11px]">↺</span>
-              </span>
-            </div>
+          {/* Footer */}
+          <div className="mt-2 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
+            <span>{metricLabels[metric]}</span>
+            <span className="flex items-center gap-1 text-neutral-400">
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="text-[11px]">↺</span>
+            </span>
           </div>
         </div>
 
         {/* BACK */}
         <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          {/* Header */}
           <div className="flex items-start justify-between mb-1">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
@@ -371,37 +381,29 @@ function TeamFormCard({
             <div
               className={`text-[11px] font-semibold ${
                 variant === "hot"
-                  ? "text-red-200"
+                  ? "text-red-300"
                   : variant === "stable"
-                  ? "text-emerald-200"
-                  : "text-sky-200"
+                  ? "text-lime-300"
+                  : "text-sky-300"
               }`}
             >
               {formattedScore}
             </div>
           </div>
 
-          {/* Stats Grid */}
           <div className="mt-3 grid grid-cols-3 gap-y-2 gap-x-4 text-[11px] text-neutral-300 leading-snug">
-
             <div>
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 Attack Δ
               </div>
-              <div className="font-semibold">
-                {attackDelta >= 0 ? "+" : ""}
-                {attackDelta}
-              </div>
+              <div className="font-semibold">{attackDelta >= 0 ? "+" : ""}{attackDelta}</div>
             </div>
 
             <div>
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 Defence Δ
               </div>
-              <div className="font-semibold">
-                {defenceDelta >= 0 ? "+" : ""}
-                {defenceDelta}
-              </div>
+              <div className="font-semibold">{defenceDelta >= 0 ? "+" : ""}{defenceDelta}</div>
             </div>
 
             <div>
@@ -433,7 +435,6 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* Opponents */}
           <div className="mt-3">
             <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
               Opponents
@@ -450,6 +451,7 @@ function TeamFormCard({
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
