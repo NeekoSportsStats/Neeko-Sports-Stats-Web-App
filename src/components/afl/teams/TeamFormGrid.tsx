@@ -1,296 +1,251 @@
 // src/components/afl/teams/TeamFormGrid.tsx
+
 import React, { useMemo, useState } from "react";
-import {
-  Flame,
-  CircleDot,
-  Snowflake,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
 import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
+import { Flame, CircleDot, Snowflake } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                                Types & helpers                             */
+/*                                   Types                                    */
 /* -------------------------------------------------------------------------- */
 
-type MetricType = "momentum" | "fantasy" | "disposals" | "goals";
+const METRICS = ["momentum", "fantasy", "disposals", "goals"] as const;
+type Metric = (typeof METRICS)[number];
 
-type EnrichedTeam = AFLTeam & {
-  // base deltas
-  attackDelta: number;
-  defenceDelta: number;
-  lastClearance: number;
-  momentumScore: number; // last 5 margin trend
-  fantasyScore: number;
-  disposalsScore: number;
-  goalsScore: number;
-};
+type Variant = "hot" | "stable" | "cold";
 
 type ClassifiedTeams = {
-  hotTeams: EnrichedTeam[];
-  stableTeams: EnrichedTeam[];
-  coldTeams: EnrichedTeam[];
+  hot: AFLTeam[];
+  stable: AFLTeam[];
+  cold: AFLTeam[];
 };
 
-const LAST_ROUND = 22; // R23 index
-const FIVE_BACK = LAST_ROUND - 4;
+/* -------------------------------------------------------------------------- */
+/*                           Metric + Fake Data Logic                          */
+/* -------------------------------------------------------------------------- */
 
-const METRIC_CONFIG: Record<
-  MetricType,
-  {
-    label: string;
-    range: { min: number; max: number };
-  }
-> = {
-  momentum: {
-    label: "Momentum • Last 5",
-    range: { min: -80, max: 80 },
-  },
-  fantasy: {
-    label: "Fantasy edge",
-    range: { min: 5, max: 40 },
-  },
-  disposals: {
-    label: "Disposal trend",
-    range: { min: 5, max: 40 },
-  },
-  goals: {
-    label: "Scoreboard impact",
-    range: { min: 5, max: 40 },
-  },
-};
-
-const CATEGORY_COLORS = {
-  hot: {
-    glow: "shadow-[0_0_45px_rgba(250,204,21,0.55)]",
-    bar: "bg-yellow-400",
-    badge: "border-yellow-300/80 bg-yellow-400/10 text-yellow-200",
-    spark: "bg-gradient-to-r from-yellow-300/80 via-yellow-100/90 to-yellow-400",
-    divider: "from-yellow-500/40 via-yellow-500/5 to-transparent",
-  },
-  stable: {
-    glow: "shadow-[0_0_45px_rgba(74,222,128,0.55)]",
-    bar: "bg-lime-400",
-    badge: "border-lime-300/80 bg-lime-400/10 text-lime-200",
-    spark: "bg-gradient-to-r from-lime-300/80 via-lime-100/90 to-lime-400",
-    divider: "from-lime-500/40 via-lime-500/5 to-transparent",
-  },
-  cold: {
-    glow: "shadow-[0_0_45px_rgba(56,189,248,0.55)]",
-    bar: "bg-sky-400",
-    badge: "border-sky-300/80 bg-sky-400/10 text-sky-200",
-    spark: "bg-gradient-to-r from-sky-300/80 via-sky-100/90 to-sky-400",
-    divider: "from-sky-500/40 via-sky-500/5 to-transparent",
-  },
-} as const;
-
-type CategoryKey = keyof typeof CATEGORY_COLORS;
-
-/* ------------------------------- Calculations ------------------------------ */
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
+function getBaseMomentum(team: AFLTeam): number {
+  const last5 = team.margins.slice(-5);
+  const avg = last5.reduce((a, b) => a + b, 0) / last5.length;
+  return avg;
 }
 
-function normalise(value: number, metric: MetricType) {
-  const { min, max } = METRIC_CONFIG[metric].range;
-  const clamped = clamp(value, min, max);
-  return ((clamped - min) / (max - min)) * 100;
+// deterministic “fake” jitter based on id + metric
+function metricJitter(team: AFLTeam, metric: Metric): number {
+  const seed =
+    team.id *
+    (metric === "fantasy"
+      ? 1.7
+      : metric === "disposals"
+      ? 2.3
+      : metric === "goals"
+      ? 3.1
+      : 0.9);
+  return Math.sin(seed) * 6; // -6 to +6
 }
 
-function computeTeamMetrics(team: AFLTeam): EnrichedTeam {
-  const attackDelta = team.scores[LAST_ROUND] - team.scores[LAST_ROUND - 1];
-  const defenceDelta =
-    team.margins[LAST_ROUND] - team.margins[LAST_ROUND - 1];
+function getMetricScore(team: AFLTeam, metric: Metric): number {
+  const base = getBaseMomentum(team);
 
-  // Momentum = avg(last 5 margins) - avg(previous 5 margins)
-  const last5 = team.margins.slice(FIVE_BACK, LAST_ROUND + 1);
-  const prev5 = team.margins.slice(FIVE_BACK - 5, FIVE_BACK);
-  const avg = (arr: number[]) =>
-    arr.reduce((sum, v) => sum + v, 0) / Math.max(arr.length, 1);
-
-  const momentumScore = avg(last5) - avg(prev5);
-
-  // Fake-but-consistent extra metrics
-  const baseRating = (team.attackRating + team.defenceRating) / 2;
-  const midTrend =
-    team.midfieldTrend.reduce((sum, v) => sum + v, 0) /
-    Math.max(team.midfieldTrend.length, 1);
-
-  const fantasyScore = baseRating * 0.25 + midTrend * 0.2;
-  const disposalsScore = baseRating * 0.22 + team.attackTrend[0] * 0.25;
-  const goalsScore = baseRating * 0.24 + team.defenceTrend[0] * 0.18;
-
-  const lastClearance =
-    team.clearanceDom[LAST_ROUND] ?? team.clearanceDom.at(-1) ?? 50;
-
-  return {
-    ...team,
-    attackDelta: Math.round(attackDelta),
-    defenceDelta: Math.round(defenceDelta),
-    lastClearance,
-    momentumScore,
-    fantasyScore,
-    disposalsScore,
-    goalsScore,
-  };
-}
-
-const ENRICHED_TEAMS: EnrichedTeam[] = MOCK_TEAMS.map(computeTeamMetrics);
-
-function getMetricScore(team: EnrichedTeam, metric: MetricType) {
   switch (metric) {
     case "momentum":
-      return team.momentumScore;
+      return base;
     case "fantasy":
-      return team.fantasyScore;
+      return base * 0.7 + metricJitter(team, metric);
     case "disposals":
-      return team.disposalsScore;
+      return base * 0.5 + metricJitter(team, metric);
     case "goals":
-      return team.goalsScore;
+      return base * 0.35 + metricJitter(team, metric);
+    default:
+      return base;
   }
 }
 
-/**
- * Given a metric, sort teams by that metric and slice out
- * 3 hot / 3 stable / 3 cold.
- */
-function classifyTeamsByMetric(metric: MetricType): ClassifiedTeams {
-  const sorted = [...ENRICHED_TEAMS].sort(
+function classifyTeams(metric: Metric): ClassifiedTeams {
+  const sorted = [...MOCK_TEAMS].sort(
     (a, b) => getMetricScore(b, metric) - getMetricScore(a, metric)
   );
 
-  if (sorted.length < 9) {
-    return {
-      hotTeams: sorted.slice(0, 3),
-      stableTeams: sorted.slice(3, 6),
-      coldTeams: sorted.slice(6, 9),
-    };
+  // 18 teams → 3 hot / 3 stable (middle) / 3 cold
+  const hot = sorted.slice(0, 3);
+  const stableStart = Math.floor(sorted.length / 2) - 1; // around the middle
+  const stable = sorted.slice(stableStart, stableStart + 3);
+  const cold = sorted.slice(-3);
+
+  return { hot, stable, cold };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Small Visual Helpers                             */
+/* -------------------------------------------------------------------------- */
+
+const metricLabels: Record<Metric, string> = {
+  momentum: "Momentum · Last 5",
+  fantasy: "Fantasy edge",
+  disposals: "Disposals edge",
+  goals: "Goals edge",
+};
+
+const metricPrefix: Record<Metric, string> = {
+  momentum: "Momentum",
+  fantasy: "Fantasy",
+  disposals: "Disposals",
+  goals: "Goals",
+};
+
+const variantClasses: Record<
+  Variant,
+  {
+    halo: string;
+    bar: string;
+    accent: string;
+    badge: string;
   }
+> = {
+  hot: {
+    halo: "shadow-[0_0_40px_rgba(250,204,21,0.18)]",
+    bar: "from-yellow-300 to-yellow-400",
+    accent: "text-yellow-200",
+    badge:
+      "border-yellow-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(250,204,21,0.45),transparent_55%),linear-gradient(to_right,rgba(250,204,21,0.15),rgba(0,0,0,0.6))]",
+  },
+  stable: {
+    halo: "shadow-[0_0_40px_rgba(74,222,128,0.18)]",
+    bar: "from-lime-300 to-emerald-400",
+    accent: "text-lime-200",
+    badge:
+      "border-lime-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(74,222,128,0.45),transparent_55%),linear-gradient(to_right,rgba(74,222,128,0.15),rgba(0,0,0,0.6))]",
+  },
+  cold: {
+    halo: "shadow-[0_0_40px_rgba(56,189,248,0.2)]",
+    bar: "from-sky-300 to-cyan-400",
+    accent: "text-sky-200",
+    badge:
+      "border-sky-400/60 bg-[radial-gradient(circle_at_30%_0,rgba(56,189,248,0.45),transparent_55%),linear-gradient(to_right,rgba(56,189,248,0.15),rgba(0,0,0,0.6))]",
+  },
+};
 
-  const hotTeams = sorted.slice(0, 3);
-  const coldTeams = sorted.slice(-3);
-  const midStart = Math.floor(sorted.length / 2) - 1;
-  const stableTeams = sorted.slice(midStart, midStart + 3);
-
-  return { hotTeams, stableTeams, coldTeams };
+function formatMetric(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
 }
 
-function formatMetricValue(value: number, metric: MetricType) {
-  const v =
-    metric === "momentum"
-      ? Math.round(value * 10) / 10
-      : Math.round(value * 10) / 10;
-
-  const sign = v > 0 ? "+" : v < 0 ? "" : "";
-  return `${sign}${v.toFixed(1)}`;
+function intensityWidth(value: number): string {
+  const clamped = Math.max(-40, Math.min(40, value));
+  const width = (Math.abs(clamped) / 40) * 100;
+  return `${Math.max(6, Math.min(100, width))}%`;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Sparkline Stub                              */
+/*                              Sparkline (zigzag)                             */
 /* -------------------------------------------------------------------------- */
 
-function SparklineStub({ className = "" }: { className?: string }) {
+function SoftZigZagSparkline({ variant }: { variant: Variant }) {
+  const colorClass =
+    variant === "hot"
+      ? "text-yellow-300"
+      : variant === "stable"
+      ? "text-lime-300"
+      : "text-sky-300";
+
   return (
-    <div
-      className={`relative h-6 w-16 overflow-hidden rounded-md bg-gradient-to-b from-white/5 to-white/0/5 ${className}`}
-    >
-      <div className="absolute inset-x-1 bottom-1 top-[10px]">
-        <div className="h-[2px] w-full rounded-full bg-white/10" />
-      </div>
-      <div className="absolute inset-x-1 top-2 flex gap-1">
-        {/* three little zig-zag segments */}
-        <div className="h-[10px] flex-1">
-          <div className="h-full w-full -skew-x-[20deg] rounded-full bg-white/60 opacity-80" />
-        </div>
-        <div className="h-[12px] flex-1">
-          <div className="h-full w-full -skew-x-[20deg] rounded-full bg-white/80 opacity-90" />
-        </div>
-        <div className="h-[9px] flex-1">
-          <div className="h-full w-full -skew-x-[18deg] rounded-full bg-white/70 opacity-80" />
-        </div>
-      </div>
+    <div className={`h-5 w-14 md:w-16 ${colorClass}`}>
+      <svg
+        viewBox="0 0 100 24"
+        className="h-full w-full opacity-90"
+        aria-hidden="true"
+      >
+        <path
+          d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                   Component                                */
+/*                             Main Section Component                          */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamFormGrid() {
-  const [metric, setMetric] = useState<MetricType>("momentum");
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [metric, setMetric] = useState<Metric>("momentum");
 
-  const { hotTeams, stableTeams, coldTeams } = useMemo(
-    () => classifyTeamsByMetric(metric),
-    [metric]
-  );
-
-  const handleToggle = (teamId: number) => {
-    setExpandedId((current) => (current === teamId ? null : teamId));
-  };
+  const classified = useMemo(() => classifyTeams(metric), [metric]);
 
   return (
     <section className="mt-16">
-      {/* Glass wrapper */}
-      <div className="relative overflow-hidden rounded-[32px] border border-white/6 bg-gradient-to-b from-[#141414]/90 via-[#050505]/95 to-black/95 px-4 py-8 shadow-[0_0_80px_rgba(0,0,0,0.85)] sm:px-6 md:px-10 md:py-10">
-        {/* soft corner vignette */}
-        <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_top,_rgba(250,250,250,0.08),transparent_55%),radial-gradient(circle_at_bottom,_rgba(250,250,250,0.05),transparent_55%)] opacity-80" />
+      <div className="rounded-[32px] border border-yellow-500/12 bg-gradient-to-b from-yellow-900/10 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
+        {/* Header pill */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/45 bg-[radial-gradient(circle_at_15%_0,rgba(250,204,21,0.55),transparent_55%),linear-gradient(to_right,rgba(250,204,21,0.28),rgba(17,17,17,0.9))] px-4 py-1 shadow-[0_0_25px_rgba(250,204,21,0.5)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-50">
+            Team Form Grid
+          </span>
+        </div>
 
-        {/* Content */}
-        <div className="relative">
-          {/* Header pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-[radial-gradient(circle_at_30%_0%,rgba(250,204,21,0.65),transparent_55%),radial-gradient(circle_at_80%_120%,rgba(234,179,8,0.4),transparent_55%)] px-4 py-1.5 shadow-[0_0_32px_rgba(250,204,21,0.75)]">
-            <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-100">
-              Team Form Grid
-            </span>
-          </div>
+        {/* Title + copy */}
+        <h2 className="mt-5 text-2xl font-semibold text-neutral-50 sm:text-3xl md:text-[32px]">
+          Hot, stable and cold clubs by performance lens
+        </h2>
+        <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
+          Switch between momentum, fantasy, disposals and goals to see how each
+          club is trending. Tap a pill on mobile or click a card on desktop to
+          reveal a deeper analytics panel.
+        </p>
 
-          {/* Title + copy */}
-          <h2 className="mt-5 max-w-xl text-2xl font-semibold text-neutral-50 sm:text-3xl">
-            Hot, stable and cold clubs by performance lens
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm text-neutral-400">
-            Switch between momentum, fantasy, disposals and goals to see how
-            each club is trending. Tap a pill on mobile or click a card on
-            desktop to reveal a deeper analytics panel.
-          </p>
+        {/* Metric tabs */}
+        <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/70">
+          {METRICS.map((m) => {
+            const active = metric === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMetric(m)}
+                className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold capitalize tracking-wide transition ${
+                  active
+                    ? "text-black"
+                    : "text-neutral-400 hover:text-neutral-100"
+                }`}
+              >
+                {active && (
+                  <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_20%_0,rgba(250,204,21,0.5),transparent_55%),linear-gradient(to_right,rgba(250,204,21,0.45),rgba(0,0,0,1))] shadow-[0_0_25px_rgba(250,204,21,0.7)]" />
+                )}
+                <span className="relative z-10">
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Metric pills */}
-          <MetricTabs metric={metric} onChange={setMetric} />
-
-          {/* Category grid */}
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            <CategoryColumn
-              title="Hot teams"
-              icon={<Flame className="h-4 w-4 text-yellow-300" />}
-              category="hot"
-              metric={metric}
-              teams={hotTeams}
-              expandedId={expandedId}
-              onToggle={handleToggle}
-            />
-            <CategoryColumn
-              title="Stable teams"
-              icon={<CircleDot className="h-4 w-4 text-lime-300" />}
-              category="stable"
-              metric={metric}
-              teams={stableTeams}
-              expandedId={expandedId}
-              onToggle={handleToggle}
-            />
-            <CategoryColumn
-              title="Cold teams"
-              icon={<Snowflake className="h-4 w-4 text-sky-300" />}
-              category="cold"
-              metric={metric}
-              teams={coldTeams}
-              expandedId={expandedId}
-              onToggle={handleToggle}
-            />
-          </div>
+        {/* Columns: Hot / Stable / Cold */}
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          <FormColumn
+            variant="hot"
+            title="Hot teams"
+            icon={<Flame className="h-4 w-4 text-yellow-300" />}
+            teams={classified.hot}
+            metric={metric}
+          />
+          <FormColumn
+            variant="stable"
+            title="Stable teams"
+            icon={<CircleDot className="h-4 w-4 text-lime-300" />}
+            teams={classified.stable}
+            metric={metric}
+          />
+          <FormColumn
+            variant="cold"
+            title="Cold teams"
+            icon={<Snowflake className="h-4 w-4 text-sky-300" />}
+            teams={classified.cold}
+            metric={metric}
+          />
         </div>
       </div>
     </section>
@@ -298,91 +253,61 @@ export default function TeamFormGrid() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Metric Tabs                                 */
+/*                              Column + Divider                               */
 /* -------------------------------------------------------------------------- */
 
-function MetricTabs({
-  metric,
-  onChange,
-}: {
-  metric: MetricType;
-  onChange: (m: MetricType) => void;
-}) {
-  const tabs: { key: MetricType; label: string }[] = [
-    { key: "momentum", label: "Momentum" },
-    { key: "fantasy", label: "Fantasy" },
-    { key: "disposals", label: "Disposals" },
-    { key: "goals", label: "Goals" },
-  ];
-
-  return (
-    <div className="mt-6 inline-flex rounded-full bg-black/80 p-1 shadow-[0_0_40px_rgba(0,0,0,0.75)] ring-1 ring-white/5">
-      {tabs.map((tab) => {
-        const active = metric === tab.key;
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            className={`relative flex-1 rounded-full px-5 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] transition-all md:px-7 md:text-[11px] ${
-              active
-                ? "text-yellow-50"
-                : "text-neutral-400 hover:text-neutral-100"
-            }`}
-          >
-            {active && (
-              <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_0%,rgba(250,204,21,0.75),transparent_55%),radial-gradient(circle_at_80%_120%,rgba(234,179,8,0.7),transparent_60%)] shadow-[0_0_30px_rgba(250,204,21,0.7)]" />
-            )}
-            <span className="relative z-10">{tab.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              Category Column                                */
-/* -------------------------------------------------------------------------- */
-
-function CategoryColumn({
+function FormColumn({
+  variant,
   title,
   icon,
-  category,
   teams,
   metric,
-  expandedId,
-  onToggle,
 }: {
+  variant: Variant;
   title: string;
   icon: React.ReactNode;
-  category: CategoryKey;
-  teams: EnrichedTeam[];
-  metric: MetricType;
-  expandedId: number | null;
-  onToggle: (id: number) => void;
+  teams: AFLTeam[];
+  metric: Metric;
 }) {
-  const color = CATEGORY_COLORS[category];
+  const colors = variantClasses[variant];
 
   return (
     <div className="relative">
-      {/* subtle column header divider */}
-      <div
-        className={`mb-4 flex items-center gap-2 border-b border-white/5 pb-2 text-[11px] uppercase tracking-[0.2em] text-neutral-400`}
-      >
-        <span>{icon}</span>
-        <span>{title}</span>
+      {/* Category header */}
+      <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+        {icon}
+        <span
+          className={`font-semibold ${
+            variant === "hot"
+              ? "text-yellow-200"
+              : variant === "stable"
+              ? "text-lime-200"
+              : "text-sky-200"
+          }`}
+        >
+          {title}
+        </span>
       </div>
+
+      {/* Divider line */}
+      <div
+        className={`mb-4 h-px w-full bg-gradient-to-r ${
+          variant === "hot"
+            ? "from-yellow-400/40 via-yellow-500/10 to-transparent"
+            : variant === "stable"
+            ? "from-lime-400/40 via-lime-500/10 to-transparent"
+            : "from-sky-400/40 via-sky-500/10 to-transparent"
+        }`}
+      />
 
       <div className="space-y-4">
         {teams.map((team) => (
-          <TeamCard
-            key={team.id}
+          <TeamFormCard
+            key={`${team.code}-${metric}`}
+            variant={variant}
             team={team}
             metric={metric}
-            category={category}
-            isExpanded={expandedId === team.id}
-            onToggle={() => onToggle(team.id)}
+            colors={colors}
           />
         ))}
       </div>
@@ -391,132 +316,163 @@ function CategoryColumn({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                  Team Card                                  */
+/*                                 Team Card                                   */
 /* -------------------------------------------------------------------------- */
 
-function TeamCard({
+function TeamFormCard({
+  variant,
   team,
   metric,
-  category,
-  isExpanded,
-  onToggle,
+  colors,
 }: {
-  team: EnrichedTeam;
-  metric: MetricType;
-  category: CategoryKey;
-  isExpanded: boolean;
-  onToggle: () => void;
+  variant: Variant;
+  team: AFLTeam;
+  metric: Metric;
+  colors: (typeof variantClasses)[Variant];
 }) {
-  const color = CATEGORY_COLORS[category];
-  const metricConfig = METRIC_CONFIG[metric];
-  const rawValue = getMetricScore(team, metric);
-  const widthPct = normalise(rawValue, metric);
-  const displayValue = formatMetricValue(rawValue, metric);
+  const [flipped, setFlipped] = useState(false);
+
+  const score = getMetricScore(team, metric);
+  const formattedScore = formatMetric(score);
+  const barWidth = intensityWidth(score);
+
+  const attackDelta = team.scores[team.scores.length - 1] -
+    team.scores[team.scores.length - 2];
+  const defenceDelta =
+    team.margins[team.margins.length - 1] -
+    team.margins[team.margins.length - 2];
+  const clearance = team.clearanceDom[team.clearanceDom.length - 1];
+  const consistency = team.consistencyIndex;
+  const fixtureDiff = team.fixtureDifficulty.score;
+  const opponents = team.fixtureDifficulty.opponents.join(", ");
 
   return (
     <div
-      className={`relative rounded-3xl border border-white/6 bg-gradient-to-b from-neutral-950/95 via-black to-black/95 px-4 py-4 transition-all duration-200 hover:border-white/20 ${color.glow}`}
+      className={`relative h-[176px] transform-gpu transition-[transform,box-shadow] duration-300 ease-out ${
+        !flipped ? "hover:scale-[1.025]" : ""
+      } cursor-pointer rounded-2xl border border-neutral-700/55 bg-gradient-to-b from-neutral-900/95 via-black to-black/95 ${colors.halo}`}
+      onClick={() => setFlipped((prev) => !prev)}
     >
-      {/* halo */}
-      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_10%_-10%,rgba(255,255,255,0.18),transparent_55%),radial-gradient(circle_at_90%_120%,rgba(0,0,0,0.9),transparent_60%)] opacity-60" />
-
-      <button
-        type="button"
-        onClick={onToggle}
-        className="relative z-10 flex w-full flex-col gap-3 text-left"
+      <div
+        className={`relative h-full w-full transform-gpu transition-transform duration-500 [transform-style:preserve-3d] ${
+          flipped ? "[transform:rotateY(180deg)]" : ""
+        }`}
       >
-        {/* Top row: name + sparkline + badge */}
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-neutral-50 md:text-[15px]">
-              {team.name}
+        {/* FRONT FACE */}
+        <div className="absolute inset-0 flex flex-col justify-between px-4 py-4 [backface-visibility:hidden] sm:px-5 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-neutral-50">
+                {team.name}
+              </div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                {metricLabels[metric]}
+              </div>
             </div>
-            <div className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              {metricConfig.label}
+
+            <div className="flex flex-col items-end gap-1">
+              <SoftZigZagSparkline variant={variant} />
+              <div
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold text-black ${colors.badge}`}
+              >
+                <span>{formattedScore}</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <SparklineStub />
-            <div
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold ${color.badge}`}
-            >
-              <span>{displayValue}</span>
+          {/* Metric bar */}
+          <div className="mt-4">
+            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-neutral-800/90">
+              <div
+                className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${colors.bar}`}
+                style={{ width: barWidth }}
+              />
             </div>
-            <span className="text-neutral-400">
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
+          </div>
+
+          {/* Footer row */}
+          <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            <span>{metricLabels[metric]}</span>
+            <span className="flex items-center gap-1 text-[9px] text-neutral-400">
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="text-xs">↺</span>
             </span>
           </div>
         </div>
 
-        {/* Momentum bar */}
-        <div className="mt-1">
-          <div className="h-2 rounded-full bg-neutral-800/90">
-            <div
-              className={`h-2 rounded-full ${color.bar}`}
-              style={{ width: `${widthPct}%` }}
-            />
+        {/* BACK FACE */}
+        <div className="absolute inset-0 px-4 py-4 [backface-visibility:hidden] [transform:rotateY(180deg)] sm:px-5 sm:py-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-sm font-semibold text-neutral-50">
+                {team.name}
+              </div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                {metricPrefix[metric]} analytics snapshot
+              </div>
+            </div>
+            <div className={`text-[10px] font-semibold ${colors.accent}`}>
+              {formattedScore}
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 text-[11px] text-neutral-200">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Attack Δ
+              </div>
+              <div className="mt-1 font-semibold">
+                {attackDelta >= 0 ? "+" : ""}
+                {attackDelta}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Defence Δ
+              </div>
+              <div className="mt-1 font-semibold">
+                {defenceDelta >= 0 ? "+" : ""}
+                {defenceDelta}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Clearance %
+              </div>
+              <div className="mt-1 font-semibold">{clearance}%</div>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Consistency
+              </div>
+              <div className="mt-1 font-semibold">{consistency}</div>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Fixture diff
+              </div>
+              <div className="mt-1 font-semibold">{fixtureDiff}</div>
+            </div>
+
+            <div className="col-span-2">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Opponents
+              </div>
+              <div className="mt-1 text-[11px] font-semibold text-neutral-100">
+                {opponents}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            <span>Tap to return</span>
+            <span className="text-xs">↺</span>
           </div>
         </div>
-      </button>
-
-      {/* Expanded analytics */}
-      <div
-        className={`relative z-10 overflow-hidden transition-all duration-200 ${
-          isExpanded ? "mt-4 max-h-48 opacity-100" : "max-h-0 opacity-0"
-        }`}
-      >
-        {isExpanded && (
-          <div className="mt-1 grid grid-cols-2 gap-x-6 gap-y-2 text-[11px] text-neutral-300 md:text-xs">
-            <AnalyticsMetric
-              label="Attack Δ"
-              value={`${team.attackDelta > 0 ? "+" : ""}${team.attackDelta}`}
-            />
-            <AnalyticsMetric
-              label="Defence Δ"
-              value={`${team.defenceDelta > 0 ? "+" : ""}${team.defenceDelta}`}
-            />
-            <AnalyticsMetric
-              label="Clearance %"
-              value={`${Math.round(team.lastClearance)}%`}
-            />
-            <AnalyticsMetric
-              label="Consistency"
-              value={team.consistencyIndex.toString()}
-            />
-            <AnalyticsMetric
-              label="Fixture diff"
-              value={team.fixtureDifficulty.score.toString()}
-            />
-            <AnalyticsMetric
-              label="Opponents"
-              value={team.fixtureDifficulty.opponents.join(", ")}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AnalyticsMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-        {label}
-      </div>
-      <div className="mt-0.5 text-[11px] font-semibold text-neutral-50">
-        {value}
       </div>
     </div>
   );
