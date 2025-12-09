@@ -9,8 +9,17 @@ import {
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                               UTILITY HELPERS                              */
+/*                               TYPES & HELPERS                               */
 /* -------------------------------------------------------------------------- */
+
+type FilterMode = "momentum" | "fantasy" | "disposals" | "goals";
+
+const MODE_LABELS: { id: FilterMode; label: string }[] = [
+  { id: "momentum", label: "Momentum" },
+  { id: "fantasy", label: "Fantasy" },
+  { id: "disposals", label: "Disposals" },
+  { id: "goals", label: "Goals" },
+];
 
 const lastN = (arr: number[], n: number) => arr.slice(-n);
 
@@ -24,19 +33,17 @@ const stdDev = (arr: number[]) => {
   return Math.sqrt(variance);
 };
 
-/* -------------------------------------------------------------------------- */
-/*                         TEAM FORM CLASSIFICATION LOGIC                      */
-/* -------------------------------------------------------------------------- */
-
 type ClassifiedTeam = AFLTeam & {
   momentum: number;
   attackDelta: number;
   defenceDelta: number;
-  category: "hot" | "stable" | "cold";
 };
 
-function classifyTeams(): ClassifiedTeam[] {
-  // Momentum = margin(R23) – margin(R20)
+/* -------------------------------------------------------------------------- */
+/*                         BASE FORM METRIC CALCULATIONS                       */
+/* -------------------------------------------------------------------------- */
+
+function buildClassifiedTeams(): ClassifiedTeam[] {
   const last = 22; // R23 idx
   const prev = 19; // R20 idx
 
@@ -45,26 +52,78 @@ function classifyTeams(): ClassifiedTeam[] {
     const attackDelta = team.scores[last] - team.scores[last - 1];
     const defenceDelta = team.margins[last] - team.margins[last - 1];
 
-    let category: "hot" | "stable" | "cold" = "stable";
-
-    if (momentum >= 12) category = "hot";
-    else if (momentum <= -12) category = "cold";
-    else category = "stable";
-
     return {
       ...team,
       momentum,
       attackDelta,
       defenceDelta,
-      category,
     };
   });
+}
+
+function getModeSeries(team: ClassifiedTeam, mode: FilterMode): number[] {
+  switch (mode) {
+    case "fantasy":
+      return team.fantasy;
+    case "disposals":
+      return team.disposals;
+    case "goals":
+      return team.goals;
+    case "momentum":
+    default:
+      return team.margins;
+  }
+}
+
+function getModeMetric(team: ClassifiedTeam, mode: FilterMode): number {
+  const series = getModeSeries(team, mode);
+  const last = series.length - 1;
+  const prev = Math.max(0, last - 3);
+  // use average of last 3–4 rounds as ranking metric
+  const window = series.slice(prev, last + 1);
+  return avg(window);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        PARTITION TEAMS: HOT / STABLE / COLD                */
+/* -------------------------------------------------------------------------- */
+
+function partitionTeamsByMode(
+  teams: ClassifiedTeam[],
+  mode: FilterMode
+): {
+  hot: ClassifiedTeam[];
+  stable: ClassifiedTeam[];
+  cold: ClassifiedTeam[];
+} {
+  const scored = teams.map((t) => ({
+    team: t,
+    metric: getModeMetric(t, mode),
+  }));
+
+  const sortedDesc = scored.sort((a, b) => b.metric - a.metric);
+  const n = sortedDesc.length;
+
+  if (n <= 9) {
+    // simple split if somehow fewer than 9 teams
+    const third = Math.max(1, Math.floor(n / 3));
+    const hot = sortedDesc.slice(0, third).map((x) => x.team);
+    const stable = sortedDesc.slice(third, third * 2).map((x) => x.team);
+    const cold = sortedDesc.slice(third * 2).map((x) => x.team);
+    return { hot, stable, cold };
+  }
+
+  const hot = sortedDesc.slice(0, 3).map((x) => x.team);
+  const cold = sortedDesc.slice(n - 3).map((x) => x.team);
+  const midStart = Math.floor(n / 2) - 1;
+  const stable = sortedDesc.slice(midStart, midStart + 3).map((x) => x.team);
+
+  return { hot, stable, cold };
 }
 
 /* -------------------------------------------------------------------------- */
 /*                               SPARKLINE SHELL                              */
 /* -------------------------------------------------------------------------- */
-/* Still a placeholder, but now styled to look like a proper mini chart area. */
 
 function SparklineSmall({ values }: { values: number[] }) {
   return (
@@ -73,35 +132,24 @@ function SparklineSmall({ values }: { values: number[] }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          FORM GRID SECTION (TOP-LEVEL)                     */
+/*                          TOP-LEVEL FORM GRID SECTION                       */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamFormGrid() {
-  const classified = useMemo(() => classifyTeams(), []);
+  const [mode, setMode] = useState<FilterMode>("momentum");
 
-  // Split into categories
-  const hotTeamsAll = classified.filter((t) => t.category === "hot");
-  const stableTeamsAll = classified.filter((t) => t.category === "stable");
-  const coldTeamsAll = classified.filter((t) => t.category === "cold");
-
-  // Sort & take TOP 3 for each
-  const hotTeams = [...hotTeamsAll]
-    .sort((a, b) => b.momentum - a.momentum)
-    .slice(0, 3);
-
-  const stableTeams = [...stableTeamsAll]
-    .sort((a, b) => Math.abs(a.momentum) - Math.abs(b.momentum))
-    .slice(0, 3);
-
-  const coldTeams = [...coldTeamsAll]
-    .sort((a, b) => a.momentum - b.momentum)
-    .slice(0, 3);
+  const classified = useMemo(() => buildClassifiedTeams(), []);
+  const { hot, stable, cold } = useMemo(
+    () => partitionTeamsByMode(classified, mode),
+    [classified, mode]
+  );
 
   return (
     <section className="mt-12 rounded-3xl border border-yellow-500/15 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-8 shadow-[0_0_80px_rgba(0,0,0,0.85)]">
-      {/* Header pill (unified style) */}
-      <div className="mb-7 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      {/* Header + filters */}
+      <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
+          {/* Unified static gold pill */}
           <div
             className="inline-flex items-center gap-2 rounded-full
             border border-yellow-500/60
@@ -116,19 +164,43 @@ export default function TeamFormGrid() {
           </div>
 
           <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
-            Hot, stable and cold clubs based on league-wide momentum
+            Hot, stable and cold clubs by performance lens
           </h2>
 
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Distilled view of recent margins, attack/defence deltas and rolling
-            volatility – grouped into hot, stable and cold performance bands.
+            Toggle between momentum, fantasy, disposals and goals to see which
+            clubs are running hot, holding steady or dropping off across key
+            metrics.
           </p>
 
           <div className="mt-3 h-px w-40 bg-gradient-to-r from-yellow-500/90 via-yellow-300/60 to-transparent" />
         </div>
+
+        {/* Filter pill control */}
+        <div className="flex justify-start md:justify-end">
+          <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/70 bg-black/70 px-1 py-1">
+            {MODE_LABELS.map((m) => {
+              const active = mode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMode(m.id)}
+                  className={`rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] transition ${
+                    active
+                      ? "bg-yellow-500/20 text-yellow-200 shadow-[0_0_18px_rgba(250,204,21,0.55)]"
+                      : "text-neutral-400 hover:text-neutral-100"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Columns: compact premium grid */}
+      {/* Columns grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <FormColumn
           title="Hot Teams"
@@ -136,7 +208,8 @@ export default function TeamFormGrid() {
           icon={
             <Flame className="h-4 w-4 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
           }
-          teams={hotTeams}
+          teams={hot}
+          mode={mode}
         />
 
         <FormColumn
@@ -145,7 +218,8 @@ export default function TeamFormGrid() {
           icon={
             <CircleDot className="h-4 w-4 text-lime-300 drop-shadow-[0_0_7px_rgba(190,242,100,0.6)]" />
           }
-          teams={stableTeams}
+          teams={stable}
+          mode={mode}
         />
 
         <FormColumn
@@ -154,7 +228,8 @@ export default function TeamFormGrid() {
           icon={
             <Snowflake className="h-4 w-4 text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
           }
-          teams={coldTeams}
+          teams={cold}
+          mode={mode}
         />
       </div>
     </section>
@@ -170,11 +245,13 @@ function FormColumn({
   icon,
   tone,
   teams,
+  mode,
 }: {
   title: string;
   icon: React.ReactNode;
   tone: "hot" | "stable" | "cold";
   teams: ClassifiedTeam[];
+  mode: FilterMode;
 }) {
   return (
     <div className="space-y-3">
@@ -187,7 +264,7 @@ function FormColumn({
 
       <div className="space-y-3">
         {teams.map((t) => (
-          <FormCard key={t.name} team={t} tone={tone} />
+          <FormCard key={`${t.code}-${mode}`} team={t} tone={tone} mode={mode} />
         ))}
       </div>
     </div>
@@ -198,20 +275,32 @@ function FormColumn({
 /*                              FORM CARD COMPONENT                            */
 /* -------------------------------------------------------------------------- */
 
-function FormCard({ team, tone }: { team: ClassifiedTeam; tone: "hot" | "stable" | "cold" }) {
+function FormCard({
+  team,
+  tone,
+  mode,
+}: {
+  team: ClassifiedTeam;
+  tone: "hot" | "stable" | "cold";
+  mode: FilterMode;
+}) {
   const [flipped, setFlipped] = useState(false);
 
-  const margins5 = lastN(team.margins, 5);
-  const volatility = stdDev(margins5);
-  const attack3 = team.scores[team.scores.length - 1] - team.scores[team.scores.length - 4];
-  const defence3 =
-    team.margins[team.margins.length - 1] - team.margins[team.margins.length - 4];
+  const series = getModeSeries(team, mode);
+  const series5 = lastN(series, 5);
+  const volatility = stdDev(series5);
 
-  const trendUp = team.momentum >= 0;
+  const lastIdx = series.length - 1;
+  const deltaShort = series[lastIdx] - series[lastIdx - 1];
+  const deltaLong = series[lastIdx] - series[Math.max(0, lastIdx - 3)];
+
+  const modeMetric = getModeMetric(team, mode);
+  const trendUp = modeMetric >= 0;
+
+  // extra momentum-specific values
   const attackUp = team.attackDelta >= 0;
   const defenceUp = team.defenceDelta >= 0;
 
-  // Tone-based colours
   const toneBorder =
     tone === "hot"
       ? "border-amber-400/50"
@@ -232,6 +321,21 @@ function FormCard({ team, tone }: { team: ClassifiedTeam; tone: "hot" | "stable"
       : tone === "stable"
       ? "text-lime-300"
       : "text-sky-300";
+
+  const modeLabel =
+    mode === "momentum"
+      ? "Momentum"
+      : mode === "fantasy"
+      ? "Fantasy"
+      : mode === "disposals"
+      ? "Disposals"
+      : "Goals";
+
+  const shortLabel =
+    mode === "momentum" ? "Last Rd Δ (margin)" : "Last Rd Δ";
+
+  const longLabel =
+    mode === "momentum" ? "3-Rd Δ (margin)" : "3-Rd Δ";
 
   return (
     <div
@@ -273,7 +377,7 @@ function FormCard({ team, tone }: { team: ClassifiedTeam; tone: "hot" | "stable"
                   {team.name}
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                  Last 5 margins
+                  {modeLabel} • last 5 rounds
                 </div>
               </div>
 
@@ -286,46 +390,84 @@ function FormCard({ team, tone }: { team: ClassifiedTeam; tone: "hot" | "stable"
 
             {/* Sparkline */}
             <div className="mt-3">
-              <SparklineSmall values={margins5} />
+              <SparklineSmall values={series5} />
             </div>
 
-            {/* Attack / Defence delta – compact layout */}
+            {/* Deltas – mode-aware */}
             <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-neutral-300">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                  Attack Δ
-                </div>
-                <div
-                  className={`mt-1 font-semibold ${
-                    attackUp
-                      ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
-                      : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
-                  }`}
-                >
-                  {attackUp ? "+" : ""}
-                  {team.attackDelta}
-                </div>
-              </div>
+              {mode === "momentum" ? (
+                <>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      Attack Δ
+                    </div>
+                    <div
+                      className={`mt-1 font-semibold ${
+                        attackUp
+                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
+                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                      }`}
+                    >
+                      {attackUp ? "+" : ""}
+                      {team.attackDelta}
+                    </div>
+                  </div>
 
-              <div className="text-right">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                  Defence Δ
-                </div>
-                <div
-                  className={`mt-1 font-semibold ${
-                    defenceUp
-                      ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
-                      : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
-                  }`}
-                >
-                  {defenceUp ? "+" : ""}
-                  {team.defenceDelta}
-                </div>
-              </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      Defence Δ
+                    </div>
+                    <div
+                      className={`mt-1 font-semibold ${
+                        defenceUp
+                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
+                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                      }`}
+                    >
+                      {defenceUp ? "+" : ""}
+                      {team.defenceDelta}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      {shortLabel}
+                    </div>
+                    <div
+                      className={`mt-1 font-semibold ${
+                        deltaShort >= 0
+                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
+                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                      }`}
+                    >
+                      {deltaShort >= 0 ? "+" : ""}
+                      {deltaShort.toFixed(0)}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      {longLabel}
+                    </div>
+                    <div
+                      className={`mt-1 font-semibold ${
+                        deltaLong >= 0
+                          ? "text-lime-300 drop-shadow-[0_0_7px_rgba(74,222,128,0.6)]"
+                          : "text-red-300 drop-shadow-[0_0_6px_rgba(248,113,113,0.6)]"
+                      }`}
+                    >
+                      {deltaLong >= 0 ? "+" : ""}
+                      {deltaLong.toFixed(0)}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mt-3 text-[10px] text-neutral-500">
-              Tap or hover to view analytics
+              Hover or tap to view analytics
             </div>
           </div>
 
@@ -338,27 +480,28 @@ function FormCard({ team, tone }: { team: ClassifiedTeam; tone: "hot" | "stable"
                   {team.name} analytics
                 </div>
                 <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                  Deeper form snapshot
+                  {modeLabel} form snapshot
                 </div>
               </div>
 
               {/* Analytics stack */}
               <div className="mt-3 space-y-2 text-[11px] text-neutral-300">
                 <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">Momentum score</span>
+                  <span className="text-neutral-400">
+                    {modeLabel} score (last 3–4 Rd avg)
+                  </span>
                   <span
                     className={`font-semibold ${
                       trendUp ? "text-lime-300" : "text-red-300"
                     }`}
                   >
-                    {trendUp ? "+" : ""}
-                    {team.momentum.toFixed(0)}
+                    {modeMetric.toFixed(1)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-neutral-400">
-                    Rolling volatility (last 5)
+                    Volatility (last 5 rounds)
                   </span>
                   <span className="font-semibold text-neutral-200">
                     {volatility.toFixed(1)}
@@ -366,28 +509,26 @@ function FormCard({ team, tone }: { team: ClassifiedTeam; tone: "hot" | "stable"
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">Attack Δ (last 3 Rds)</span>
+                  <span className="text-neutral-400">{shortLabel}</span>
                   <span
                     className={`font-semibold ${
-                      attack3 >= 0 ? "text-lime-300" : "text-red-300"
+                      deltaShort >= 0 ? "text-lime-300" : "text-red-300"
                     }`}
                   >
-                    {attack3 >= 0 ? "+" : ""}
-                    {attack3}
+                    {deltaShort >= 0 ? "+" : ""}
+                    {deltaShort.toFixed(0)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">
-                    Defence Δ (last 3 Rds)
-                  </span>
+                  <span className="text-neutral-400">{longLabel}</span>
                   <span
                     className={`font-semibold ${
-                      defence3 >= 0 ? "text-lime-300" : "text-red-300"
+                      deltaLong >= 0 ? "text-lime-300" : "text-red-300"
                     }`}
                   >
-                    {defence3 >= 0 ? "+" : ""}
-                    {defence3}
+                    {deltaLong >= 0 ? "+" : ""}
+                    {deltaLong.toFixed(0)}
                   </span>
                 </div>
               </div>
