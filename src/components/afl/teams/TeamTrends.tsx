@@ -1,19 +1,14 @@
 // src/components/afl/teams/TeamTrends.tsx
 import React, { useMemo } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
-import {
-  TrendingUp,
-  Shield,
-  Activity,
-  MoveVertical,
-} from "lucide-react";
+import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*                         Sparkline Large Placeholder                         */
 /* -------------------------------------------------------------------------- */
 function SparklineLarge({ values }: { values: number[] }) {
   return (
-    <div className="h-24 w-full rounded-xl bg-gradient-to-b from-neutral-800/40 to-black shadow-inner" />
+    <div className="h-10 w-full rounded-xl bg-gradient-to-b from-neutral-800/40 to-black shadow-inner" />
   );
 }
 
@@ -47,9 +42,10 @@ export default function TeamTrends() {
     });
   }, [attackPoints]);
 
+  // Placeholder: 40–70% forward-50 efficiency
   const attackF50 = useMemo(() => {
     return attackPoints.map(
-      () => Math.floor(40 + Math.random() * 30) // placeholder: 40%–70%
+      () => Math.floor(40 + Math.random() * 30)
     );
   }, []);
 
@@ -182,9 +178,8 @@ export default function TeamTrends() {
         midfield control and ruck dominance.
       </p>
 
-      {/* GRID OF 4 POSITIONAL TRENDS */}
-      <div className="mt-10 space-y-10">
-
+      {/* 4 POSITIONAL CARDS — 2×2 GRID ON MD+ */}
+      <div className="mt-10 grid gap-8 md:grid-cols-2 lg:gap-10">
         {/* ATTACK */}
         <TrendBlock
           title="Attack Trend"
@@ -266,11 +261,11 @@ function TrendBlock({
 
       <p className="mt-1 max-w-xl text-xs text-neutral-400">{description}</p>
 
-      {/* Chart Series */}
-      <div className="mt-6 space-y-6">
+      {/* 2-COLUMN METRIC GRID */}
+      <div className="mt-6 grid gap-5 md:grid-cols-2">
         {series.map((s) => (
-          <div key={s.label}>
-            <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          <div key={s.label} className="space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
               {s.label}
             </div>
             <SparklineLarge values={s.values} />
