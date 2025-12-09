@@ -108,7 +108,7 @@ function SparklineLarge({
           d={pathD}
           fill="none"
           stroke="currentColor"
-          strokeWidth={1.6}
+          strokeWidth={2} // 2px as you chose (Option A)
           strokeLinejoin="round"
           strokeLinecap="round"
           style={{
@@ -188,7 +188,7 @@ function computeMetricSummary(
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
-  // clamp volatility so it feels realistic
+  // Clamp volatility so it feels realistic
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -349,7 +349,7 @@ function TrendBlock({
                     {s.label}
                   </div>
 
-                  <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums md:text-xs">
+                  <div className="flex items-center gap-2 text-[11px] font-mono tabular-nums whitespace-nowrap md:text-xs">
                     <span className="font-semibold text-neutral-100">
                       {valueLabel}
                     </span>
@@ -362,8 +362,10 @@ function TrendBlock({
                   </div>
                 </div>
 
-                {/* Sparkline */}
-                <SparklineLarge values={s.values} color={accent} />
+                {/* Sparkline – fixed height, no clipping */}
+                <div className="mt-1 h-[42px]">
+                  <SparklineLarge values={s.values} color={accent} />
+                </div>
               </div>
             );
           })}
