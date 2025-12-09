@@ -1,21 +1,20 @@
 // src/components/afl/teams/TeamMomentumPulse.tsx
-// T1 PRIME EDITION — AFLPlayers Team Edition (Subtle Warm Sunlight)
+// T1 PRIME EDITION — Updated Headlines Layout + Narrative Headlines
 //
-// - Matches the visual language of AFL Players "Round Momentum Summary"
-// - Warm, subtle gold sunlight from top-left
-// - Clean, premium metric cards (1px gold border, soft shadow)
-// - Refined sparkline (white line + soft gold glow)
-// - Balanced two-column layout: metrics left, headlines right
-// - Improved metric tag hierarchy (value + label)
-// - Headlines card with vertical gold accent beam
-// - Fully responsive, mobile-friendly
+// - AFLPlayers-style layout
+// - Headlines panel aligned with metric cards (correct editorial balance)
+// - Narrative headlines (no duplication)
+// - Warm gold sunlight background (subtle, premium)
+// - Strong but refined card elevation
+// - Sparkline with gold glow + white line
+// - Fully responsive
 
 import React from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import { Flame, Shield, TrendingUp, BarChart3, Zap } from "lucide-react";
 
 /* ============================================================================
-   Sparkline — clean white line with soft gold shadow
+   Sparkline — clean white line + soft gold glow
 ============================================================================ */
 
 function smooth(values: number[]) {
@@ -83,7 +82,7 @@ function Sparkline({ values }: SparkProps) {
           </filter>
         </defs>
 
-        {/* very soft grid */}
+        {/* soft grid lines */}
         <line
           x1="0"
           y1="30"
@@ -109,7 +108,7 @@ function Sparkline({ values }: SparkProps) {
           strokeWidth={0.5}
         />
 
-        {/* gold shadow under line */}
+        {/* gold glow behind line */}
         <polyline
           points={points}
           fill="none"
@@ -134,7 +133,7 @@ function Sparkline({ values }: SparkProps) {
 }
 
 /* ============================================================================
-   Metric Insight Card — refined hierarchy + premium card styling
+   Metric Insight Card — premium broadcast-grade styling
 ============================================================================ */
 
 interface InsightCardProps {
@@ -156,22 +155,18 @@ function InsightCard({
 }: InsightCardProps) {
   return (
     <div className="rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/65 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[1px]">
-      {/* Top row: icon + label */}
       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.20em] text-[rgba(255,211,105,0.95)]">
         <Icon className="h-4 w-4" />
         {title}
       </div>
 
-      {/* Team name */}
       <div className="mt-2 text-xl font-semibold text-white">{team}</div>
 
-      {/* Metric pill: value + label */}
       <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[rgba(255,211,105,0.6)] bg-black/85 px-3 py-[6px]">
         <span className="text-sm font-semibold text-white">{metricValue}</span>
         <span className="text-[11px] text-neutral-300">{metricLabel}</span>
       </div>
 
-      {/* Sparkline */}
       <div className="mt-3">
         <Sparkline values={values} />
       </div>
@@ -180,13 +175,13 @@ function InsightCard({
 }
 
 /* ============================================================================
-   Key Headlines Card — warm gold label + vertical accent beam
+   Headlines Card — narrative editorial content
 ============================================================================ */
 
 function HeadlinesCard({ items }: { items: string[] }) {
   return (
     <div className="relative rounded-2xl border border-[rgba(255,211,105,0.45)] bg-black/72 px-7 py-6 shadow-[0_10px_28px_rgba(0,0,0,0.75)] backdrop-blur-[2px]">
-      {/* vertical gold accent beam */}
+      {/* vertical gold beam */}
       <div className="pointer-events-none absolute left-4 top-5 bottom-5 w-[2px] rounded-full bg-gradient-to-b from-[rgba(255,211,105,1)] via-[rgba(255,211,105,0.6)] to-transparent" />
 
       <div className="pl-5">
@@ -194,7 +189,7 @@ function HeadlinesCard({ items }: { items: string[] }) {
           <Zap className="h-4 w-4 text-[rgba(255,220,138,1)]" />
           Key Headlines
         </div>
-        <ul className="mt-3 space-y-1 text-sm text-neutral-200">
+        <ul className="mt-3 space-y-2 text-sm text-neutral-200 leading-relaxed">
           {items.map((h, i) => (
             <li key={i}>• {h}</li>
           ))}
@@ -205,31 +200,27 @@ function HeadlinesCard({ items }: { items: string[] }) {
 }
 
 /* ============================================================================
-   Main Section — T1 Prime Edition
+   Main Section — T1 Prime Edition (Updated Layout)
 ============================================================================ */
 
 export default function TeamMomentumPulse() {
-  const roundIndex = 22; // R23
+  const roundIndex = 22;
   const prev = roundIndex - 1;
   const teams = MOCK_TEAMS;
 
-  // Highest fantasy surge (usage)
+  // **Stats for cards**
   const fantasyTeam = [...teams].sort(
     (a, b) => b.attackRating - a.attackRating
   )[0];
 
-  // Most dominant scoring team
   const scoringTeam = [...teams].sort(
     (a, b) => b.scores[roundIndex] - a.scores[roundIndex]
   )[0];
-  const scoringValue = scoringTeam.scores[roundIndex];
 
-  // Strongest defence
   const defenceTeam = [...teams].sort(
     (a, b) => b.defenceRating - a.defenceRating
   )[0];
 
-  // Biggest momentum riser
   const momentum = teams
     .map((t) => ({
       team: t,
@@ -237,29 +228,27 @@ export default function TeamMomentumPulse() {
     }))
     .sort((a, b) => b.delta - a.delta)[0];
 
+  // **Narrative Headlines (not duplicates)**
   const headlines = [
-    `${fantasyTeam.name} led the round in projected fantasy opportunity (${fantasyTeam.attackRating}/100).`,
-    `${scoringTeam.name} delivered the round’s top scoreboard impact (${scoringValue} pts).`,
-    `${defenceTeam.name} recorded the strongest defensive rating (${defenceTeam.defenceRating}/100).`,
-    `${momentum.team.name} produced the biggest momentum swing (${momentum.delta > 0 ? "+" : ""}${momentum.delta} pts).`,
+    "Midfield usage shifted significantly this round, with multiple clubs experimenting in key rotations.",
+    `${fantasyTeam.name} benefited from increased stoppage presence, driving a surge in opportunity.`,
+    `${defenceTeam.name}'s back-half structure showed exceptional consistency late in the match.`,
+    `${momentum.team.name} generated sustained forward-half pressure, producing the strongest momentum lift.`,
   ];
 
   return (
     <section className="mt-10 px-4 sm:px-6 md:px-8">
-      {/* unified hero block with subtle warm sunlight, like AFLPlayers */}
       <div className="relative overflow-hidden rounded-3xl border border-neutral-800/70 bg-[radial-gradient(circle_at_top_left,rgba(255,211,105,0.22),transparent_70%),linear-gradient(to_bottom,#181818,#080808,#010101)] p-6 sm:p-8 md:p-10 shadow-[0_0_60px_rgba(0,0,0,0.75)]">
-        {/* gentle vignette to focus content */}
         <div className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_bottom,rgba(0,0,0,0.55),transparent_65%)]" />
 
-        {/* content layer */}
         <div className="relative">
-          {/* SECTION LABEL */}
+          {/* Section Label */}
           <div className="inline-flex items-center gap-[6px] rounded-full border border-[rgba(255,211,105,0.75)] bg-black/80 px-4 py-1 text-[10px] uppercase tracking-[0.22em] text-[rgba(255,220,138,1)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,220,138,1)]" />
             Round Momentum Pulse • R23
           </div>
 
-          {/* TITLE & SUBTITLE */}
+          {/* Header Text */}
           <h2 className="mt-5 text-[22px] font-semibold text-white md:text-[24px]">
             League-wide fantasy trends &amp; team momentum highlights
           </h2>
@@ -270,12 +259,11 @@ export default function TeamMomentumPulse() {
             round.
           </p>
 
-          {/* subtle divider between intro and content */}
           <div className="mt-5 h-px w-full bg-gradient-to-r from-[rgba(255,211,105,0.4)] via-neutral-700/65 to-transparent" />
 
-          {/* CONTENT GRID: metrics left, headlines right */}
-          <div className="mt-6 grid items-start gap-10 lg:grid-cols-[1.35fr_0.9fr] lg:gap-14">
-            {/* LEFT: Summary metrics + cards */}
+          {/* CONTENT GRID */}
+          <div className="mt-8 grid items-start gap-12 lg:grid-cols-[1.35fr_0.9fr]">
+            {/* LEFT — Metrics */}
             <div>
               <h3 className="text-[11px] uppercase tracking-[0.24em] text-[rgba(255,211,105,0.95)]">
                 Round 23 Summary Metrics
@@ -294,7 +282,7 @@ export default function TeamMomentumPulse() {
                 <InsightCard
                   title="Most Dominant Scoring Team"
                   team={scoringTeam.name}
-                  metricValue={`${scoringValue} pts`}
+                  metricValue={`${scoringTeam.scores[roundIndex]} pts`}
                   metricLabel="Scoreboard impact"
                   values={scoringTeam.scores}
                   icon={Flame}
@@ -320,8 +308,10 @@ export default function TeamMomentumPulse() {
               </div>
             </div>
 
-            {/* RIGHT: key headlines */}
-            <HeadlinesCard items={headlines} />
+            {/* RIGHT — Headlines (now aligned with card grid) */}
+            <div className="lg:pt-4">
+              <HeadlinesCard items={headlines} />
+            </div>
           </div>
         </div>
       </div>
