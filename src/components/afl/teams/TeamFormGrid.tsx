@@ -23,7 +23,7 @@ interface ClassifiedTeams {
 
 function getBaseMomentum(team: AFLTeam): number {
   const last5 = team.margins.slice(-5);
-  return last5.reduce((a, b) => a + b, 0) / last5.length;
+  return last5.reduce((a, b) => a + b, 0) / last.last5.length;
 }
 
 function metricJitter(team: AFLTeam, metric: Metric): number {
@@ -77,16 +77,20 @@ const metricPrefix: Record<Metric, string> = {
   goals: "Goals",
 };
 
+/* Variant Colours — updated with RED HOT (R1) */
 const badgeStyles: Record<Variant, string> = {
-  hot: "bg-yellow-400/15 border border-yellow-400/30 text-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.25)]",
-  stable: "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
-  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
+  hot: "bg-gradient-to-b from-red-500/25 to-red-700/20 border border-red-500/50 text-red-200 shadow-[0_0_12px_rgba(255,80,80,0.35)]",
+  stable:
+    "bg-gradient-to-b from-emerald-400/20 to-emerald-700/20 border border-emerald-400/40 text-lime-200 shadow-[0_0_12px_rgba(80,255,170,0.35)]",
+  cold: "bg-gradient-to-b from-sky-400/20 to-sky-700/20 border border-sky-400/40 text-sky-200 shadow-[0_0_12px_rgba(0,170,255,0.35)]",
 };
 
+/* G2 Glow — Halo + Rim glow */
 const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_25px_rgba(245,200,30,0.14)]",
-  stable: "shadow-[0_0_25px_rgba(60,220,150,0.14)]",
-  cold: "shadow-[0_0_25px_rgba(0,180,255,0.14)]",
+  hot: "shadow-[0_0_32px_rgba(255,60,60,0.25),0_0_6px_rgba(255,100,100,0.45)]",
+  stable:
+    "shadow-[0_0_32px_rgba(60,220,150,0.25),0_0_6px_rgba(80,255,170,0.45)]",
+  cold: "shadow-[0_0_32px_rgba(0,180,255,0.25),0_0_6px_rgba(110,220,255,0.45)]",
 };
 
 function formatMetric(value: number): string {
@@ -106,14 +110,14 @@ function intensityWidth(value: number): string {
 function FullWidthSparkline({ variant }: { variant: Variant }) {
   const stroke =
     variant === "hot"
-      ? "text-yellow-300"
+      ? "text-red-400"
       : variant === "stable"
-      ? "text-lime-300"
+      ? "text-emerald-300"
       : "text-sky-300";
 
   return (
     <div className={`w-full h-6 ${stroke}`}>
-      <svg viewBox="0 0 100 24" className="h-full w-full opacity-90">
+      <svg viewBox="0 0 100 24" className="h-full w-full opacity-95">
         <path
           d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
           fill="none"
@@ -137,12 +141,12 @@ export default function TeamFormGrid() {
 
   return (
     <section className="mt-16">
-      <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
+      <div className="rounded-[32px] border border-neutral-700 bg-gradient-to-b from-neutral-900/40 via-black/80 to-black px-4 py-8 sm:px-6 md:px-10 lg:px-12">
 
         {/* Header */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_18px_rgba(250,204,21,0.35)] backdrop-blur-[2px]">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.9)]" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
+        <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-4 py-1 shadow-[0_0_16px_rgba(255,60,60,0.45)] backdrop-blur-[2px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-300 shadow-[0_0_6px_rgba(255,80,80,0.9)]" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-50">
             Team Form Grid
           </span>
         </div>
@@ -152,11 +156,11 @@ export default function TeamFormGrid() {
         </h2>
 
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between different lenses to reveal movement and trends. Click cards to reveal deeper analytics.
+          Switch between different lenses to reveal movement and trends. Tap cards for deeper analytics.
         </p>
 
         {/* Metric Tabs */}
-        <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/70">
+        <div className="mt-6 inline-flex rounded-full bg-black/70 p-1 ring-1 ring-neutral-800/60">
           {METRICS.map((m) => {
             const active = metric === m;
             return (
@@ -164,11 +168,11 @@ export default function TeamFormGrid() {
                 key={m}
                 onClick={() => setMetric(m)}
                 className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
-                  active ? "text-black" : "text-neutral-400 hover:text-neutral-100"
+                  active ? "text-black" : "text-neutral-300 hover:text-neutral-100"
                 }`}
               >
                 {active && (
-                  <span className="absolute inset-0 rounded-full bg-yellow-400/40 shadow-[0_0_22px_rgba(250,204,21,0.4)]" />
+                  <span className="absolute inset-0 rounded-full bg-red-400/35 shadow-[0_0_22px_rgba(255,70,70,0.55)]" />
                 )}
                 <span className="relative z-10 capitalize">
                   {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -180,9 +184,27 @@ export default function TeamFormGrid() {
 
         {/* Columns */}
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          <FormColumn variant="hot" title="Hot teams" icon={<Flame className="h-4 w-4 text-yellow-300" />} teams={classified.hot} metric={metric} />
-          <FormColumn variant="stable" title="Stable teams" icon={<CircleDot className="h-4 w-4 text-lime-300" />} teams={classified.stable} metric={metric} />
-          <FormColumn variant="cold" title="Cold teams" icon={<Snowflake className="h-4 w-4 text-sky-300" />} teams={classified.cold} metric={metric} />
+          <FormColumn
+            variant="hot"
+            title="Hot teams"
+            icon={<Flame className="h-4 w-4 text-red-400" />}
+            teams={classified.hot}
+            metric={metric}
+          />
+          <FormColumn
+            variant="stable"
+            title="Stable teams"
+            icon={<CircleDot className="h-4 w-4 text-emerald-300" />}
+            teams={classified.stable}
+            metric={metric}
+          />
+          <FormColumn
+            variant="cold"
+            title="Cold teams"
+            icon={<Snowflake className="h-4 w-4 text-sky-300" />}
+            teams={classified.cold}
+            metric={metric}
+          />
         </div>
       </div>
     </section>
@@ -202,21 +224,21 @@ function FormColumn({ variant, title, icon, teams, metric }: {
 }) {
   const color =
     variant === "hot"
-      ? "text-yellow-200"
+      ? "text-red-300"
       : variant === "stable"
       ? "text-lime-200"
       : "text-sky-200";
 
   const divider =
     variant === "hot"
-      ? "from-yellow-400/40"
+      ? "from-red-500/40"
       : variant === "stable"
-      ? "from-lime-400/40"
+      ? "from-emerald-400/40"
       : "from-sky-400/40";
 
   return (
     <div>
-      <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+      <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-300">
         {icon}
         <span className={`font-semibold ${color}`}>{title}</span>
       </div>
@@ -225,7 +247,12 @@ function FormColumn({ variant, title, icon, teams, metric }: {
 
       <div className="space-y-4">
         {teams.map((team) => (
-          <TeamFormCard key={`${team.code}-${metric}`} variant={variant} team={team} metric={metric} />
+          <TeamFormCard
+            key={`${team.code}-${metric}`}
+            variant={variant}
+            team={team}
+            metric={metric}
+          />
         ))}
       </div>
     </div>
@@ -260,7 +287,7 @@ function TeamFormCard({ variant, team, metric }: {
 
   return (
     <div
-      className={`relative min-h-[188px] cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]}`}
+      className={`relative min-h-[190px] cursor-pointer rounded-2xl border border-neutral-700/50 bg-black/90 backdrop-blur-[3px] transform-gpu transition duration-300 hover:-translate-y-[2px] ${variantHalo[variant]}`}
       onClick={() => setFlipped(!flipped)}
     >
       <div
@@ -272,7 +299,7 @@ function TeamFormCard({ variant, team, metric }: {
         {/* FRONT */}
         <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
 
-          {/* TOP ROW — Name + score */}
+          {/* Top: name + score */}
           <div className="flex items-start justify-between">
             <div>
               <div className="text-[15px] font-semibold text-neutral-50 leading-tight">
@@ -284,34 +311,34 @@ function TeamFormCard({ variant, team, metric }: {
             </div>
 
             <div
-              className={`${badgeStyles[variant]} inline-flex items-center rounded-full px-2 py-[1px] text-[10px] font-semibold`}
+              className={`${badgeStyles[variant]} inline-flex items-center rounded-full px-2 py-[2px] text-[10px] font-semibold`}
             >
               {formattedScore}
             </div>
           </div>
 
-          {/* *** NEW — Full Width Sparkline *** */}
+          {/* Sparkline */}
           <div className="mt-2 w-full">
             <FullWidthSparkline variant={variant} />
           </div>
 
-          {/* Progress bar */}
+          {/* Progress bar — PB2 (medium) */}
           <div className="mt-3">
-            <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
+            <div className="relative h-2.5 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
                   variant === "hot"
-                    ? "from-yellow-200 to-yellow-400"
+                    ? "from-red-300 to-red-500"
                     : variant === "stable"
-                    ? "from-lime-200 to-emerald-400"
-                    : "from-sky-200 to-cyan-400"
+                    ? "from-lime-300 to-emerald-500"
+                    : "from-sky-300 to-cyan-400"
                 }`}
                 style={{ width: barWidth }}
               />
             </div>
           </div>
 
-          {/* Bottom label row */}
+          {/* Bottom */}
           <div className="mt-3 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em] pb-1">
             <span>{metricLabels[metric]}</span>
             <span className="flex items-center gap-1 text-neutral-400">
@@ -322,13 +349,13 @@ function TeamFormCard({ variant, team, metric }: {
         </div>
 
         {/* BACK */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/8 bg-black/65 px-4 py-3 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
 
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-neutral-50">{team.name}</div>
-              <div className="mt-[2px] text-[9px] uppercase text-neutral-500 tracking-[0.16em]">
+              <div className="mt-[1px] text-[9px] uppercase text-neutral-500 tracking-[0.16em]">
                 {metricPrefix[metric]} snapshot
               </div>
             </div>
@@ -336,55 +363,58 @@ function TeamFormCard({ variant, team, metric }: {
             <div
               className={`text-[11px] font-semibold ${
                 variant === "hot"
-                  ? "text-yellow-200"
+                  ? "text-red-300"
                   : variant === "stable"
-                  ? "text-lime-200"
-                  : "text-sky-200"
+                  ? "text-lime-300"
+                  : "text-sky-300"
               }`}
             >
               {formattedScore}
             </div>
           </div>
 
-          {/* Stats grid — tighter */}
+          {/* Stats (tighter) */}
           <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2 text-[10px] text-neutral-300 leading-tight">
             <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Attack Δ</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Attack Δ</div>
               <div className="font-semibold">{attackDelta >= 0 ? "+" : ""}{attackDelta}</div>
             </div>
 
             <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Defence Δ</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Defence Δ</div>
               <div className="font-semibold">{defenceDelta >= 0 ? "+" : ""}{defenceDelta}</div>
             </div>
 
             <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Clear %</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Clear %</div>
               <div className="font-semibold">{clearance}%</div>
             </div>
 
             <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Consist.</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Consist.</div>
               <div className="font-semibold">{consistency}</div>
             </div>
 
             <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Pressure</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Pressure</div>
               <div className="font-semibold">+3</div>
             </div>
 
             <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Fixture</div>
+              <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Fixture</div>
               <div className="font-semibold">{team.fixtureDifficulty.score}</div>
             </div>
           </div>
 
           {/* Opponents */}
-          <div className="mt-3">
-            <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">Opponents</div>
+          <div className="mt-2">
+            <div className="text-[8px] uppercase text-neutral-500 tracking-[0.14em]">Opponents</div>
             <div className="mt-1 flex flex-wrap gap-1">
               {team.fixtureDifficulty.opponents.map((op) => (
-                <code key={op} className="rounded bg-white/5 px-1.5 py-[1px] text-[9px] text-neutral-300">
+                <code
+                  key={op}
+                  className="rounded bg-white/5 px-1.5 py-[1px] text-[8px] text-neutral-200"
+                >
                   {op}
                 </code>
               ))}
