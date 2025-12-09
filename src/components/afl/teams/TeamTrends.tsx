@@ -4,22 +4,31 @@ import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                         Sparkline Large Placeholder                         */
-/*    Soft luxury: subtle inner glow, gentle border, compact height           */
+/*                         Sparkline Compact Placeholder                      */
+/*   Soft luxury glass bar + top strip + tiny hover hint                     */
 /* -------------------------------------------------------------------------- */
 function SparklineLarge({ values }: { values: number[] }) {
   return (
-    <div className="relative h-10 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-800/70 via-neutral-900/80 to-black shadow-[0_0_0_1px_rgba(148,163,184,0.18)]">
+    <div className="relative h-10 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-800/70 via-neutral-900/80 to-black border border-slate-500/25 shadow-[0_6px_18px_rgba(0,0,0,0.65)] hover:border-slate-100/20 transition-colors duration-200">
+      {/* Top light strip */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-white/8" />
+
       {/* Soft top highlight */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-[radial-gradient(circle_at_top,_rgba(248,250,252,0.12),transparent_60%)]" />
-      {/* Very subtle bottom fade */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 via-black/0" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-[radial-gradient(circle_at_top,_rgba(248,250,252,0.12),transparent_65%)]" />
+
+      {/* Subtle bottom fade */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/0" />
+
+      {/* Tiny hover hint */}
+      <div className="pointer-events-none absolute bottom-1.5 left-2 rounded-full bg-black/70 px-2 py-[2px] text-[9px] font-medium text-neutral-300/80 opacity-0 backdrop-blur-sm transition-opacity duration-200 hover:opacity-100">
+        League trend • R1–R23
+      </div>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             TEAM TRENDS SECTION                             */
+/*                             TEAM TRENDS SECTION                            */
 /* -------------------------------------------------------------------------- */
 export default function TeamTrends() {
   const rounds = 23;
@@ -49,17 +58,15 @@ export default function TeamTrends() {
   }, [attackPoints]);
 
   // Placeholder: 40–70% forward-50 efficiency
-  const attackF50 = useMemo(() => {
-    return attackPoints.map(
-      () => Math.floor(40 + Math.random() * 30)
-    );
-  }, []);
+  const attackF50 = useMemo(
+    () => attackPoints.map(() => Math.floor(40 + Math.random() * 30)),
+    [attackPoints]
+  );
 
-  const attackTrend = useMemo(() => {
-    return attackPoints.map(
-      () => Math.floor(50 + Math.random() * 30)
-    );
-  }, []);
+  const attackTrend = useMemo(
+    () => attackPoints.map(() => Math.floor(50 + Math.random() * 30)),
+    [attackPoints]
+  );
 
   /* ---------------------------------------------------------------------- */
   /*                                 DEFENCE                                */
@@ -78,23 +85,20 @@ export default function TeamTrends() {
     return arr;
   }, []);
 
-  const pressureIndex = useMemo(() => {
-    return defenceConceded.map(
-      () => Math.floor(40 + Math.random() * 50)
-    );
-  }, []);
+  const pressureIndex = useMemo(
+    () => defenceConceded.map(() => Math.floor(40 + Math.random() * 50)),
+    [defenceConceded]
+  );
 
-  const interceptMarks = useMemo(() => {
-    return defenceConceded.map(
-      () => Math.floor(45 + Math.random() * 25)
-    );
-  }, []);
+  const interceptMarks = useMemo(
+    () => defenceConceded.map(() => Math.floor(45 + Math.random() * 25)),
+    [defenceConceded]
+  );
 
-  const defenceTrend = useMemo(() => {
-    return defenceConceded.map(
-      () => Math.floor(50 + Math.random() * 30)
-    );
-  }, []);
+  const defenceTrend = useMemo(
+    () => defenceConceded.map(() => Math.floor(50 + Math.random() * 30)),
+    [defenceConceded]
+  );
 
   /* ---------------------------------------------------------------------- */
   /*                                MIDFIELD                                */
@@ -115,51 +119,53 @@ export default function TeamTrends() {
     return arr;
   }, []);
 
-  const stoppageWins = useMemo(() => {
-    return contestedInfluence.map(
-      (v) => v - Math.floor(5 - Math.random() * 10)
-    );
-  }, [contestedInfluence]);
+  const stoppageWins = useMemo(
+    () =>
+      contestedInfluence.map(
+        (v) => v - Math.floor(5 - Math.random() * 10)
+      ),
+    [contestedInfluence]
+  );
 
-  const midfieldClearances = useMemo(() => {
-    return contestedInfluence.map(
-      () => Math.floor(35 + Math.random() * 20)
-    );
-  }, []);
+  const midfieldClearances = useMemo(
+    () => contestedInfluence.map(() => Math.floor(35 + Math.random() * 20)),
+    [contestedInfluence]
+  );
 
-  const midfieldTrend = useMemo(() => {
-    return contestedInfluence.map(
-      () => Math.floor(50 + Math.random() * 30)
-    );
-  }, []);
+  const midfieldTrend = useMemo(
+    () => contestedInfluence.map(() => Math.floor(50 + Math.random() * 30)),
+    [contestedInfluence]
+  );
 
   /* ---------------------------------------------------------------------- */
   /*                                   RUCK                                 */
   /* ---------------------------------------------------------------------- */
 
-  const ruckHitOuts = useMemo(() => {
-    return Array.from({ length: rounds }, () =>
-      Math.floor(35 + Math.random() * 20)
-    );
-  }, []);
+  const ruckHitOuts = useMemo(
+    () =>
+      Array.from({ length: rounds }, () =>
+        Math.floor(35 + Math.random() * 20)
+      ),
+    [rounds]
+  );
 
-  const ruckHitOutsAdv = useMemo(() => {
-    return ruckHitOuts.map(
-      () => Math.floor(8 + Math.random() * 10)
-    );
-  }, [ruckHitOuts]);
+  const ruckHitOutsAdv = useMemo(
+    () => ruckHitOuts.map(() => Math.floor(8 + Math.random() * 10)),
+    [ruckHitOuts]
+  );
 
-  const ruckClearances = useMemo(() => {
-    return Array.from({ length: rounds }, () =>
-      Math.floor(20 + Math.random() * 15)
-    );
-  }, []);
+  const ruckClearances = useMemo(
+    () =>
+      Array.from({ length: rounds }, () =>
+        Math.floor(20 + Math.random() * 15)
+      ),
+    [rounds]
+  );
 
-  const ruckTrend = useMemo(() => {
-    return ruckHitOuts.map(
-      () => Math.floor(50 + Math.random() * 30)
-    );
-  }, []);
+  const ruckTrend = useMemo(
+    () => ruckHitOuts.map(() => Math.floor(50 + Math.random() * 30)),
+    [ruckHitOuts]
+  );
 
   /* ---------------------------------------------------------------------- */
   /*                                 RENDER                                 */
@@ -167,15 +173,15 @@ export default function TeamTrends() {
 
   return (
     <section className="mt-14">
-      {/* Header pill */}
-      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.24),transparent_55%)] px-3 py-1 shadow-[0_0_18px_rgba(250,204,21,0.45)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.95)]" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
+      {/* Header pill (slightly softened glow) */}
+      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_12px_rgba(250,204,21,0.35)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
           Team Trends
         </span>
       </div>
 
-      <h2 className="mt-4 text-xl font-semibold text-neutral-50 md:text-2xl">
+      <h2 className="mt-4 text-2xl font-semibold text-neutral-50 md:text-3xl">
         League-wide evolution across all four key positions
       </h2>
 
@@ -184,71 +190,79 @@ export default function TeamTrends() {
         midfield control and ruck dominance.
       </p>
 
-      {/* 4 POSITIONAL CARDS — 2×2 GRID ON MD+ */}
-      <div className="mt-10 grid gap-8 md:grid-cols-2 lg:gap-10">
-        {/* ATTACK */}
-        <TrendBlock
-          title="Attack Trend"
-          icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
-          accent="#facc15"
-          description="Scoring output, expected conversion and forward-50 strength."
-          series={[
-            { label: "Points Scored", values: attackPoints },
-            { label: "Expected Score", values: attackExpected },
-            { label: "Forward-50 Efficiency (%)", values: attackF50 },
-            { label: "Trend", values: attackTrend },
-          ]}
-        />
+      {/* Meta sublabel for scope */}
+      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+        League averages • Last 23 rounds • Synthetic positional trend lenses
+      </p>
 
-        {/* DEFENCE */}
-        <TrendBlock
-          title="Defence Trend"
-          icon={<Shield className="h-4 w-4 text-teal-300" />}
-          accent="#5eead4"
-          description="Conceded scoring, pressure indicators and intercept capability."
-          series={[
-            { label: "Points Conceded", values: defenceConceded },
-            { label: "Pressure Index", values: pressureIndex },
-            { label: "Intercept Marks", values: interceptMarks },
-            { label: "Trend", values: defenceTrend },
-          ]}
-        />
+      {/* Panel wrapper with soft halo grouping the 4 cards */}
+      <div className="mt-8 rounded-[32px] border border-neutral-900/70 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.85),transparent_55%)] px-3 pb-6 pt-5 md:px-5 md:pb-7 md:pt-6">
+        {/* 4 POSITIONAL CARDS — 2×2 GRID ON MD+ */}
+        <div className="grid gap-8 md:grid-cols-2 lg:gap-10">
+          {/* ATTACK */}
+          <TrendBlock
+            title="Attack Trend"
+            icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
+            accent="#facc15" // warm gold
+            description="Scoring output, expected conversion and forward-50 strength."
+            series={[
+              { label: "Points Scored", values: attackPoints },
+              { label: "Expected Score", values: attackExpected },
+              { label: "Forward-50 Efficiency (%)", values: attackF50 },
+              { label: "Trend", values: attackTrend },
+            ]}
+          />
 
-        {/* MIDFIELD */}
-        <TrendBlock
-          title="Midfield Trend"
-          icon={<Activity className="h-4 w-4 text-orange-300" />}
-          accent="#fdba74"
-          description="Contested strength, stoppage craft and clearance control."
-          series={[
-            { label: "Contested Influence", values: contestedInfluence },
-            { label: "Stoppage Wins", values: stoppageWins },
-            { label: "Clearance", values: midfieldClearances },
-            { label: "Trend", values: midfieldTrend },
-          ]}
-        />
+          {/* DEFENCE */}
+          <TrendBlock
+            title="Defence Trend"
+            icon={<Shield className="h-4 w-4 text-teal-200" />}
+            accent="#38b2ac" // slightly desaturated teal
+            description="Conceded scoring, pressure indicators and intercept capability."
+            series={[
+              { label: "Points Conceded", values: defenceConceded },
+              { label: "Pressure Index", values: pressureIndex },
+              { label: "Intercept Marks", values: interceptMarks },
+              { label: "Trend", values: defenceTrend },
+            ]}
+          />
 
-        {/* RUCK */}
-        <TrendBlock
-          title="Ruck Trend"
-          icon={<MoveVertical className="h-4 w-4 text-purple-300" />}
-          accent="#c4b5fd"
-          description="Hit-out strength, advantage taps and ruck-led clearances."
-          series={[
-            { label: "Hit Outs", values: ruckHitOuts },
-            { label: "Hit Outs to Advantage", values: ruckHitOutsAdv },
-            { label: "Clearances", values: ruckClearances },
-            { label: "Trend", values: ruckTrend },
-          ]}
-        />
+          {/* MIDFIELD */}
+          <TrendBlock
+            title="Midfield Trend"
+            icon={<Activity className="h-4 w-4 text-orange-300" />}
+            accent="#fb923c" // amber/orange
+            description="Contested strength, stoppage craft and clearance control."
+            series={[
+              { label: "Contested Influence", values: contestedInfluence },
+              { label: "Stoppage Wins", values: stoppageWins },
+              { label: "Clearance", values: midfieldClearances },
+              { label: "Trend", values: midfieldTrend },
+            ]}
+          />
+
+          {/* RUCK */}
+          <TrendBlock
+            title="Ruck Trend"
+            icon={<MoveVertical className="h-4 w-4 text-purple-200" />}
+            accent="#8b5cf6" // softened purple
+            description="Hit-out strength, advantage taps and ruck-led clearances."
+            series={[
+              { label: "Hit Outs", values: ruckHitOuts },
+              { label: "Hit Outs to Advantage", values: ruckHitOutsAdv },
+              { label: "Clearances", values: ruckClearances },
+              { label: "Trend", values: ruckTrend },
+            ]}
+          />
+        </div>
       </div>
     </section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             TREND BLOCK COMPONENT                           */
-/*    Soft luxury cards: subtle accent glow, hover lift, tidy metric grid     */
+/*                             TREND BLOCK COMPONENT                          */
+/*   Softer glow, press state, tidy metric grid, label hierarchy              */
 /* -------------------------------------------------------------------------- */
 
 type TrendSeries = { label: string; values: number[] };
@@ -268,17 +282,17 @@ function TrendBlock({
 }) {
   return (
     <div
-      className="group relative rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/85 via-black to-black/95 p-5 shadow-[0_32px_80px_rgba(0,0,0,0.85)] transition-all duration-300 hover:-translate-y-1 hover:border-neutral-700 hover:shadow-[0_26px_70px_rgba(0,0,0,0.95)] md:p-6"
+      className="group relative rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/85 via-black to-black/95 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] transition-all duration-300 hover:-translate-y-[3px] hover:border-neutral-700 hover:shadow-[0_26px_60px_rgba(0,0,0,0.92)] active:translate-y-0 active:scale-[0.995] md:p-6"
       style={{
         boxShadow:
-          "0 26px 70px rgba(0,0,0,0.95), 0 0 32px rgba(15,23,42,0.66)",
+          "0 20px 50px rgba(0,0,0,0.8), 0 0 24px rgba(15,23,42,0.6)",
       }}
     >
       {/* Accent halo */}
       <div
         className="pointer-events-none absolute -inset-px rounded-[26px] opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
         style={{
-          background: `radial-gradient(circle_at_top, ${accent}26, transparent 60%)`,
+          background: `radial-gradient(circle_at_top, ${accent}1a, transparent 60%)`,
         }}
       />
 
@@ -287,21 +301,21 @@ function TrendBlock({
         {/* Header row with accent bar */}
         <div className="flex items-center gap-3">
           <div
-            className="h-6 w-0.5 rounded-full"
+            className="h-4 w-[3px] rounded-full"
             style={{
               background: `linear-gradient(to bottom, ${accent}, transparent)`,
-              boxShadow: `0 0 14px ${accent}aa`,
+              boxShadow: `0 0 10px ${accent}aa`,
             }}
           />
           <div className="flex items-center gap-2">
             {icon}
-            <h3 className="text-sm font-semibold text-neutral-50 md:text-base">
+            <h3 className="text-base font-semibold text-neutral-50 md:text-lg">
               {title}
             </h3>
           </div>
         </div>
 
-        <p className="mt-1 max-w-xl text-[11px] text-neutral-400 md:text-xs">
+        <p className="mt-1 max-w-xl text-[11px] text-neutral-300 leading-snug md:text-xs">
           {description}
         </p>
 
@@ -309,15 +323,43 @@ function TrendBlock({
         <div className="mt-4 border-t border-neutral-800/70 pt-4 md:mt-5 md:pt-5" />
 
         {/* 2-COLUMN METRIC GRID */}
-        <div className="grid gap-4 md:grid-cols-2 md:gap-5">
-          {series.map((s) => (
-            <div key={s.label} className="space-y-2">
-              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500 md:text-[10px]">
-                {s.label}
+        <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
+          {series.map((s, index) => {
+            const isTrend = s.label.toLowerCase() === "trend";
+
+            return (
+              <div
+                key={s.label}
+                className={
+                  // On md+, add slight inner separation on right column
+                  index % 2 === 1
+                    ? "space-y-2 md:border-l md:border-neutral-900/70 md:pl-4"
+                    : "space-y-2 md:pr-4"
+                }
+              >
+                <div
+                  className={`text-[9px] md:text-[10px] uppercase tracking-[0.18em] ${
+                    isTrend
+                      ? "text-neutral-400"
+                      : "text-neutral-500"
+                  }`}
+                >
+                  {/* Small coloured dot only on Trend label */}
+                  {isTrend ? (
+                    <span
+                      className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                      style={{
+                        background: accent,
+                        boxShadow: `0 0 8px ${accent}a0`,
+                      }}
+                    />
+                  ) : null}
+                  {s.label}
+                </div>
+                <SparklineLarge values={s.values} />
               </div>
-              <SparklineLarge values={s.values} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
