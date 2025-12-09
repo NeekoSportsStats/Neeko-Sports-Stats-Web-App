@@ -5,10 +5,16 @@ import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*                         Sparkline Large Placeholder                         */
+/*    Soft luxury: subtle inner glow, gentle border, compact height           */
 /* -------------------------------------------------------------------------- */
 function SparklineLarge({ values }: { values: number[] }) {
   return (
-    <div className="h-10 w-full rounded-xl bg-gradient-to-b from-neutral-800/40 to-black shadow-inner" />
+    <div className="relative h-10 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-800/70 via-neutral-900/80 to-black shadow-[0_0_0_1px_rgba(148,163,184,0.18)]">
+      {/* Soft top highlight */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-[radial-gradient(circle_at_top,_rgba(248,250,252,0.12),transparent_60%)]" />
+      {/* Very subtle bottom fade */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 via-black/0" />
+    </div>
   );
 }
 
@@ -161,10 +167,10 @@ export default function TeamTrends() {
 
   return (
     <section className="mt-14">
-      {/* Header */}
-      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/40 bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent px-3 py-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.8)]" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
+      {/* Header pill */}
+      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.24),transparent_55%)] px-3 py-1 shadow-[0_0_18px_rgba(250,204,21,0.45)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.95)]" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
           Team Trends
         </span>
       </div>
@@ -184,6 +190,7 @@ export default function TeamTrends() {
         <TrendBlock
           title="Attack Trend"
           icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
+          accent="#facc15"
           description="Scoring output, expected conversion and forward-50 strength."
           series={[
             { label: "Points Scored", values: attackPoints },
@@ -197,6 +204,7 @@ export default function TeamTrends() {
         <TrendBlock
           title="Defence Trend"
           icon={<Shield className="h-4 w-4 text-teal-300" />}
+          accent="#5eead4"
           description="Conceded scoring, pressure indicators and intercept capability."
           series={[
             { label: "Points Conceded", values: defenceConceded },
@@ -210,6 +218,7 @@ export default function TeamTrends() {
         <TrendBlock
           title="Midfield Trend"
           icon={<Activity className="h-4 w-4 text-orange-300" />}
+          accent="#fdba74"
           description="Contested strength, stoppage craft and clearance control."
           series={[
             { label: "Contested Influence", values: contestedInfluence },
@@ -223,6 +232,7 @@ export default function TeamTrends() {
         <TrendBlock
           title="Ruck Trend"
           icon={<MoveVertical className="h-4 w-4 text-purple-300" />}
+          accent="#c4b5fd"
           description="Hit-out strength, advantage taps and ruck-led clearances."
           series={[
             { label: "Hit Outs", values: ruckHitOuts },
@@ -238,39 +248,77 @@ export default function TeamTrends() {
 
 /* -------------------------------------------------------------------------- */
 /*                             TREND BLOCK COMPONENT                           */
+/*    Soft luxury cards: subtle accent glow, hover lift, tidy metric grid     */
 /* -------------------------------------------------------------------------- */
+
+type TrendSeries = { label: string; values: number[] };
 
 function TrendBlock({
   title,
   icon,
   description,
+  accent,
   series,
 }: {
   title: string;
   icon: React.ReactNode;
   description: string;
-  series: { label: string; values: number[] }[];
+  accent: string; // hex colour string for glow
+  series: TrendSeries[];
 }) {
   return (
-    <div className="rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/80 to-black p-6 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        {icon}
-        <h3 className="text-lg font-semibold text-neutral-50">{title}</h3>
-      </div>
+    <div
+      className="group relative rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/85 via-black to-black/95 p-5 shadow-[0_32px_80px_rgba(0,0,0,0.85)] transition-all duration-300 hover:-translate-y-1 hover:border-neutral-700 hover:shadow-[0_26px_70px_rgba(0,0,0,0.95)] md:p-6"
+      style={{
+        boxShadow:
+          "0 26px 70px rgba(0,0,0,0.95), 0 0 32px rgba(15,23,42,0.66)",
+      }}
+    >
+      {/* Accent halo */}
+      <div
+        className="pointer-events-none absolute -inset-px rounded-[26px] opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+        style={{
+          background: `radial-gradient(circle_at_top, ${accent}26, transparent 60%)`,
+        }}
+      />
 
-      <p className="mt-1 max-w-xl text-xs text-neutral-400">{description}</p>
-
-      {/* 2-COLUMN METRIC GRID */}
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
-        {series.map((s) => (
-          <div key={s.label} className="space-y-2">
-            <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-              {s.label}
-            </div>
-            <SparklineLarge values={s.values} />
+      {/* Content */}
+      <div className="relative">
+        {/* Header row with accent bar */}
+        <div className="flex items-center gap-3">
+          <div
+            className="h-6 w-0.5 rounded-full"
+            style={{
+              background: `linear-gradient(to bottom, ${accent}, transparent)`,
+              boxShadow: `0 0 14px ${accent}aa`,
+            }}
+          />
+          <div className="flex items-center gap-2">
+            {icon}
+            <h3 className="text-sm font-semibold text-neutral-50 md:text-base">
+              {title}
+            </h3>
           </div>
-        ))}
+        </div>
+
+        <p className="mt-1 max-w-xl text-[11px] text-neutral-400 md:text-xs">
+          {description}
+        </p>
+
+        {/* Divider before metrics */}
+        <div className="mt-4 border-t border-neutral-800/70 pt-4 md:mt-5 md:pt-5" />
+
+        {/* 2-COLUMN METRIC GRID */}
+        <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+          {series.map((s) => (
+            <div key={s.label} className="space-y-2">
+              <div className="text-[9px] uppercase tracking-[0.18em] text-neutral-500 md:text-[10px]">
+                {s.label}
+              </div>
+              <SparklineLarge values={s.values} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
