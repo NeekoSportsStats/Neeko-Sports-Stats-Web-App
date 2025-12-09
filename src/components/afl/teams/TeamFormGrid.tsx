@@ -79,15 +79,17 @@ const metricPrefix: Record<Metric, string> = {
 
 /* Improved colour grading */
 const badgeStyles: Record<Variant, string> = {
-  hot: "bg-yellow-400/15 border border-yellow-400/30 text-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.25)]",
-  stable: "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
-  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
+  hot: "bg-yellow-400/18 border border-yellow-400/35 text-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.35)]",
+  stable:
+    "bg-emerald-400/18 border border-emerald-400/35 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.32)]",
+  cold: "bg-sky-400/18 border border-sky-400/35 text-sky-200 shadow-[0_0_10px_rgba(56,189,248,0.35)]",
 };
 
+/* Stronger whole-card halo per variant */
 const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_22px_rgba(245,200,30,0.12)]",
-  stable: "shadow-[0_0_22px_rgba(60,220,150,0.12)]",
-  cold: "shadow-[0_0_22px_rgba(0,180,255,0.12)]",
+  hot: "shadow-[0_0_32px_rgba(250,204,21,0.32)]",
+  stable: "shadow-[0_0_32px_rgba(52,211,153,0.30)]",
+  cold: "shadow-[0_0_32px_rgba(56,189,248,0.34)]",
 };
 
 function formatMetric(value: number): string {
@@ -138,10 +140,9 @@ export default function TeamFormGrid() {
 
   return (
     <section className="mt-16">
-      <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-
+      <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
         {/* Header */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_14px_rgba(250,204,21,0.3)] backdrop-blur-[2px]">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_18px_rgba(250,204,21,0.35)] backdrop-blur-[2px]">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
             Team Form Grid
@@ -153,7 +154,8 @@ export default function TeamFormGrid() {
         </h2>
 
         <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between different lenses to reveal movement and trends. Click cards to reveal deeper analytics.
+          Switch between different lenses to reveal movement and trends. Click cards
+          to reveal deeper analytics.
         </p>
 
         {/* Metric Tabs */}
@@ -165,7 +167,9 @@ export default function TeamFormGrid() {
                 key={m}
                 onClick={() => setMetric(m)}
                 className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${
-                  active ? "text-black" : "text-neutral-400 hover:text-neutral-100"
+                  active
+                    ? "text-black"
+                    : "text-neutral-400 hover:text-neutral-100"
                 }`}
               >
                 {active && (
@@ -282,7 +286,8 @@ function TeamFormCard({
   const barWidth = intensityWidth(score);
 
   const attackDelta =
-    team.scores[team.scores.length - 1] - team.scores[team.scores.length - 2];
+    team.scores[team.scores.length - 1] -
+    team.scores[team.scores.length - 2];
 
   const defenceDelta =
     team.margins[team.margins.length - 1] -
@@ -293,7 +298,7 @@ function TeamFormCard({
 
   return (
     <div
-      className={`relative min-h-[178px] cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]}`}
+      className={`relative min-h-[180px] cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]} hover:-translate-y-[2px]`}
       onClick={() => setFlipped(!flipped)}
     >
       <div
@@ -301,7 +306,6 @@ function TeamFormCard({
           flipped ? "[transform:rotateY(180deg)]" : ""
         }`}
       >
-
         {/* FRONT */}
         <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
           <div className="flex items-start justify-between">
@@ -324,8 +328,8 @@ function TeamFormCard({
             </div>
           </div>
 
-          <div className="mt-3">
-            <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
+          <div className="mt-2.5">
+            <div className="relative h-2 w-full overflow-hidden rounded-full bg-neutral-800/80">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
                   variant === "hot"
@@ -339,7 +343,7 @@ function TeamFormCard({
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
+          <div className="mt-2.5 flex items-center justify-between text-[9px] uppercase tracking-[0.14em] text-neutral-500">
             <span>{metricLabels[metric]}</span>
             <span className="flex items-center gap-1 text-neutral-400">
               <span className="hidden sm:inline">Analytics</span>
@@ -349,10 +353,9 @@ function TeamFormCard({
         </div>
 
         {/* BACK */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-
+        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-2xl border border-white/8 bg-black/70 px-4 py-4 backdrop-blur-[6px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
           {/* Header */}
-          <div className="flex items-start justify-between mb-1">
+          <div className="mb-2 flex items-start justify-between">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
                 {team.name}
@@ -376,8 +379,7 @@ function TeamFormCard({
           </div>
 
           {/* Stats Grid */}
-          <div className="mt-3 grid grid-cols-3 gap-y-2 gap-x-4 text-[11px] text-neutral-300 leading-snug">
-
+          <div className="mt-4 grid grid-cols-3 gap-y-2.5 gap-x-5 text-[11px] leading-snug text-neutral-300">
             <div>
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 Attack Δ
@@ -423,12 +425,14 @@ function TeamFormCard({
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 Fixture
               </div>
-              <div className="font-semibold">{team.fixtureDifficulty.score}</div>
+              <div className="font-semibold">
+                {team.fixtureDifficulty.score}
+              </div>
             </div>
           </div>
 
           {/* Opponents */}
-          <div className="mt-3">
+          <div className="mt-4">
             <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
               Opponents
             </div>
@@ -436,7 +440,7 @@ function TeamFormCard({
               {team.fixtureDifficulty.opponents.map((op) => (
                 <code
                   key={op}
-                  className="rounded bg-white/5 px-1.5 py-[1px] text-[9px] text-neutral-300"
+                  className="rounded bg-white/6 px-1.5 py-[1px] text-[9px] text-neutral-200"
                 >
                   {op}
                 </code>
@@ -444,9 +448,8 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* NO FOOTER — Removed for cleaner premium look */}
+          {/* No footer – clean back panel */}
         </div>
-
       </div>
     </div>
   );
