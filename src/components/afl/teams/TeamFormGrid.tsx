@@ -69,6 +69,7 @@ function getModeSeries(team: ClassifiedTeam, mode: FilterMode): number[] {
       return team.disposals;
     case "goals":
       return team.goals;
+    case "momentum":
     default:
       return team.margins;
   }
@@ -88,7 +89,7 @@ function getModeMetric(team: ClassifiedTeam, mode: FilterMode): number {
 function partitionTeamsByMode(
   teams: ClassifiedTeam[],
   mode: FilterMode
-) {
+): { hot: ClassifiedTeam[]; stable: ClassifiedTeam[]; cold: ClassifiedTeam[] } {
   const scored = teams.map((team) => ({
     team,
     metric: getModeMetric(team, mode),
@@ -99,7 +100,6 @@ function partitionTeamsByMode(
 
   const hot = sorted.slice(0, 3).map((x) => x.team);
   const cold = sorted.slice(n - 3).map((x) => x.team);
-
   const midStart = Math.floor(n / 2) - 1;
   const stable = sorted.slice(midStart, midStart + 3).map((x) => x.team);
 
@@ -111,8 +111,9 @@ function partitionTeamsByMode(
 /* -------------------------------------------------------------------------- */
 
 function SparklineSmall({ values }: { values: number[] }) {
+  // Still a placeholder "track" style – works nicely under the pill layout
   return (
-    <div className="h-8 w-full rounded-md border border-black/60 bg-gradient-to-b from-neutral-800/40 via-neutral-900 to-black shadow-inner shadow-black/70" />
+    <div className="h-2 w-full rounded-full bg-gradient-to-r from-neutral-800/80 via-neutral-900 to-black shadow-inner shadow-black/70" />
   );
 }
 
@@ -130,8 +131,8 @@ export default function TeamFormGrid() {
   );
 
   return (
-    <section className="mt-12 rounded-3xl border border-yellow-500/15 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-8 shadow-[0_0_80px_rgba(0,0,0,0.85)]">
-      {/* Header */}
+    <section className="mt-12 rounded-3xl border border-yellow-500/18 bg-gradient-to-b from-neutral-950/95 via-black/96 to-black px-5 py-8 shadow-[0_0_80px_rgba(0,0,0,0.85)]">
+      {/* Header + filters */}
       <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <div
@@ -152,14 +153,14 @@ export default function TeamFormGrid() {
           </h2>
 
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Switch between momentum, fantasy, disposals and goals to see
-            how each club is trending.
+            Switch between momentum, fantasy, disposals and goals to see how
+            each club is trending across different metrics.
           </p>
 
           <div className="mt-3 h-px w-40 bg-gradient-to-r from-yellow-500/90 via-yellow-300/60 to-transparent" />
         </div>
 
-        {/* Filter pill */}
+        {/* Filter pill control */}
         <div className="flex justify-start md:justify-end">
           <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700/70 bg-black/70 px-1 py-1">
             {MODE_LABELS.map((m) => {
@@ -183,12 +184,14 @@ export default function TeamFormGrid() {
         </div>
       </div>
 
-      {/* Columns */}
+      {/* Columns grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <FormColumn
           title="Hot Teams"
           tone="hot"
-          icon={<Flame className="h-4 w-4 text-amber-300" />}
+          icon={
+            <Flame className="h-4 w-4 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+          }
           teams={hot}
           mode={mode}
         />
@@ -196,7 +199,9 @@ export default function TeamFormGrid() {
         <FormColumn
           title="Stable Teams"
           tone="stable"
-          icon={<CircleDot className="h-4 w-4 text-lime-300" />}
+          icon={
+            <CircleDot className="h-4 w-4 text-lime-300 drop-shadow-[0_0_7px_rgba(190,242,100,0.6)]" />
+          }
           teams={stable}
           mode={mode}
         />
@@ -204,7 +209,9 @@ export default function TeamFormGrid() {
         <FormColumn
           title="Cold Teams"
           tone="cold"
-          icon={<Snowflake className="h-4 w-4 text-sky-300" />}
+          icon={
+            <Snowflake className="h-4 w-4 text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
+          }
           teams={cold}
           mode={mode}
         />
@@ -277,6 +284,20 @@ function FormCard({
   const attackUp = team.attackDelta >= 0;
   const defenceUp = team.defenceDelta >= 0;
 
+  const toneBorder =
+    tone === "hot"
+      ? "border-amber-400/35"
+      : tone === "stable"
+      ? "border-lime-400/35"
+      : "border-sky-400/35";
+
+  const toneGlow =
+    tone === "hot"
+      ? "shadow-[0_0_32px_rgba(251,191,36,0.28)]"
+      : tone === "stable"
+      ? "shadow-[0_0_32px_rgba(74,222,128,0.28)]"
+      : "shadow-[0_0_32px_rgba(56,189,248,0.32)]";
+
   const toneArrow =
     tone === "hot"
       ? "text-amber-300"
@@ -301,13 +322,18 @@ function FormCard({
 
   return (
     <div
-      className={`group relative h-full rounded-2xl border bg-gradient-to-b from-neutral-950/95 via-black/98 to-black px-4 py-3 overflow-hidden`}
+      className={`group relative h-full overflow-hidden rounded-full border bg-gradient-to-r from-neutral-900/95 via-black/98 to-neutral-900/95 px-4 py-2.5 ${toneBorder} ${toneGlow}`}
     >
-      {/* Team tint */}
+      {/* subtle tinted glow across the bar */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.09]"
+        className="pointer-events-none absolute inset-0 opacity-[0.18]"
         style={{
-          background: `radial-gradient(circle at 12% 0%, ${team.colours.primary}, transparent 65%)`,
+          background:
+            tone === "hot"
+              ? "radial-gradient(circle at 0% 0%, rgba(251,191,36,0.55), transparent 60%)"
+              : tone === "stable"
+              ? "radial-gradient(circle at 0% 0%, rgba(74,222,128,0.55), transparent 60%)"
+              : "radial-gradient(circle at 0% 0%, rgba(56,189,248,0.6), transparent 60%)",
         }}
       />
 
@@ -318,22 +344,112 @@ function FormCard({
         onClick={() => setFlipped((v) => !v)}
       >
         <div
-          className={`relative h-full w-full transition-transform duration-500
-            [transform-style:preserve-3d]
-            md:group-hover:[transform:rotateY(180deg)]
-            ${flipped ? "[transform:rotateY(180deg)]" : ""}
-          `}
+          className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] md:group-hover:[transform:rotateY(180deg)] ${
+            flipped ? "[transform:rotateY(180deg)]" : ""
+          }`}
         >
-          {/* FRONT */}
-          <div className="absolute inset-0 [backface-visibility:hidden]">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-neutral-50">
+          {/* FRONT: compact bar layout */}
+          <div className="absolute inset-0 flex flex-col justify-center [backface-visibility:hidden]">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-neutral-50">
                   {team.name}
                 </div>
-                <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                  {modeLabel} • last 5 rounds
+                <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                  {modeLabel} • last 5
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="hidden text-right text-[10px] text-neutral-400 sm:block">
+                  <div>{shortLabel}</div>
+                  <div
+                    className={`mt-0.5 font-semibold ${
+                      deltaShort >= 0 ? "text-lime-300" : "text-red-300"
+                    }`}
+                  >
+                    {deltaShort >= 0 ? "+" : ""}
+                    {deltaShort.toFixed(0)}
+                  </div>
+                </div>
+                {trendUp ? (
+                  <ArrowUpRight className={`h-5 w-5 ${toneArrow}`} />
+                ) : (
+                  <ArrowDownRight className={`h-5 w-5 ${toneArrow}`} />
+                )}
+              </div>
+            </div>
+
+            {/* compact bar track */}
+            <div className="mt-2">
+              <SparklineSmall values={series5} />
+            </div>
+
+            {/* tiny stat row for momentum vs others */}
+            <div className="mt-1.5 flex items-center justify-between text-[10px] text-neutral-400">
+              {mode === "momentum" ? (
+                <>
+                  <span>
+                    Attack Δ{" "}
+                    <span
+                      className={`font-semibold ${
+                        attackUp ? "text-lime-300" : "text-red-300"
+                      }`}
+                    >
+                      {attackUp ? "+" : ""}
+                      {team.attackDelta}
+                    </span>
+                  </span>
+                  <span>
+                    Defence Δ{" "}
+                    <span
+                      className={`font-semibold ${
+                        defenceUp ? "text-lime-300" : "text-red-300"
+                      }`}
+                    >
+                      {defenceUp ? "+" : ""}
+                      {team.defenceDelta}
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    Last Δ{" "}
+                    <span
+                      className={`font-semibold ${
+                        deltaShort >= 0 ? "text-lime-300" : "text-red-300"
+                      }`}
+                    >
+                      {deltaShort >= 0 ? "+" : ""}
+                      {deltaShort.toFixed(0)}
+                    </span>
+                  </span>
+                  <span>
+                    3-Rd Δ{" "}
+                    <span
+                      className={`font-semibold ${
+                        deltaLong >= 0 ? "text-lime-300" : "text-red-300"
+                      }`}
+                    >
+                      {deltaLong >= 0 ? "+" : ""}
+                      {deltaLong.toFixed(0)}
+                    </span>
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* BACK: analytics */}
+          <div className="absolute inset-0 flex h-full flex-col justify-center rounded-full bg-black/90 px-4 py-2.5 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-neutral-50">
+                  {team.name} analytics
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                  {modeLabel} snapshot
                 </div>
               </div>
               {trendUp ? (
@@ -343,144 +459,56 @@ function FormCard({
               )}
             </div>
 
-            {/* Sparkline */}
-            <div className="mt-3">
-              <SparklineSmall values={series5} />
-            </div>
-
-            {/* Deltas */}
-            <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-neutral-300">
-              {mode === "momentum" ? (
-                <>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      Attack Δ
-                    </div>
-                    <div
-                      className={`mt-1 font-semibold ${
-                        attackUp ? "text-lime-300" : "text-red-300"
-                      }`}
-                    >
-                      {attackUp ? "+" : ""}
-                      {team.attackDelta}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      Defence Δ
-                    </div>
-                    <div
-                      className={`mt-1 font-semibold ${
-                        defenceUp ? "text-lime-300" : "text-red-300"
-                      }`}
-                    >
-                      {defenceUp ? "+" : ""}
-                      {team.defenceDelta}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      {shortLabel}
-                    </div>
-                    <div
-                      className={`mt-1 font-semibold ${
-                        deltaShort >= 0 ? "text-lime-300" : "text-red-300"
-                      }`}
-                    >
-                      {deltaShort >= 0 ? "+" : ""}
-                      {deltaShort.toFixed(0)}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      {longLabel}
-                    </div>
-                    <div
-                      className={`mt-1 font-semibold ${
-                        deltaLong >= 0 ? "text-lime-300" : "text-red-300"
-                      }`}
-                    >
-                      {deltaLong >= 0 ? "+" : ""}
-                      {deltaLong.toFixed(0)}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="mt-3 text-[10px] text-neutral-500">
-              Tap to view analytics
-            </div>
-          </div>
-
-          {/* BACK */}
-          <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
-            <div className="flex h-full flex-col justify-between">
-              <div>
-                <div className="text-sm font-semibold text-neutral-50">
-                  {team.name} analytics
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                  {modeLabel} form snapshot
-                </div>
+            <div className="mt-2 space-y-1.5 text-[10px] text-neutral-300">
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">
+                  {modeLabel} score (3–4 rd avg)
+                </span>
+                <span
+                  className={`font-semibold ${
+                    trendUp ? "text-lime-300" : "text-red-300"
+                  }`}
+                >
+                  {modeMetric.toFixed(1)}
+                </span>
               </div>
 
-              <div className="mt-3 space-y-2 text-[11px] text-neutral-300">
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">
-                    {modeLabel} score (last 3–4 avg)
-                  </span>
-                  <span
-                    className={`font-semibold ${
-                      trendUp ? "text-lime-300" : "text-red-300"
-                    }`}
-                  >
-                    {modeMetric.toFixed(1)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">
-                    Volatility (last 5)
-                  </span>
-                  <span className="font-semibold text-neutral-200">
-                    {volatility.toFixed(1)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">{shortLabel}</span>
-                  <span
-                    className={`font-semibold ${
-                      deltaShort >= 0 ? "text-lime-300" : "text-red-300"
-                    }`}
-                  >
-                    {deltaShort >= 0 ? "+" : ""}
-                    {deltaShort.toFixed(0)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-400">{longLabel}</span>
-                  <span
-                    className={`font-semibold ${
-                      deltaLong >= 0 ? "text-lime-300" : "text-red-300"
-                    }`}
-                  >
-                    {deltaLong >= 0 ? "+" : ""}
-                    {deltaLong.toFixed(0)}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">
+                  Volatility (last 5)
+                </span>
+                <span className="font-semibold text-neutral-200">
+                  {volatility.toFixed(1)}
+                </span>
               </div>
 
-              <div className="mt-3 text-[10px] text-neutral-500">
-                Tap again to flip back
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">{shortLabel}</span>
+                <span
+                  className={`font-semibold ${
+                    deltaShort >= 0 ? "text-lime-300" : "text-red-300"
+                  }`}
+                >
+                  {deltaShort >= 0 ? "+" : ""}
+                  {deltaShort.toFixed(0)}
+                </span>
               </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">{longLabel}</span>
+                <span
+                  className={`font-semibold ${
+                    deltaLong >= 0 ? "text-lime-300" : "text-red-300"
+                  }`}
+                >
+                  {deltaLong >= 0 ? "+" : ""}
+                  {deltaLong.toFixed(0)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-2 text-[10px] text-neutral-500">
+              Tap again to flip back.
             </div>
           </div>
         </div>
