@@ -4,7 +4,7 @@ import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                    Sparkline Compact (Smoothed Bloomberg-style)            */
+/*                           Sparkline (smoothed line)                         */
 /* -------------------------------------------------------------------------- */
 
 function buildSmoothPath(
@@ -105,6 +105,96 @@ function SparklineLarge({
 }
 
 /* -------------------------------------------------------------------------- */
+/*                        Metric summary (5-round smoothing)                  */
+/* -------------------------------------------------------------------------- */
+
+type TrendDirection = "up" | "down" | "flat";
+
+type MetricSummary = {
+  current: number; // last 5-round average
+  deltaPct: number | null; // last5 vs prev5
+  direction: TrendDirection; // arrow direction based on delta sign
+  isGood: boolean | null; // whether that change is good for this metric
+};
+
+function average(arr: number[]): number {
+  if (!arr.length) return 0;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+/**
+ * goodDirection:
+ *  - "up"   => higher is better (attack, midfield, ruck, pressure, intercepts)
+ *  - "down" => lower is better (points conceded etc.)
+ */
+function computeMetricSummary(
+  values: number[],
+  goodDirection: "up" | "down"
+): MetricSummary {
+  if (!values.length) {
+    return {
+      current: 0,
+      deltaPct: null,
+      direction: "flat",
+      isGood: null,
+    };
+  }
+
+  if (values.length < 10) {
+    // Not enough history: just use overall average and no delta
+    const current = average(values);
+    return {
+      current,
+      deltaPct: null,
+      direction: "flat",
+      isGood: null,
+    };
+  }
+
+  const last5 = values.slice(-5);
+  const prev5 = values.slice(-10, -5);
+
+  const lastAvg = average(last5);
+  const prevAvg = average(prev5);
+
+  if (prevAvg === 0) {
+    return {
+      current: lastAvg,
+      deltaPct: null,
+      direction: "flat",
+      isGood: null,
+    };
+  }
+
+  const delta = lastAvg - prevAvg;
+  const deltaPct = (delta / prevAvg) * 100;
+  let direction: TrendDirection = "flat";
+
+  if (deltaPct > 0.1) direction = "up";
+  else if (deltaPct < -0.1) direction = "down";
+
+  const isGood =
+    goodDirection === "up"
+      ? deltaPct >= 0
+      : deltaPct <= 0;
+
+  return {
+    current: lastAvg,
+    deltaPct,
+    direction,
+    isGood,
+  };
+}
+
+function formatNumber(value: number, isPercentMetric: boolean): string {
+  if (isPercentMetric) {
+    return `${value.toFixed(1)}%`;
+  }
+  // For points etc. 1 decimal looks good at this scale
+  return value.toFixed(1);
+}
+
+/* -------------------------------------------------------------------------- */
 /*                             TEAM TRENDS SECTION                            */
 /* -------------------------------------------------------------------------- */
 export default function TeamTrends() {
@@ -125,7 +215,7 @@ export default function TeamTrends() {
       );
     }
     return arr;
-  }, []);
+  }, [rounds]);
 
   const attackExpected = useMemo(() => {
     return attackPoints.map((v, i) => {
@@ -134,7 +224,6 @@ export default function TeamTrends() {
     });
   }, [attackPoints]);
 
-  // Placeholder: 40–70% forward-50 efficiency
   const attackF50 = useMemo(
     () => attackPoints.map(() => Math.floor(40 + Math.random() * 30)),
     [attackPoints]
@@ -160,7 +249,7 @@ export default function TeamTrends() {
       );
     }
     return arr;
-  }, []);
+  }, [rounds]);
 
   const pressureIndex = useMemo(
     () => defenceConceded.map(() => Math.floor(40 + Math.random() * 50)),
@@ -194,7 +283,7 @@ export default function TeamTrends() {
       );
     }
     return arr;
-  }, []);
+  }, [rounds]);
 
   const stoppageWins = useMemo(
     () =>
@@ -250,86 +339,156 @@ export default function TeamTrends() {
 
   return (
     <section className="mt-14">
-      {/* Header pill (slightly softened glow) */}
-      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_12px_rgba(250,204,21,0.35)]">
-        <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
-          Team Trends
-        </span>
-      </div>
+      {/* Entire section glass panel with gold outline */}
+      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/35 bg-[radial-gradient(circle_at_top,_rgba(17,24,39,0.96),transparent_60%)] px-4 pb-7 pt-5 shadow-[0_28px_80px_rgba(0,0,0,0.9)] md:px-7 md:pb-9 md:pt-7">
+        {/* Soft outer halo */}
+        <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] opacity-60" />
 
-      <h2 className="mt-4 text-2xl font-semibold text-neutral-50 md:text-3xl">
-        League-wide evolution across all four key positions
-      </h2>
+        {/* Content */}
+        <div className="relative">
+          {/* Header pill */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_12px_rgba(250,204,21,0.35)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
+              Team Trends
+            </span>
+          </div>
 
-      <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-        Rolling trends highlighting attacking quality, defensive solidity,
-        midfield control and ruck dominance.
-      </p>
+          <h2 className="mt-4 text-2xl font-semibold text-neutral-50 md:text-3xl">
+            League-wide evolution across all four key positions
+          </h2>
 
-      {/* Meta sublabel for scope */}
-      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-        League averages • Last 23 rounds • Synthetic positional trend lenses
-      </p>
+          <p className="mt-2 max-w-2xl text-xs text-neutral-400">
+            Rolling trends highlighting attacking quality, defensive solidity,
+            midfield control and ruck dominance.
+          </p>
 
-      {/* Panel wrapper with soft halo grouping the 4 cards */}
-      <div className="mt-8 rounded-[32px] border border-neutral-900/70 bg-[radial-gradient(circle_at_top,_rgba(30,41,59,0.92),transparent_55%)] px-3 pb-6 pt-5 md:px-5 md:pb-7 md:pt-6">
-        <div className="grid gap-8 md:grid-cols-2 lg:gap-10">
-          {/* ATTACK */}
-          <TrendBlock
-            title="Attack Trend"
-            icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
-            accent="#facc15"
-            description="Scoring output, expected conversion and forward-50 strength."
-            series={[
-              { label: "Points Scored", values: attackPoints },
-              { label: "Expected Score", values: attackExpected },
-              { label: "Forward-50 Efficiency (%)", values: attackF50 },
-              { label: "Trend", values: attackTrend },
-            ]}
-          />
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+            League averages • Last 23 rounds • Synthetic positional trend lenses
+          </p>
 
-          {/* DEFENCE */}
-          <TrendBlock
-            title="Defence Trend"
-            icon={<Shield className="h-4 w-4 text-teal-200" />}
-            accent="#38b2ac"
-            description="Conceded scoring, pressure indicators and intercept capability."
-            series={[
-              { label: "Points Conceded", values: defenceConceded },
-              { label: "Pressure Index", values: pressureIndex },
-              { label: "Intercept Marks", values: interceptMarks },
-              { label: "Trend", values: defenceTrend },
-            ]}
-          />
+          {/* Grid of positional cards */}
+          <div className="mt-8 grid gap-8 md:grid-cols-2 lg:gap-10">
+            {/* ATTACK */}
+            <TrendBlock
+              title="Attack Trend"
+              icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
+              accent="#FACC15"
+              description="Scoring output, expected conversion and forward-50 strength."
+              series={[
+                {
+                  label: "Points Scored",
+                  values: attackPoints,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Expected Score",
+                  values: attackExpected,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Forward-50 Efficiency (%)",
+                  values: attackF50,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Trend",
+                  values: attackTrend,
+                  goodDirection: "up",
+                },
+              ]}
+            />
 
-          {/* MIDFIELD */}
-          <TrendBlock
-            title="Midfield Trend"
-            icon={<Activity className="h-4 w-4 text-orange-300" />}
-            accent="#fb923c"
-            description="Contested strength, stoppage craft and clearance control."
-            series={[
-              { label: "Contested Influence", values: contestedInfluence },
-              { label: "Stoppage Wins", values: stoppageWins },
-              { label: "Clearance", values: midfieldClearances },
-              { label: "Trend", values: midfieldTrend },
-            ]}
-          />
+            {/* DEFENCE */}
+            <TrendBlock
+              title="Defence Trend"
+              icon={<Shield className="h-4 w-4 text-cyan-200" />}
+              accent="#22D3EE"
+              description="Conceded scoring, pressure indicators and intercept capability."
+              series={[
+                {
+                  label: "Points Conceded",
+                  values: defenceConceded,
+                  goodDirection: "down", // lower is better
+                },
+                {
+                  label: "Pressure Index",
+                  values: pressureIndex,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Intercept Marks",
+                  values: interceptMarks,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Trend",
+                  values: defenceTrend,
+                  goodDirection: "down",
+                },
+              ]}
+            />
 
-          {/* RUCK */}
-          <TrendBlock
-            title="Ruck Trend"
-            icon={<MoveVertical className="h-4 w-4 text-purple-200" />}
-            accent="#8b5cf6"
-            description="Hit-out strength, advantage taps and ruck-led clearances."
-            series={[
-              { label: "Hit Outs", values: ruckHitOuts },
-              { label: "Hit Outs to Advantage", values: ruckHitOutsAdv },
-              { label: "Clearances", values: ruckClearances },
-              { label: "Trend", values: ruckTrend },
-            ]}
-          />
+            {/* MIDFIELD */}
+            <TrendBlock
+              title="Midfield Trend"
+              icon={<Activity className="h-4 w-4 text-amber-300" />}
+              accent="#FBBF24"
+              description="Contested strength, stoppage craft and clearance control."
+              series={[
+                {
+                  label: "Contested Influence",
+                  values: contestedInfluence,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Stoppage Wins",
+                  values: stoppageWins,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Clearance",
+                  values: midfieldClearances,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Trend",
+                  values: midfieldTrend,
+                  goodDirection: "up",
+                },
+              ]}
+            />
+
+            {/* RUCK */}
+            <TrendBlock
+              title="Ruck Trend"
+              icon={<MoveVertical className="h-4 w-4 text-violet-200" />}
+              accent="#A78BFA"
+              description="Hit-out strength, advantage taps and ruck-led clearances."
+              series={[
+                {
+                  label: "Hit Outs",
+                  values: ruckHitOuts,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Hit Outs to Advantage",
+                  values: ruckHitOutsAdv,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Clearances",
+                  values: ruckClearances,
+                  goodDirection: "up",
+                },
+                {
+                  label: "Trend",
+                  values: ruckTrend,
+                  goodDirection: "up",
+                },
+              ]}
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -340,7 +499,11 @@ export default function TeamTrends() {
 /*                             TREND BLOCK COMPONENT                          */
 /* -------------------------------------------------------------------------- */
 
-type TrendSeries = { label: string; values: number[] };
+type TrendSeries = {
+  label: string;
+  values: number[];
+  goodDirection: "up" | "down";
+};
 
 function TrendBlock({
   title,
@@ -363,7 +526,7 @@ function TrendBlock({
           "0 20px 50px rgba(0,0,0,0.8), 0 0 24px rgba(15,23,42,0.6)",
       }}
     >
-      {/* Accent halo */}
+      {/* Thin accent halo */}
       <div
         className="pointer-events-none absolute -inset-px rounded-[26px] opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
         style={{
@@ -372,13 +535,13 @@ function TrendBlock({
       />
 
       <div className="relative">
-        {/* Header row with accent bar */}
+        {/* Header row with thin accent bar */}
         <div className="flex items-center gap-3">
           <div
-            className="h-4 w-[3px] rounded-full"
+            className="h-4 w-[2px] rounded-full"
             style={{
               background: `linear-gradient(to bottom, ${accent}, transparent)`,
-              boxShadow: `0 0 10px ${accent}aa`,
+              boxShadow: `0 0 10px ${accent}66`,
             }}
           />
           <div className="flex items-center gap-2">
@@ -393,13 +556,50 @@ function TrendBlock({
           {description}
         </p>
 
-        {/* Divider before metrics */}
         <div className="mt-4 border-t border-neutral-800/70 pt-4 md:mt-5 md:pt-5" />
 
-        {/* 2-COLUMN METRIC GRID */}
+        {/* Metric grid */}
         <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
           {series.map((s, index) => {
-            const isTrend = s.label.toLowerCase() === "trend";
+            const summary = computeMetricSummary(
+              s.values,
+              s.goodDirection
+            );
+            const isPercent = s.label.includes("%");
+
+            let deltaLabel = "– 0.0%";
+            let deltaClass = "text-neutral-400";
+            let arrow = "";
+
+            if (summary.deltaPct !== null) {
+              const absPct = Math.abs(summary.deltaPct);
+              const formattedPct = `${absPct.toFixed(1)}%`;
+
+              if (absPct < 0.1) {
+                deltaLabel = "– 0.0%";
+                deltaClass = "text-neutral-400";
+                arrow = "";
+              } else {
+                const isUp = summary.direction === "up";
+                const isGood = summary.isGood ?? false;
+
+                arrow = isUp ? "▲" : "▼";
+                deltaLabel = `${arrow} ${formattedPct}`;
+
+                if (isGood) {
+                  deltaClass = "text-emerald-400";
+                } else {
+                  deltaClass = "text-rose-400";
+                }
+              }
+            }
+
+            const valueLabel = formatNumber(
+              summary.current,
+              isPercent
+            );
+
+            const isTrendLabel = s.label.toLowerCase() === "trend";
 
             return (
               <div
@@ -410,24 +610,36 @@ function TrendBlock({
                     : "space-y-2 md:pr-4"
                 }
               >
-                <div
-                  className={`text-[9px] md:text-[10px] uppercase tracking-[0.18em] ${
-                    isTrend
-                      ? "text-neutral-400"
-                      : "text-neutral-500"
-                  }`}
-                >
-                  {isTrend ? (
-                    <span
-                      className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
-                      style={{
-                        background: accent,
-                        boxShadow: `0 0 8px ${accent}a0`,
-                      }}
-                    />
-                  ) : null}
-                  {s.label}
+                {/* Label + numbers row (left-aligned numbers) */}
+                <div className="flex items-baseline justify-between gap-3">
+                  <div
+                    className={`text-[9px] md:text-[10px] uppercase tracking-[0.18em] ${
+                      isTrendLabel
+                        ? "text-neutral-400"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    {isTrendLabel && (
+                      <span
+                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                        style={{
+                          background: accent,
+                          boxShadow: `0 0 8px ${accent}a0`,
+                        }}
+                      />
+                    )}
+                    {s.label}
+                  </div>
+
+                  <div className="flex items-baseline gap-2 text-[11px] md:text-xs">
+                    <span className="font-semibold text-neutral-100">
+                      {valueLabel}
+                    </span>
+                    <span className={deltaClass}>{deltaLabel}</span>
+                  </div>
                 </div>
+
+                {/* Sparkline */}
                 <SparklineLarge values={s.values} color={accent} />
               </div>
             );
