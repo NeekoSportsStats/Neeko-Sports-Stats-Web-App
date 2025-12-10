@@ -117,7 +117,7 @@ function smooth(values: number[]) {
 }
 
 function RealTrendSparkline({ values }: { values: number[] }) {
-  const trimmed = values.slice(-8); // last 8 points for a compact window
+  const trimmed = values.slice(-10); // last 10 points
   const smoothed = smooth(trimmed);
 
   if (!smoothed.length) {
@@ -138,7 +138,6 @@ function RealTrendSparkline({ values }: { values: number[] }) {
   const end = pts[pts.length - 1] ?? { x: 100, y: 20 };
 
   return (
-    // Edge-to-edge within card content: card has px-4 (16px) safe gutter
     <div className="relative h-10 w-full">
       <svg
         viewBox="0 0 100 40"
@@ -146,26 +145,30 @@ function RealTrendSparkline({ values }: { values: number[] }) {
         preserveAspectRatio="none"
       >
         <defs>
-          <filter id="trend-glow">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="1.4" />
+          <filter id="sparklineGlow" x="-20%" y="-50%" width="140%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
         </defs>
 
         {/* soft grid */}
-        <line x1="0" y1="26" x2="100" y2="26" stroke="rgba(255,255,255,0.06)" />
-        <line x1="0" y1="18" x2="100" y2="18" stroke="rgba(255,255,255,0.04)" />
-        <line x1="0" y1="10" x2="100" y2="10" stroke="rgba(255,255,255,0.03)" />
+        <line x1="0" y1="28" x2="100" y2="28" stroke="rgba(255,255,255,0.06)" />
+        <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.045)" />
+        <line x1="0" y1="12" x2="100" y2="12" stroke="rgba(255,255,255,0.035)" />
 
-        {/* glow */}
+        {/* glow polyline */}
         <polyline
           points={points}
-          stroke="rgba(255,255,255,0.45)"
-          strokeWidth={2.5}
+          stroke="rgba(255,255,255,0.42)"
+          strokeWidth={2.6}
           fill="none"
-          filter="url(#trend-glow)"
+          filter="url(#sparklineGlow)"
         />
 
-        {/* main line */}
+        {/* main white line */}
         <polyline
           points={points}
           stroke="white"
@@ -378,15 +381,12 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* Sparkline – centered area */}
-          <div className="mt-4">
+          {/* Middle — sparkline perfectly centered in remaining space */}
+          <div className="flex-1 flex items-center mt-3">
             <RealTrendSparkline values={momentumTrend} />
           </div>
 
-          {/* Spacer to push bar/footer to bottom */}
-          <div className="flex-1" />
-
-          {/* Progress bar docked at bottom */}
+          {/* Bottom cluster — progress bar + footer, anchored at bottom */}
           <div className="mt-3">
             <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
@@ -400,15 +400,14 @@ function TeamFormCard({
                 style={{ width: barWidth }}
               />
             </div>
-          </div>
 
-          {/* Footer text directly under bar */}
-          <div className="mt-2 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
-            <span>{metricLabels[metric]}</span>
-            <span className="flex items-center gap-1 text-neutral-400">
-              <span className="hidden sm:inline">Analytics</span>
-              <span className="text-[11px]">↺</span>
-            </span>
+            <div className="mt-2 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
+              <span>{metricLabels[metric]}</span>
+              <span className="flex items-center gap-1 text-neutral-400">
+                <span className="hidden sm:inline">Analytics</span>
+                <span className="text-[11px]">↺</span>
+              </span>
+            </div>
           </div>
         </div>
 
