@@ -1,8 +1,7 @@
 // src/components/afl/teams/TeamMasterTable.tsx
-
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, Lock, Search } from "lucide-react";
+import { ChevronRight, Lock, Search, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -10,10 +9,15 @@ import { MOCK_TEAMS, TeamRow, ROUND_LABELS } from "./mockTeams";
 import TeamInsightsPanel from "./TeamInsightsPanel";
 
 /* -------------------------------------------------------------------------- */
-/*                                MODE CONFIG                                 */
+/*                                HELPERS                                     */
 /* -------------------------------------------------------------------------- */
 
-export const MODE_CONFIG = {
+export type Mode = "scoring" | "fantasy" | "disposals" | "goals";
+
+export const MODE_CONFIG: Record<
+  Mode,
+  { label: string; subtitle: string; hits: number[] }
+> = {
   scoring: {
     label: "Scoring",
     subtitle: "Total points per game",
@@ -35,8 +39,6 @@ export const MODE_CONFIG = {
     hits: [1, 2, 3, 4, 5],
   },
 };
-
-type Mode = keyof typeof MODE_CONFIG;
 
 const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
 const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
@@ -113,32 +115,32 @@ export default function TeamMasterTable() {
 
   return (
     <>
-      <section className="mt-10 rounded-3xl border border-neutral-800 bg-gradient-to-b from-neutral-950/90 via-black to-black px-5 py-6 shadow-[0_0_70px_rgba(0,0,0,0.75)]">
-        {/* HEADER / MODES */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/50 bg-yellow-500/10 px-3 py-1">
+      <section className="mt-10 rounded-3xl border border-neutral-800 bg-gradient-to-b from-neutral-950/90 via-black to-black px-4 py-6 shadow-[0_0_70px_rgba(0,0,0,0.85)] md:px-6">
+        {/* --------------------- HEADER --------------------- */}
+        <div className="flex flex-col gap-4 md:flex-row md:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-              <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-yellow-200">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
                 Team Master Table
               </span>
             </div>
 
-            <h2 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
+            <h1 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
               Season {MODE_CONFIG[mode].label.toLowerCase()} ledger &amp; hit-rate grid
-            </h2>
+            </h1>
 
-            <p className="mt-2 text-xs text-neutral-400">
-              Full AFL club dataset with round-by-round output, summary stats and
+            <p className="mt-2 max-w-xl text-xs text-neutral-400">
+              Full AFL club dataset with round-by-round output, summary statistics and
               hit-rate milestones. Mode:{" "}
-              <span className="font-semibold text-neutral-200">
+              <span className="font-semibold text-neutral-100">
                 {MODE_CONFIG[mode].label}
               </span>{" "}
               – {MODE_CONFIG[mode].subtitle}.
             </p>
           </div>
 
-          {/* Mode pills + compact toggle */}
+          {/* Mode filter pills + compact toggle */}
           <div className="flex flex-col gap-3 md:items-end">
             <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-black/70 px-1.5 py-1">
               {(Object.keys(MODE_CONFIG) as Mode[]).map((m) => (
@@ -148,7 +150,7 @@ export default function TeamMasterTable() {
                   onClick={() => setMode(m)}
                   className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.16em] transition ${
                     mode === m
-                      ? "bg-yellow-400 text-black shadow-[0_0_22px_rgba(250,204,21,0.5)]"
+                      ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.6)]"
                       : "text-neutral-300 hover:bg-neutral-800"
                   }`}
                 >
@@ -170,7 +172,7 @@ export default function TeamMasterTable() {
           </div>
         </div>
 
-        {/* SEARCH / ROUND FILTER */}
+        {/* --------------------- SEARCH + ROUND FILTER --------------------- */}
         <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative w-full md:max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
@@ -207,7 +209,7 @@ export default function TeamMasterTable() {
           </button>
         </div>
 
-        {/* DESKTOP TABLE */}
+        {/* --------------------- DESKTOP TABLE --------------------- */}
         <div className="mt-6 hidden w-full overflow-x-auto border-t border-neutral-900 md:block">
           <table className="min-w-[1120px] border-separate border-spacing-0 text-[11px]">
             <thead>
@@ -216,6 +218,7 @@ export default function TeamMasterTable() {
                   TEAM
                 </th>
 
+                {/* Rounds when not compact */}
                 {!compactMode &&
                   ROUND_LABELS.map((round) => (
                     <th
@@ -226,6 +229,7 @@ export default function TeamMasterTable() {
                     </th>
                   ))}
 
+                {/* Summary & hits when compact */}
                 {compactMode && (
                   <>
                     <th className="px-2 py-2 text-center text-[10px] font-medium text-neutral-500">
@@ -268,7 +272,7 @@ export default function TeamMasterTable() {
                     }`}
                     onClick={() => !blurLocked && setSelectedTeam(team)}
                   >
-                    {/* TEAM CELL (sticky) */}
+                    {/* TEAM CELL */}
                     <td className="sticky left-0 z-10 flex w-64 items-center gap-3 border-r border-neutral-900 bg-black/95 px-4 py-2.5">
                       <span className="text-[11px] text-neutral-500">
                         {index + 1}
@@ -291,7 +295,7 @@ export default function TeamMasterTable() {
                       <ChevronRight className="ml-auto h-3.5 w-3.5 text-neutral-500" />
                     </td>
 
-                    {/* ROUND VALUES */}
+                    {/* FULL ROUNDS */}
                     {!compactMode &&
                       series.map((v, i) => (
                         <td
@@ -302,7 +306,7 @@ export default function TeamMasterTable() {
                         </td>
                       ))}
 
-                    {/* COMPACT SUMMARY (tighter spacing but still readable) */}
+                    {/* COMPACT SUMMARY */}
                     {compactMode && (
                       <>
                         <td className="px-2 py-2 text-center text-neutral-200">
@@ -336,9 +340,159 @@ export default function TeamMasterTable() {
           </table>
         </div>
 
-        {/* TODO: if you want a fancier mobile list, we can add it back later. For now you still have desktop working perfectly. */}
+        {/* ------------------------- MOBILE VIEWS -------------------------- */}
+        <div className="mt-6 md:hidden">
+          {/* COMPACT ON → summary / hit-rate table, horizontal scroll */}
+          {compactMode ? (
+            <div className="-mx-3 overflow-x-auto px-1 pb-1">
+              <table className="min-w-[640px] w-full border-separate border-spacing-0 text-[11px]">
+                <thead>
+                  <tr className="bg-black/90">
+                    <th className="w-32 px-3 py-2 text-left text-[10px] font-medium tracking-[0.16em] text-neutral-400">
+                      TEAM
+                    </th>
+                    <th className="px-2 py-2 text-right text-[10px] text-neutral-500">
+                      MIN
+                    </th>
+                    <th className="px-2 py-2 text-right text-[10px] text-neutral-500">
+                      MAX
+                    </th>
+                    <th className="px-2 py-2 text-right text-[10px] text-neutral-500">
+                      AVG
+                    </th>
+                    <th className="px-2 py-2 text-right text-[10px] text-neutral-500">
+                      TOTAL
+                    </th>
+                    {thresholds.map((t) => (
+                      <th
+                        key={t}
+                        className="px-2 py-2 text-right text-[10px] text-neutral-500"
+                      >
+                        {t}+
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTeams.map((team, index) => {
+                    const series = getSeries(team, mode);
+                    const summary = computeSummary(series);
+                    const hits = computeHitRate(series, thresholds);
+                    const blurLocked = !isPremium && index >= 6;
 
-        {/* BOTTOM CTA */}
+                    return (
+                      <tr
+                        key={team.id}
+                        className={`border-b border-neutral-900 text-neutral-200 ${
+                          blurLocked ? "opacity-60 blur-[2px]" : ""
+                        }`}
+                        onClick={() => !blurLocked && setSelectedTeam(team)}
+                      >
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-neutral-500">
+                              {index + 1}
+                            </span>
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ background: team.colours.primary }}
+                            />
+                            <span className="text-[12px]">{team.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-right">{summary.min}</td>
+                        <td className="px-2 py-2 text-right">{summary.max}</td>
+                        <td className="px-2 py-2 text-right text-yellow-200">
+                          {summary.average}
+                        </td>
+                        <td className="px-2 py-2 text-right">{summary.total}</td>
+                        {hits.map((h, i) => (
+                          <td
+                            key={i}
+                            className={`px-2 py-2 text-right font-medium ${rateClass(
+                              h
+                            )}`}
+                          >
+                            {h}%
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* COMPACT OFF → card list (screenshot version) */
+            <div className="flex flex-col gap-3">
+              {filteredTeams.map((team, index) => {
+                const series = getSeries(team, mode);
+                const summary = computeSummary(series);
+                const hits = computeHitRate(series, thresholds);
+                const blurLocked = !isPremium && index >= 6;
+
+                const mainThresholdIndex =
+                  thresholds.length >= 3 ? 2 : thresholds.length - 1;
+                const mainThreshold = thresholds[mainThresholdIndex];
+                const mainHit = hits[mainThresholdIndex];
+
+                return (
+                  <button
+                    key={team.id}
+                    onClick={() => !blurLocked && setSelectedTeam(team)}
+                    className="relative flex items-center justify-between rounded-xl border border-neutral-800 bg-black/80 px-3 py-3 shadow-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700 text-[11px] text-neutral-200">
+                        {index + 1}
+                      </div>
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                              backgroundColor: team.colours.primary,
+                              boxShadow: `0 0 10px ${team.colours.primary}`,
+                            }}
+                          />
+                          <span className="text-[13px] text-neutral-50">
+                            {team.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                          {team.code} • Avg {summary.average.toFixed(1)} • Max{" "}
+                          {summary.max}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <span className="block text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
+                          {mainThreshold}+ hit
+                        </span>
+                        <span
+                          className={`text-xs font-semibold ${rateClass(
+                            mainHit
+                          )}`}
+                        >
+                          {mainHit}%
+                        </span>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-neutral-500" />
+                    </div>
+
+                    {blurLocked && (
+                      <div className="pointer-events-none absolute inset-0 rounded-xl bg-black/80 backdrop-blur-sm" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* --------------------- BOTTOM CTA (NON-PREMIUM) --------------------- */}
         {!isPremium && (
           <div className="mt-8 flex justify-center">
             <Button
@@ -355,7 +509,7 @@ export default function TeamMasterTable() {
         )}
       </section>
 
-      {/* INSIGHTS PANEL PORTAL (uses your new iOS sheet / side panel) */}
+      {/* ------------------------ INSIGHTS PANEL PORTAL ------------------------ */}
       {isMounted && selectedTeam &&
         createPortal(
           <TeamInsightsPanel
