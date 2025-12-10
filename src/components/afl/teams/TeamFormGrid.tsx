@@ -1,68 +1,21 @@
-// src/components/afl/teams/TeamFormGrid.tsx
+// =============================
+// TeamFormGrid.tsx — FINAL PATCH
+// Sparkline fixed (full width with 16px gutters)
+// Progress bar bottom-docked
+// Enhanced Slim Trend Sparkline
+// =============================
 
-// IMPORTS
 import React, { useMemo, useState } from "react";
 import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
 import { Flame, CircleDot, Snowflake } from "lucide-react";
 
-/* -------------------------------------------------------------------------- */
-/*                                   Types                                    */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------------- Types --------------------------------- */
 
 const METRICS = ["momentum", "fantasy", "disposals", "goals"] as const;
 type Metric = (typeof METRICS)[number];
 type Variant = "hot" | "stable" | "cold";
 
-interface ClassifiedTeams {
-  hot: AFLTeam[];
-  stable: AFLTeam[];
-  cold: AFLTeam[];
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              Visual Helpers                                */
-/* -------------------------------------------------------------------------- */
-
-const metricLabels: Record<Metric, string> = {
-  momentum: "Momentum · Last 5",
-  fantasy: "Fantasy edge",
-  disposals: "Disposals edge",
-  goals: "Goals edge",
-};
-
-const metricPrefix: Record<Metric, string> = {
-  momentum: "Momentum",
-  fantasy: "Fantasy",
-  disposals: "Disposals",
-  goals: "Goals",
-};
-
-const badgeStyles: Record<Variant, string> = {
-  hot: "bg-red-400/15 border border-red-400/30 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.25)]",
-  stable:
-    "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
-  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
-};
-
-const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_32px_rgba(255,60,60,0.22)]",
-  stable: "shadow-[0_0_32px_rgba(60,220,150,0.22)]",
-  cold: "shadow-[0_0_32px_rgba(0,180,255,0.22)]",
-};
-
-function formatMetric(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
-}
-
-function intensityWidth(value: number): string {
-  const clamped = Math.max(-40, Math.min(40, value));
-  return `${Math.max(6, Math.min(100, (Math.abs(clamped) / 40) * 100))}%`;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                        Metric + Fake Data Logic                            */
-/* -------------------------------------------------------------------------- */
+/* ---------- Helpers ---------- */
 
 function getBaseMomentum(team: AFLTeam): number {
   const last5 = team.margins.slice(-5);
@@ -91,7 +44,7 @@ function getMetricScore(team: AFLTeam, metric: Metric): number {
   return base * 0.35 + metricJitter(team, metric);
 }
 
-function classifyTeams(metric: Metric): ClassifiedTeams {
+function classifyTeams(metric: Metric) {
   const sorted = [...MOCK_TEAMS].sort(
     (a, b) => getMetricScore(b, metric) - getMetricScore(a, metric)
   );
@@ -103,81 +56,91 @@ function classifyTeams(metric: Metric): ClassifiedTeams {
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/*                  Enhanced Glow Trend Sparkline (Slim Version)              */
-/* -------------------------------------------------------------------------- */
-
-function smooth(values: number[]) {
-  if (values.length < 3) return values;
-  const out = [...values];
-  for (let i = 1; i < values.length - 1; i++) {
-    out[i] = (values[i - 1] + values[i] + values[i + 1]) / 3;
-  }
-  return out;
+function formatMetric(v: number) {
+  const r = Math.round(v * 10) / 10;
+  return `${r > 0 ? "+" : ""}${r.toFixed(1)}`;
 }
 
-function RealTrendSparkline({ values }: { values: number[] }) {
-  const trimmed = values.slice(-8);
-  const smoothed = smooth(trimmed);
+function intensityWidth(v: number): string {
+  const c = Math.max(-40, Math.min(40, v));
+  return `${Math.max(6, Math.min(100, (Math.abs(c) / 40) * 100))}%`;
+}
 
-  const min = Math.min(...smoothed);
-  const max = Math.max(...smoothed);
+const metricLabels: Record<Metric, string> = {
+  momentum: "Momentum · Last 5",
+  fantasy: "Fantasy edge",
+  disposals: "Disposals edge",
+  goals: "Goals edge",
+};
+
+const metricPrefix: Record<Metric, string> = {
+  momentum: "Momentum",
+  fantasy: "Fantasy",
+  disposals: "Disposals",
+  goals: "Goals",
+};
+
+const variantHalo: Record<Variant, string> = {
+  hot: "shadow-[0_0_32px_rgba(255,60,60,0.22)]",
+  stable: "shadow-[0_0_32px_rgba(60,220,150,0.22)]",
+  cold: "shadow-[0_0_32px_rgba(0,180,255,0.22)]",
+};
+
+const badgeStyles: Record<Variant, string> = {
+  hot: "bg-red-400/15 border border-red-400/30 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.25)]",
+  stable:
+    "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
+  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
+};
+
+/* -------------------------------- Sparkline -------------------------------- */
+
+function RealSlimSparkline({
+  values,
+  variant,
+}: {
+  values: number[];
+  variant: Variant;
+}) {
+  if (!values.length) return null;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const range = max - min || 1;
 
-  const pts = smoothed.map((v, i) => {
-    const x = (i / (smoothed.length - 1)) * 100;
-    const y = 28 - ((v - min) / range) * 18;
-    return { x, y };
-  });
+  const color =
+    variant === "hot"
+      ? "text-red-300"
+      : variant === "stable"
+      ? "text-lime-300"
+      : "text-sky-300";
 
-  const points = pts.map((p) => `${p.x},${p.y}`).join(" ");
-  const end = pts[pts.length - 1];
+  const points = values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * 100;
+      const y = 20 - ((v - min) / range) * 20;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
-    <div className="relative h-6 w-full">
-      <svg viewBox="0 0 100 40" className="absolute inset-0 h-full w-full">
-        {/* Glow filter */}
-        <defs>
-          <filter id="trendGlow">
-            <feGaussianBlur stdDeviation="1.7" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Low grid */}
-        <line x1="0" y1="26" x2="100" y2="26" stroke="rgba(255,255,255,0.05)" />
-        <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.04)" />
-
-        {/* Glow polyline */}
-        <polyline
-          points={points}
-          stroke="rgba(255,255,255,0.35)"
-          strokeWidth={2.5}
-          fill="none"
-          filter="url(#trendGlow)"
-        />
-
-        {/* Solid line */}
-        <polyline
-          points={points}
-          stroke="white"
-          strokeWidth={1.3}
-          fill="none"
-        />
-
-        {/* End dot */}
-        <circle cx={end.x} cy={end.y} r={1.7} fill="white" />
-      </svg>
-    </div>
+    <svg
+      viewBox="0 0 100 24"
+      className={`w-full h-6 opacity-95 ${color} drop-shadow-[0_0_6px_currentColor]`}
+    >
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                         Main TeamFormGrid Component                        */
-/* -------------------------------------------------------------------------- */
+/* ------------------------------- Main Component ---------------------------- */
 
 export default function TeamFormGrid() {
   const [metric, setMetric] = useState<Metric>("momentum");
@@ -203,7 +166,7 @@ export default function TeamFormGrid() {
           Switch between lenses. Tap cards for deeper analytics.
         </p>
 
-        {/* Metric Tabs */}
+        {/* Tabs */}
         <div className="mt-6 inline-flex rounded-full bg-black/50 p-1 ring-1 ring-yellow-400/25 shadow-[0_0_26px_rgba(255,240,150,0.35)]">
           {METRICS.map((m) => {
             const active = metric === m;
@@ -226,7 +189,7 @@ export default function TeamFormGrid() {
           })}
         </div>
 
-        {/* GRID COLUMNS */}
+        {/* Columns */}
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <FormColumn
             variant="hot"
@@ -255,9 +218,7 @@ export default function TeamFormGrid() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                           Column Component                                 */
-/* -------------------------------------------------------------------------- */
+/* -------------------------------- Columns -------------------------------- */
 
 function FormColumn({
   variant,
@@ -309,9 +270,7 @@ function FormColumn({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                               Team Card                                    */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------------- Card ---------------------------------- */
 
 function TeamFormCard({
   variant,
@@ -328,7 +287,7 @@ function TeamFormCard({
   const formattedScore = formatMetric(score);
   const barWidth = intensityWidth(score);
 
-  const momentumTrend = team.margins;
+  const trendValues = team.margins.slice(-12);
 
   const attackDelta =
     team.scores[team.scores.length - 1] -
@@ -338,12 +297,9 @@ function TeamFormCard({
     team.margins[team.margins.length - 1] -
     team.margins[team.margins.length - 2];
 
-  const clearance = team.clearanceDom[team.clearanceDom.length - 1];
-  const consistency = team.consistencyIndex;
-
   return (
     <div
-      className={`relative min-h-[200px] cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]}`}
+      className={`relative min-h-[188px] cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]}`}
       onClick={() => setFlipped(!flipped)}
     >
       <div
@@ -351,8 +307,9 @@ function TeamFormCard({
           flipped ? "[transform:rotateY(180deg)]" : ""
         }`}
       >
-        {/* FRONT */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
+
+        {/* --------------------------- FRONT --------------------------- */}
+        <div className="absolute inset-0 flex flex-col h-full justify-between px-4 py-3 [backface-visibility:hidden]">
 
           {/* Header */}
           <div className="flex items-start justify-between">
@@ -365,22 +322,20 @@ function TeamFormCard({
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-2">
-              <div
-                className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
-              >
-                {formattedScore}
-              </div>
+            <div
+              className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
+            >
+              {formattedScore}
             </div>
           </div>
 
-          {/* FULL-WIDTH SPARKLINE */}
-          <div className="-mx-4 px-4 mt-3">
-            <RealTrendSparkline values={momentumTrend} />
+          {/* Sparkline — FULL WIDTH with 16px gutters */}
+          <div className="w-full px-4 mt-3">
+            <RealSlimSparkline values={trendValues} variant={variant} />
           </div>
 
-          {/* Progress Bar */}
-          <div className="mt-3 w-full px-[2px]">
+          {/* Progress Bar — bottom locked */}
+          <div className="mt-4 w-full px-4">
             <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
@@ -405,8 +360,9 @@ function TeamFormCard({
           </div>
         </div>
 
-        {/* BACK */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+        {/* --------------------------- BACK --------------------------- */}
+        <div className="absolute inset-0 flex flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          {/* Snapshot header */}
           <div className="flex items-start justify-between mb-1">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
@@ -430,7 +386,7 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* Stats Grid */}
+          {/* Stats grid */}
           <div className="mt-3 grid grid-cols-3 gap-y-2 gap-x-4 text-[11px] text-neutral-300 leading-snug">
             <div>
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
@@ -456,14 +412,14 @@ function TeamFormCard({
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 Clear %
               </div>
-              <div className="font-semibold">{clearance}%</div>
+              <div className="font-semibold">{team.clearanceDom[22]}%</div>
             </div>
 
             <div>
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
                 Consist.
               </div>
-              <div className="font-semibold">{consistency}</div>
+              <div className="font-semibold">{team.consistencyIndex}</div>
             </div>
 
             <div>
