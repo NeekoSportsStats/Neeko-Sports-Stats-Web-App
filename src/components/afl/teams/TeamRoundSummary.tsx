@@ -9,56 +9,52 @@ import { Flame, TrendingUp, Shield, Activity } from "lucide-react";
 /* -------------------------------------------------------------------------- */
 
 function Sparkline({ values }: { values: number[] }) {
-  // NOTE: values are unused for now – this is a styled placeholder that
-  // visually matches the AFL Players Round Momentum sparkline container.
   return (
     <div className="relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-b from-neutral-800/70 via-neutral-900/80 to-black shadow-[0_0_26px_rgba(0,0,0,0.8)]">
-      {/* Soft highlight strip */}
+      {/* highlight */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/8 via-white/2 to-transparent" />
-      {/* Subtle central guide line */}
+      {/* midline */}
       <div className="pointer-events-none absolute inset-x-4 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-neutral-600/40 to-transparent" />
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          TEAM MOMENTUM PULSE (SECTION 1)                   */
+/*                          TEAM MOMENTUM PULSE                               */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamMomentumPulse() {
-  // Compute league-wide average score per round (23 rounds)
+  // Compute league-wide average sparkline
   const leagueAvgSpark = useMemo(() => {
     const rounds = 23;
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
       const roundScores = MOCK_TEAMS.map((t) => t.scores[r]);
       arr.push(
-        Math.round(roundScores.reduce((a, b) => a + b, 0) / roundScores.length)
+        Math.round(
+          roundScores.reduce((a, b) => a + b, 0) / roundScores.length
+        )
       );
     }
     return arr;
   }, []);
 
-  /* ---------------------------------------------------------------------- */
-  /*                             HEADLINES                                  */
-  /* ---------------------------------------------------------------------- */
+  /* ------------------------------ HEADLINES -------------------------------- */
 
   const highestScoring = useMemo(() => {
-    const lastRound = 22; // R23 index
+    const lastRound = 22;
     return [...MOCK_TEAMS].sort(
       (a, b) => b.scores[lastRound] - a.scores[lastRound]
     )[0];
   }, []);
 
   const strongestDefence = useMemo(() => {
-    // Lowest average margin conceded / best defence (using defenceRating field)
     return [...MOCK_TEAMS].sort(
       (a, b) => a.defenceRating - b.defenceRating
     )[0];
   }, []);
 
   const biggestRiser = useMemo(() => {
-    // Last 2-round momentum = margin(R23) - margin(R22)
     return [...MOCK_TEAMS]
       .map((t) => ({
         team: t,
@@ -73,11 +69,21 @@ export default function TeamMomentumPulse() {
     )[0];
   }, []);
 
-  /* ---------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------- */
 
   return (
-    <section className="mt-6 rounded-3xl border border-yellow-500/10 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.09),transparent_60%),linear-gradient(to_bottom,#020617,#020617,#000000)] p-5 shadow-[0_0_46px_rgba(0,0,0,0.85)] md:mt-8 md:p-7">
-      {/* SECTION LABEL PILL (matches AFL Players layout) */}
+    <section
+      className="
+        mt-6 md:mt-8
+        w-full
+        rounded-3xl
+        border border-yellow-500/10
+        bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.09),transparent_60%),linear-gradient(to_bottom,#020617,#020617,#000000)]
+        px-4 py-5 md:px-6 md:py-7
+        shadow-[0_0_46px_rgba(0,0,0,0.85)]
+      "
+    >
+      {/* SECTION LABEL */}
       <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent px-3 py-1">
         <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.95)]" />
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
@@ -85,7 +91,7 @@ export default function TeamMomentumPulse() {
         </span>
       </div>
 
-      {/* TITLE + COPY */}
+      {/* TITLE */}
       <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-50 md:text-2xl">
         League-wide momentum trends &amp; team signals
       </h2>
@@ -105,9 +111,9 @@ export default function TeamMomentumPulse() {
         </div>
       </div>
 
-      {/* HEADLINE TILES GRID (4-up, matches players layout) */}
+      {/* HEADLINE GRID (4-up) */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Highest scoring club */}
+        {/* Highest scoring */}
         <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-neutral-950/90 to-black p-5 shadow-[0_0_26px_rgba(0,0,0,0.85)]">
           <div className="flex items-center gap-2 text-yellow-300">
             <Flame className="h-4 w-4" />
@@ -123,7 +129,7 @@ export default function TeamMomentumPulse() {
           </div>
         </div>
 
-        {/* Strongest defensive wall */}
+        {/* Strongest defence */}
         <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-neutral-950/90 to-black p-5 shadow-[0_0_26px_rgba(0,0,0,0.85)]">
           <div className="flex items-center gap-2 text-teal-300">
             <Shield className="h-4 w-4" />
@@ -139,7 +145,7 @@ export default function TeamMomentumPulse() {
           </div>
         </div>
 
-        {/* Biggest round-to-round riser */}
+        {/* Biggest riser */}
         <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-neutral-950/90 to-black p-5 shadow-[0_0_26px_rgba(0,0,0,0.85)]">
           <div className="flex items-center gap-2 text-lime-300">
             <TrendingUp className="h-4 w-4" />
@@ -155,7 +161,7 @@ export default function TeamMomentumPulse() {
           </div>
         </div>
 
-        {/* Predicted volatility (AI) */}
+        {/* Predicted volatility */}
         <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/80 via-neutral-950/90 to-black p-5 shadow-[0_0_26px_rgba(0,0,0,0.85)]">
           <div className="flex items-center gap-2 text-orange-300">
             <Activity className="h-4 w-4" />
