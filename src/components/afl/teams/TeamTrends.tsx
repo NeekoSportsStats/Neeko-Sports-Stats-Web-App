@@ -114,7 +114,7 @@ function SparklineLarge({
   */
   const PAD_X = 10;
   const PAD_TOP = 6;
-  const PAD_BOT = 16; 
+  const PAD_BOT = 12; 
 
   const unit = useMemo(() => inferUnit(label), [label]);
   const { d: pathD, points } = useMemo(
