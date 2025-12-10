@@ -1,58 +1,42 @@
 // src/components/afl/teams/TeamTrends.tsx
 
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
-import {
-  TrendingUp,
-  Shield,
-  Activity,
-  MoveVertical,
-} from "lucide-react";
+import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /*                               Helper types                                 */
 /* -------------------------------------------------------------------------- */
 
-type SparkPoint = {
-  x: number;
-  y: number;
-  value: number;
-};
-
-type SparkPathResult = {
-  d: string;
-  points: SparkPoint[];
-};
+type SparkPoint = { x: number; y: number; value: number };
+type SparkPathResult = { d: string; points: SparkPoint[] };
 
 /* -------------------------------------------------------------------------- */
-/*                     Sparkline path + points (asymmetric pad)               */
+/*               Build smooth sparkline path with asymmetric padding          */
 /* -------------------------------------------------------------------------- */
 
 function buildSmoothPathAndPoints(
   values: number[],
   width: number,
   height: number,
-  paddingX: number,
-  paddingTop: number,
-  paddingBottom: number
+  padX: number,
+  padTop: number,
+  padBot: number
 ): SparkPathResult {
-  if (!values || values.length === 0) {
-    return { d: "", points: [] };
-  }
+  if (!values?.length) return { d: "", points: [] };
 
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
 
-  const innerWidth = width - paddingX * 2;
-  const innerHeight = height - paddingTop - paddingBottom;
-  const stepX =
-    values.length === 1 ? 0 : innerWidth / (values.length - 1);
+  const innerW = width - padX * 2;
+  const innerH = height - padTop - padBot;
+  const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
 
-  const points: SparkPoint[] = values.map((v, i) => {
+  const points = values.map((v, i) => {
     const norm = (v - min) / range;
-    const x = paddingX + i * stepX;
-    const y = paddingTop + (1 - norm) * innerHeight;
+    const x = padX + stepX * i;
+    const y = padTop + (1 - norm) * innerH;
     return { x, y, value: v };
   });
 
@@ -79,21 +63,15 @@ function buildSmoothPathAndPoints(
 
 function inferUnit(label: string): string {
   const lower = label.toLowerCase();
-
-  if (lower.includes("%")) return "%";
-  if (lower.includes("efficiency")) return "%";
-
-  if (lower.includes("points") || lower.includes("score")) return "pts";
-
-  if (lower.includes("conceded")) return "pts";
+  if (lower.includes("%") || lower.includes("efficiency")) return "%";
+  if (lower.includes("points") || lower.includes("score") || lower.includes("conceded")) return "pts";
   if (lower.includes("clearance")) return "clearances";
   if (lower.includes("wins")) return "wins";
   if (lower.includes("intercept")) return "marks";
-  if (lower.includes("hit outs") || lower.includes("hit out")) return "hitouts";
+  if (lower.includes("hit") || lower.includes("hit outs")) return "hitouts";
   if (lower.includes("influence")) return "rating";
   if (lower.includes("pressure")) return "index";
   if (lower.includes("trend")) return "index";
-
   return "";
 }
 
@@ -106,19 +84,16 @@ function formatTooltipValue(value: number, unit: string): string {
 
 function formatTooltipDelta(delta: number | null, unit: string): string {
   if (delta === null) return "Δ —";
-
   if (Math.abs(delta) < 0.05) return "Δ 0.0";
-
   const sign = delta > 0 ? "+" : "−";
   const mag = Math.abs(delta).toFixed(1);
-
-  if (unit === "%") return `Δ ${sign}${mag}%`;
   if (!unit) return `Δ ${sign}${mag}`;
+  if (unit === "%") return `Δ ${sign}${mag}%`;
   return `Δ ${sign}${mag} ${unit}`;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Sparkline component (Dynamic)                  */
+/*                             Sparkline Component                            */
 /* -------------------------------------------------------------------------- */
 
 function SparklineLarge({
@@ -130,117 +105,51 @@ function SparklineLarge({
   color: string;
   label: string;
 }) {
-  const width = 100; // logical SVG width
-  const [height, setHeight] = useState(54);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const width = 100;
+  const height = 50; // Fixed logical height
 
-  // Measure actual pill height (desktop + mobile)
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const obs = new ResizeObserver((entries) => {
-      const h = entries[0].contentRect.height || 54;
-      setHeight(Math.max(40, h));
-    });
-
-    obs.observe(containerRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  // MOBILE vs DESKTOP padding — mobile = slightly above center
-  const isMobile = height < 60; // pill is visually smaller on mobile
-
-  const PADDING_X = 10;
-  const PADDING_TOP = isMobile ? height * 0.04 : height * 0.24;
-  const PADDING_BOTTOM = isMobile ? height * 0.10 : height * 0.15;
+  /* 
+    ✔ Mobile-friendly: sparkline sits slightly above center  
+    ✔ Professional look: shows more of the line  
+  */
+  const PAD_X = 10;
+  const PAD_TOP = 6;
+  const PAD_BOT = 16; 
 
   const unit = useMemo(() => inferUnit(label), [label]);
-
   const { d: pathD, points } = useMemo(
-    () =>
-      buildSmoothPathAndPoints(
-        values,
-        width,
-        height,
-        PADDING_X,
-        PADDING_TOP,
-        PADDING_BOTTOM
-      ),
-    [values, height]
+    () => buildSmoothPathAndPoints(values, width, height, PAD_X, PAD_TOP, PAD_BOT),
+    [values]
   );
 
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-
-  const handleMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    if (!points.length) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = x / rect.width;
-    const idx = Math.min(
-      points.length - 1,
-      Math.max(0, Math.round(ratio * (points.length - 1)))
-    );
-
-    setHoverIndex(idx);
-  };
-
   const hoverPoint = hoverIndex !== null ? points[hoverIndex] : null;
-  const hoverValue =
-    hoverIndex !== null ? values[hoverIndex] : null;
-  const prevValue =
-    hoverIndex !== null && hoverIndex > 0
-      ? values[hoverIndex - 1]
-      : null;
-
-  const hoverDelta =
-    hoverValue !== null && prevValue !== null
-      ? hoverValue - prevValue
-      : null;
-
-  const tooltipRound =
-    hoverIndex !== null ? hoverIndex + 1 : null;
+  const hoverValue = hoverIndex !== null ? values[hoverIndex] : null;
+  const prevValue = hoverIndex !== null && hoverIndex > 0 ? values[hoverIndex - 1] : null;
+  const hoverDelta = hoverValue !== null && prevValue !== null ? hoverValue - prevValue : null;
+  const roundNumber = hoverIndex !== null ? hoverIndex + 1 : null;
 
   return (
     <div
-      ref={containerRef}
-      className="group relative w-full rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)] h-full min-h-[54px]"
-      style={{
-        overflow: "hidden",
-        WebkitMaskImage: "linear-gradient(black, black)",
-        maskImage: "linear-gradient(black, black)",
-      }}
+      className="relative h-[54px] w-full rounded-xl overflow-hidden bg-gradient-to-b 
+      from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/20 
+      shadow-[0_6px_16px_rgba(0,0,0,0.55)]"
     >
-      {/* Top light strip */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-white/8" />
+      {/* Glow + accents */}
+      <div className="absolute inset-x-0 top-0 h-[1px] bg-white/10" />
+      <div className="absolute inset-x-0 top-0 h-[45%] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.10),transparent_65%)] pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-[35%] bg-gradient-to-t from-black/70 via-black/0 pointer-events-none" />
 
-      {/* Soft top highlight */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-[radial-gradient(circle_at_top,_rgba(248,250,252,0.12),transparent_65%)]" />
-
-      {/* Subtle bottom fade */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/0" />
-
-      {/* Midline ghost */}
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <line
-          x1={0}
-          y1={height / 2}
-          x2={width}
-          y2={height / 2}
-          stroke="rgba(148,163,184,0.18)"
-          strokeWidth={0.6}
-        />
+      {/* Midline */}
+      <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 pointer-events-none">
+        <line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke="rgba(255,255,255,0.12)" strokeWidth={0.6} />
       </svg>
 
-      {/* Sparkline path */}
+      {/* Sparkline */}
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
+        className="absolute inset-0 pointer-events-none"
         style={{ color }}
       >
         {pathD && (
@@ -249,49 +158,43 @@ function SparklineLarge({
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
-            strokeLinejoin="round"
             strokeLinecap="round"
-            className="transition-transform duration-150 group-hover:scale-[1.04] origin-center"
+            strokeLinejoin="round"
+            className="transition-transform duration-150 group-hover:scale-[1.04]"
             style={{
               filter: `
                 drop-shadow(0 0 6px color-mix(in srgb, currentColor 60%, transparent))
                 drop-shadow(0 0 12px color-mix(in srgb, currentColor 35%, transparent))
               `,
-              strokeDasharray: 300,
-              strokeDashoffset: 300,
-              animation: "sparkline-draw 1.1s ease-out forwards",
             }}
           />
         )}
 
-        {/* Hover marker dot */}
+        {/* Hover dot */}
         {hoverPoint && (
-          <circle
-            cx={hoverPoint.x}
-            cy={hoverPoint.y}
-            r={2.4}
-            fill="currentColor"
-            style={{
-              filter:
-                "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
-            }}
-          />
+          <circle cx={hoverPoint.x} cy={hoverPoint.y} r={2.6} fill="currentColor" />
         )}
       </svg>
 
-      {/* Hover interaction layer */}
+      {/* Hover layer */}
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
         className="absolute inset-0"
-        onMouseMove={handleMove}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const idx = Math.round((x / rect.width) * (points.length - 1));
+          setHoverIndex(Math.max(0, Math.min(points.length - 1, idx)));
+        }}
         onMouseLeave={() => setHoverIndex(null)}
       />
 
       {/* Tooltip */}
-      {hoverPoint && tooltipRound !== null && hoverValue !== null && (
+      {hoverPoint && hoverValue !== null && roundNumber && (
         <div
-          className="pointer-events-none absolute z-20 rounded-lg border border-white/10 bg-black/85 px-2.5 py-1.5 text-[10px] leading-tight text-neutral-50 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md"
+          className="absolute pointer-events-none z-20 px-2 py-1.5 rounded-md bg-black/85 
+          border border-white/10 shadow-xl backdrop-blur-sm text-[10px] text-neutral-50"
           style={{
             left: `${(hoverPoint.x / width) * 100}%`,
             top: `${(hoverPoint.y / height) * 100}%`,
@@ -299,13 +202,13 @@ function SparklineLarge({
             whiteSpace: "nowrap",
           }}
         >
-          <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-400">
-            Round {tooltipRound}
+          <div className="text-[9px] uppercase tracking-wider text-neutral-400">
+            Round {roundNumber}
           </div>
-          <div className="text-[11px] font-semibold">
+          <div className="font-semibold">
             {formatTooltipValue(hoverValue, unit)}
           </div>
-          <div className="text-[9px] text-neutral-300 mt-[1px]">
+          <div className="text-neutral-300 text-[9px]">
             {formatTooltipDelta(hoverDelta, unit)}
           </div>
         </div>
@@ -313,7 +216,6 @@ function SparklineLarge({
     </div>
   );
 }
-
 /* -------------------------------------------------------------------------- */
 /*                         Metric summary (5-round smoothing)                 */
 /* -------------------------------------------------------------------------- */
@@ -337,22 +239,12 @@ function computeMetricSummary(
   goodDirection: "up" | "down"
 ): MetricSummary {
   if (!values.length) {
-    return {
-      current: 0,
-      deltaPct: null,
-      direction: "flat",
-      isGood: null,
-    };
+    return { current: 0, deltaPct: null, direction: "flat", isGood: null };
   }
 
   if (values.length < 10) {
     const current = average(values);
-    return {
-      current,
-      deltaPct: null,
-      direction: "flat",
-      isGood: null,
-    };
+    return { current, deltaPct: null, direction: "flat", isGood: null };
   }
 
   const last5 = values.slice(-5);
@@ -362,17 +254,12 @@ function computeMetricSummary(
   const prevAvg = average(prev5);
 
   if (prevAvg === 0) {
-    return {
-      current: lastAvg,
-      deltaPct: null,
-      direction: "flat",
-      isGood: null,
-    };
+    return { current: lastAvg, deltaPct: null, direction: "flat", isGood: null };
   }
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
-  // Clamp volatility so it feels realistic
+  // Clamp volatility
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -383,18 +270,11 @@ function computeMetricSummary(
   const isGood =
     goodDirection === "up" ? deltaPct >= 0 : deltaPct <= 0;
 
-  return {
-    current: lastAvg,
-    deltaPct,
-    direction,
-    isGood,
-  };
+  return { current: lastAvg, deltaPct, direction, isGood };
 }
 
 function formatNumber(value: number, isPercentMetric: boolean): string {
-  if (isPercentMetric) {
-    return `${value.toFixed(1)}%`;
-  }
+  if (isPercentMetric) return `${value.toFixed(1)}%`;
   return value.toFixed(1);
 }
 
@@ -423,22 +303,25 @@ function TrendBlock({
 }) {
   return (
     <div
-      className="group relative rounded-3xl border border-neutral-800/70 bg-gradient-to-b from-neutral-900/85 via-black to-black/95 p-4 md:p-5 shadow-[0_18px_48px_rgba(0,0,0,0.85)]"
+      className="group relative rounded-3xl border border-neutral-800/70 
+      bg-gradient-to-b from-neutral-900/85 via-black to-black/95 
+      p-4 md:p-5 shadow-[0_18px_48px_rgba(0,0,0,0.85)]"
       style={{
         boxShadow:
           "0 18px 48px rgba(0,0,0,0.85), 0 0 22px rgba(15,23,42,0.6)",
       }}
     >
-      {/* Thin accent halo */}
+      {/* Halo */}
       <div
-        className="pointer-events-none absolute -inset-px rounded-[26px] opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+        className="pointer-events-none absolute -inset-px rounded-[26px] 
+        opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
         style={{
           background: `radial-gradient(circle_at_top, ${accent}14, transparent 60%)`,
         }}
       />
 
       <div className="relative">
-        {/* Header row with thin accent bar */}
+        {/* Header */}
         <div className="flex items-center gap-3">
           <div
             className="h-4 w-[1.5px] rounded-full"
@@ -464,10 +347,7 @@ function TrendBlock({
         {/* Metric grid */}
         <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
           {series.map((s, index) => {
-            const summary = computeMetricSummary(
-              s.values,
-              s.goodDirection
-            );
+            const summary = computeMetricSummary(s.values, s.goodDirection);
             const isPercent = s.label.includes("%");
             const isTrendLabel = s.label.toLowerCase() === "trend";
 
@@ -482,24 +362,16 @@ function TrendBlock({
               if (absPct < 0.1) {
                 deltaLabel = "– 0.0%";
                 deltaClass = "text-neutral-400";
-                arrow = "";
               } else {
                 const isUp = summary.direction === "up";
                 const isGood = summary.isGood ?? false;
-
                 arrow = isUp ? "▲" : "▼";
                 deltaLabel = `${arrow} ${formattedPct}`;
-
-                deltaClass = isGood
-                  ? "text-emerald-400"
-                  : "text-rose-400";
+                deltaClass = isGood ? "text-emerald-400" : "text-rose-400";
               }
             }
 
-            const valueLabel = formatNumber(
-              summary.current,
-              isPercent
-            );
+            const valueLabel = formatNumber(summary.current, isPercent);
 
             return (
               <div
@@ -510,13 +382,11 @@ function TrendBlock({
                     : "space-y-2 md:pr-4"
                 }
               >
-                {/* Label + numbers row */}
+                {/* Label + numbers */}
                 <div className="flex items-baseline justify-between gap-3">
                   <div
                     className={`text-[9px] md:text-[10px] uppercase tracking-[0.16em] ${
-                      isTrendLabel
-                        ? "text-neutral-400"
-                        : "text-neutral-500"
+                      isTrendLabel ? "text-neutral-400" : "text-neutral-500"
                     }`}
                   >
                     {isTrendLabel && (
@@ -535,22 +405,15 @@ function TrendBlock({
                     <span className="font-semibold text-neutral-100">
                       {valueLabel}
                     </span>
-                    <span
-                      className={deltaClass}
-                      style={{ opacity: 0.85 }}
-                    >
+                    <span className={deltaClass} style={{ opacity: 0.85 }}>
                       {deltaLabel}
                     </span>
                   </div>
                 </div>
 
-                {/* Sparkline – animated + tooltipped */}
-                <div className="mt-1 rounded-xl overflow-hidden h-full min-h-[54px]">
-                  <SparklineLarge
-                    values={s.values}
-                    color={accent}
-                    label={s.label}
-                  />
+                {/* Sparkline wrapper (fixed height) */}
+                <div className="mt-1 h-[54px] rounded-xl overflow-hidden">
+                  <SparklineLarge values={s.values} color={accent} label={s.label} />
                 </div>
               </div>
             );
@@ -586,7 +449,6 @@ function buildPercentSeries(
   const values: number[] = [];
   let current = base;
   for (let i = 0; i < length; i++) {
-    // Smooth trend with reduced noise
     const drift = Math.sin(i / 6) * (swing * 0.3);
     const noise = (Math.random() - 0.5) * swing * 0.35;
     current = current + drift * 0.04 + noise * 0.15;
@@ -611,8 +473,7 @@ export default function TeamTrends() {
       const roundScores = MOCK_TEAMS.map((t) => t.scores[r]);
       arr.push(
         Math.round(
-          roundScores.reduce((a, b) => a + b, 0) /
-            roundScores.length
+          roundScores.reduce((a, b) => a + b, 0) / roundScores.length
         )
       );
     }
@@ -750,9 +611,9 @@ export default function TeamTrends() {
 
   return (
     <section className="mt-10">
-      {/* Entire section glass panel with neutral black glass + gold outline */}
+      {/* Whole glass section */}
       <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl md:px-7 md:pb-9 md:pt-7">
-        {/* Soft outer halo */}
+        {/* Halo */}
         <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
         <div className="relative">
@@ -769,134 +630,68 @@ export default function TeamTrends() {
           </h2>
 
           <p className="mt-2 max-w-2xl text-xs text-neutral-400">
-            Rolling trends highlighting attacking quality, defensive
-            solidity, midfield control and ruck dominance.
+            Rolling trends highlighting attacking quality, defensive solidity, midfield control and ruck dominance.
           </p>
 
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-            League averages • Last 23 rounds • Synthetic positional trend
-            lenses
+            League averages • Last 23 rounds • Synthetic positional trend lenses
           </p>
 
-          {/* Grid of positional cards */}
+          {/* Positional cards grid */}
           <div className="mt-8 grid gap-8 md:grid-cols-2 lg:gap-10">
-            {/* ATTACK */}
+            {/* Attack */}
             <TrendBlock
               title="Attack Trend"
               icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
               accent="#FACC15"
               description="Scoring output, expected conversion and forward-50 strength."
               series={[
-                {
-                  label: "Points Scored",
-                  values: attackPoints,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Expected Score",
-                  values: attackExpected,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Forward-50 Efficiency (%)",
-                  values: attackF50,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Trend",
-                  values: attackTrend,
-                  goodDirection: "up",
-                },
+                { label: "Points Scored", values: attackPoints, goodDirection: "up" },
+                { label: "Expected Score", values: attackExpected, goodDirection: "up" },
+                { label: "Forward-50 Efficiency (%)", values: attackF50, goodDirection: "up" },
+                { label: "Trend", values: attackTrend, goodDirection: "up" },
               ]}
             />
 
-            {/* DEFENCE */}
+            {/* Defence */}
             <TrendBlock
               title="Defence Trend"
               icon={<Shield className="h-4 w-4 text-cyan-200" />}
               accent="#22D3EE"
               description="Conceded scoring, pressure indicators and intercept capability."
               series={[
-                {
-                  label: "Points Conceded",
-                  values: defenceConceded,
-                  goodDirection: "down",
-                },
-                {
-                  label: "Pressure Index",
-                  values: pressureIndex,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Intercept Marks",
-                  values: interceptMarks,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Trend",
-                  values: defenceTrend,
-                  goodDirection: "down",
-                },
+                { label: "Points Conceded", values: defenceConceded, goodDirection: "down" },
+                { label: "Pressure Index", values: pressureIndex, goodDirection: "up" },
+                { label: "Intercept Marks", values: interceptMarks, goodDirection: "up" },
+                { label: "Trend", values: defenceTrend, goodDirection: "down" },
               ]}
             />
 
-            {/* MIDFIELD */}
+            {/* Midfield */}
             <TrendBlock
               title="Midfield Trend"
               icon={<Activity className="h-4 w-4 text-orange-300" />}
               accent="#FB923C"
               description="Contested strength, stoppage craft and clearance control."
               series={[
-                {
-                  label: "Contested Influence",
-                  values: contestedInfluence,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Stoppage Wins",
-                  values: stoppageWins,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Clearance",
-                  values: midfieldClearances,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Trend",
-                  values: midfieldTrend,
-                  goodDirection: "up",
-                },
+                { label: "Contested Influence", values: contestedInfluence, goodDirection: "up" },
+                { label: "Stoppage Wins", values: stoppageWins, goodDirection: "up" },
+                { label: "Clearance", values: midfieldClearances, goodDirection: "up" },
+                { label: "Trend", values: midfieldTrend, goodDirection: "up" },
               ]}
             />
 
-            {/* RUCK */}
+            {/* Ruck */}
             <TrendBlock
               title="Ruck Trend"
               icon={<MoveVertical className="h-4 w-4 text-violet-200" />}
               accent="#A78BFA"
               description="Hit-out strength, advantage taps and ruck-led clearances."
               series={[
-                {
-                  label: "Hit Outs",
-                  values: ruckHitOuts,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Hit Outs to Advantage",
-                  values: ruckHitOutsAdv,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Clearances",
-                  values: ruckClearances,
-                  goodDirection: "up",
-                },
-                {
-                  label: "Trend",
-                  values: ruckTrend,
-                  goodDirection: "up",
-                },
+                { label: "Hit Outs", values: ruckHitOuts, goodDirection: "up" },
+                { label: "Hit Outs to Advantage", values: ruckHitOutsAdv, goodDirection: "up" },
+                { label: "Clearances", values: ruckClearances, goodDirection: "up" },
+                { label: "Trend", values: ruckTrend, goodDirection: "up" },
               ]}
             />
           </div>
