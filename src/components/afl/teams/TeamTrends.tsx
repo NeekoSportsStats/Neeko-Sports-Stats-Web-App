@@ -1,6 +1,6 @@
 // src/components/afl/teams/TeamTrends.tsx
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import {
   TrendingUp,
@@ -121,7 +121,7 @@ function formatTooltipDelta(delta: number | null, unit: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Sparkline component                            */
+/*                             Sparkline component (dynamic)                  */
 /* -------------------------------------------------------------------------- */
 
 function SparklineLarge({
@@ -133,13 +133,28 @@ function SparklineLarge({
   color: string;
   label: string;
 }) {
-  const width = 100;
-  const height = 50; // SVG logical height
+  const width = 100; // logical SVG width
+  const [height, setHeight] = useState(54); // dynamic height based on container
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Balanced vertical recenter
+  // Measure actual rendered height of the container (desktop + mobile)
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const obs = new ResizeObserver((entries) => {
+      const rect = entries[0].contentRect;
+      const h = rect.height || 54;
+      setHeight(Math.max(40, h)); // safety floor so SVG never collapses
+    });
+
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  // Dynamic padding based on true height (keeps sparkline visually centered)
   const PADDING_X = 10;
-  const PADDING_TOP = 12;
-  const PADDING_BOTTOM = 8;
+  const PADDING_TOP = height * 0.24;
+  const PADDING_BOTTOM = height * 0.15;
 
   const unit = useMemo(() => inferUnit(label), [label]);
 
@@ -153,17 +168,14 @@ function SparklineLarge({
         PADDING_TOP,
         PADDING_BOTTOM
       ),
-    [values]
+    [values, height]
   );
 
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const hasPoints = points.length > 0;
+  const handleMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+    if (!points.length) return;
 
-  const handleMove = (
-    e: React.MouseEvent<SVGSVGElement, MouseEvent>
-  ) => {
-    if (!hasPoints) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const ratio = x / rect.width;
@@ -174,13 +186,8 @@ function SparklineLarge({
     setHoverIndex(idx);
   };
 
-  const handleLeave = () => {
-    setHoverIndex(null);
-  };
-
   const hoverPoint = hoverIndex !== null ? points[hoverIndex] : null;
-  const hoverValue =
-    hoverIndex !== null ? values[hoverIndex] : null;
+  const hoverValue = hoverIndex !== null ? values[hoverIndex] : null;
   const prevValue =
     hoverIndex !== null && hoverIndex > 0
       ? values[hoverIndex - 1]
@@ -189,15 +196,16 @@ function SparklineLarge({
     hoverValue !== null && prevValue !== null
       ? hoverValue - prevValue
       : null;
-
   const tooltipRound =
     hoverIndex !== null ? hoverIndex + 1 : null;
 
   return (
     <div
-      className="group relative h-[54px] w-full rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)]"
+      ref={containerRef}
+      className="group relative w-full rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)]"
       style={{
         overflow: "hidden",
+        height: "100%",
         WebkitMaskImage: "linear-gradient(black, black)",
         maskImage: "linear-gradient(black, black)",
       }}
@@ -276,7 +284,7 @@ function SparklineLarge({
         preserveAspectRatio="none"
         className="absolute inset-0"
         onMouseMove={handleMove}
-        onMouseLeave={handleLeave}
+        onMouseLeave={() => setHoverIndex(null)}
       />
 
       {/* Tooltip */}
@@ -537,7 +545,7 @@ function TrendBlock({
                 </div>
 
                 {/* Sparkline – animated + tooltipped */}
-                <div className="mt-1 h-[54px] rounded-xl overflow-hidden">
+                <div className="mt-1 h-[64px] md:h-[54px] rounded-xl overflow-hidden">
                   <SparklineLarge
                     values={s.values}
                     color={accent}
