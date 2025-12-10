@@ -1,4 +1,6 @@
 // src/components/afl/teams/TeamFormGrid.tsx
+
+// IMPORTS
 import React, { useMemo, useState } from "react";
 import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
 import { Flame, CircleDot, Snowflake } from "lucide-react";
@@ -15,6 +17,47 @@ interface ClassifiedTeams {
   hot: AFLTeam[];
   stable: AFLTeam[];
   cold: AFLTeam[];
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Visual Helpers                                */
+/* -------------------------------------------------------------------------- */
+
+const metricLabels: Record<Metric, string> = {
+  momentum: "Momentum · Last 5",
+  fantasy: "Fantasy edge",
+  disposals: "Disposals edge",
+  goals: "Goals edge",
+};
+
+const metricPrefix: Record<Metric, string> = {
+  momentum: "Momentum",
+  fantasy: "Fantasy",
+  disposals: "Disposals",
+  goals: "Goals",
+};
+
+const badgeStyles: Record<Variant, string> = {
+  hot: "bg-red-400/15 border border-red-400/30 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.25)]",
+  stable:
+    "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
+  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
+};
+
+const variantHalo: Record<Variant, string> = {
+  hot: "shadow-[0_0_32px_rgba(255,60,60,0.22)]",
+  stable: "shadow-[0_0_32px_rgba(60,220,150,0.22)]",
+  cold: "shadow-[0_0_32px_rgba(0,180,255,0.22)]",
+};
+
+function formatMetric(value: number) {
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
+}
+
+function intensityWidth(value: number): string {
+  const clamped = Math.max(-40, Math.min(40, value));
+  return `${Math.max(6, Math.min(100, (Math.abs(clamped) / 40) * 100))}%`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -61,49 +104,7 @@ function classifyTeams(metric: Metric): ClassifiedTeams {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Visual Helpers                                */
-/* -------------------------------------------------------------------------- */
-
-const metricLabels: Record<Metric, string> = {
-  momentum: "Momentum · Last 5",
-  fantasy: "Fantasy edge",
-  disposals: "Disposals edge",
-  goals: "Goals edge",
-};
-
-const metricPrefix: Record<Metric, string> = {
-  momentum: "Momentum",
-  fantasy: "Fantasy",
-  disposals: "Disposals",
-  goals: "Goals",
-};
-
-/* Glow + badge palette */
-const badgeStyles: Record<Variant, string> = {
-  hot: "bg-red-400/15 border border-red-400/30 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.25)]",
-  stable:
-    "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
-  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
-};
-
-const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_32px_rgba(255,60,60,0.22)]",
-  stable: "shadow-[0_0_32px_rgba(60,220,150,0.22)]",
-  cold: "shadow-[0_0_32px_rgba(0,180,255,0.22)]",
-};
-
-function formatMetric(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
-}
-
-function intensityWidth(value: number): string {
-  const clamped = Math.max(-40, Math.min(40, value));
-  return `${Math.max(6, Math.min(100, (Math.abs(clamped) / 40) * 100))}%`;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             Enhanced Real Sparkline                        */
+/*                  Enhanced Glow Trend Sparkline (Slim Version)              */
 /* -------------------------------------------------------------------------- */
 
 function smooth(values: number[]) {
@@ -116,7 +117,7 @@ function smooth(values: number[]) {
 }
 
 function RealTrendSparkline({ values }: { values: number[] }) {
-  const trimmed = values.slice(-8); // last 8 rounds
+  const trimmed = values.slice(-8);
   const smoothed = smooth(trimmed);
 
   const min = Math.min(...smoothed);
@@ -125,46 +126,50 @@ function RealTrendSparkline({ values }: { values: number[] }) {
 
   const pts = smoothed.map((v, i) => {
     const x = (i / (smoothed.length - 1)) * 100;
-    const y = 28 - ((v - min) / range) * 20;
+    const y = 28 - ((v - min) / range) * 18;
     return { x, y };
   });
 
   const points = pts.map((p) => `${p.x},${p.y}`).join(" ");
-  const end = pts[pts.length - 1] ?? { x: 100, y: 20 };
+  const end = pts[pts.length - 1];
 
   return (
-    // NOTE: no inner mini-card — this fills the full content width
-    <div className="relative h-10 w-full">
+    <div className="relative h-6 w-full">
       <svg viewBox="0 0 100 40" className="absolute inset-0 h-full w-full">
+        {/* Glow filter */}
         <defs>
-          <filter id="glow">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="1.4" />
+          <filter id="trendGlow">
+            <feGaussianBlur stdDeviation="1.7" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
         </defs>
 
-        {/* soft grid */}
-        <line x1="0" y1="26" x2="100" y2="26" stroke="rgba(255,255,255,0.06)" />
-        <line x1="0" y1="18" x2="100" y2="18" stroke="rgba(255,255,255,0.04)" />
-        <line x1="0" y1="10" x2="100" y2="10" stroke="rgba(255,255,255,0.03)" />
+        {/* Low grid */}
+        <line x1="0" y1="26" x2="100" y2="26" stroke="rgba(255,255,255,0.05)" />
+        <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.04)" />
 
-        {/* glow */}
+        {/* Glow polyline */}
         <polyline
           points={points}
-          stroke="rgba(255,255,255,0.45)"
+          stroke="rgba(255,255,255,0.35)"
           strokeWidth={2.5}
           fill="none"
-          filter="url(#glow)"
+          filter="url(#trendGlow)"
         />
 
-        {/* main line */}
+        {/* Solid line */}
         <polyline
           points={points}
           stroke="white"
-          strokeWidth={1.6}
+          strokeWidth={1.3}
           fill="none"
         />
 
-        <circle cx={end.x} cy={end.y} r={2} fill="white" />
+        {/* End dot */}
+        <circle cx={end.x} cy={end.y} r={1.7} fill="white" />
       </svg>
     </div>
   );
@@ -181,7 +186,8 @@ export default function TeamFormGrid() {
   return (
     <section className="mt-16">
       <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-        {/* Header */}
+
+        {/* Header Pill */}
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_14px_rgba(250,204,21,0.3)] backdrop-blur-[2px]">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
@@ -197,7 +203,7 @@ export default function TeamFormGrid() {
           Switch between lenses. Tap cards for deeper analytics.
         </p>
 
-        {/* Tabs */}
+        {/* Metric Tabs */}
         <div className="mt-6 inline-flex rounded-full bg-black/50 p-1 ring-1 ring-yellow-400/25 shadow-[0_0_26px_rgba(255,240,150,0.35)]">
           {METRICS.map((m) => {
             const active = metric === m;
@@ -220,7 +226,7 @@ export default function TeamFormGrid() {
           })}
         </div>
 
-        {/* Columns */}
+        {/* GRID COLUMNS */}
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           <FormColumn
             variant="hot"
@@ -347,6 +353,7 @@ function TeamFormCard({
       >
         {/* FRONT */}
         <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
+
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
@@ -367,13 +374,13 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* FULL-WIDTH REAL TREND SPARKLINE */}
-          <div className="mt-4 w-full">
+          {/* FULL-WIDTH SPARKLINE */}
+          <div className="-mx-4 px-4 mt-3">
             <RealTrendSparkline values={momentumTrend} />
           </div>
 
-          {/* Progress bar bottom */}
-          <div className="mt-4">
+          {/* Progress Bar */}
+          <div className="mt-3 w-full px-[2px]">
             <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
               <div
                 className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
@@ -423,7 +430,7 @@ function TeamFormCard({
             </div>
           </div>
 
-          {/* Stats grid */}
+          {/* Stats Grid */}
           <div className="mt-3 grid grid-cols-3 gap-y-2 gap-x-4 text-[11px] text-neutral-300 leading-snug">
             <div>
               <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
@@ -476,6 +483,7 @@ function TeamFormCard({
             </div>
           </div>
 
+          {/* Opponents */}
           <div className="mt-3">
             <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
               Opponents
@@ -492,6 +500,7 @@ function TeamFormCard({
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
