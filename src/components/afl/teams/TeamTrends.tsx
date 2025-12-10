@@ -1,39 +1,78 @@
-// FINAL TeamTrends.tsx — HeatlineStrip v3 (flow animation + extreme ticks)
-// Fully replaces SparklineLarge everywhere.
+// src/components/afl/teams/TeamTrends.tsx
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useId } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                   Heatline Strip v3 — Premium Telemetry Bar               */
+/*                           Tooltip formatting helpers                       */
 /* -------------------------------------------------------------------------- */
 
-function HeatlineStrip({
-  values,
-  accent,
-  label,
-}: {
+function inferUnit(label: string): string {
+  const lower = label.toLowerCase();
+  if (lower.includes("%") || lower.includes("efficiency")) return "%";
+  if (lower.includes("points") || lower.includes("score") || lower.includes("conceded")) return "pts";
+  if (lower.includes("clearance")) return "clearances";
+  if (lower.includes("wins")) return "wins";
+  if (lower.includes("intercept")) return "marks";
+  if (lower.includes("hit") || lower.includes("hit outs")) return "hitouts";
+  if (lower.includes("influence")) return "rating";
+  if (lower.includes("pressure")) return "index";
+  if (lower.includes("trend")) return "index";
+  return "";
+}
+
+function formatTooltipValue(value: number, unit: string): string {
+  const v = value.toFixed(1);
+  if (unit === "%") return `${v}%`;
+  if (!unit) return v;
+  return `${v} ${unit}`;
+}
+
+function formatTooltipDelta(delta: number | null, unit: string): string {
+  if (delta === null) return "Δ —";
+  if (Math.abs(delta) < 0.05) return "Δ 0.0";
+  const sign = delta > 0 ? "+" : "−";
+  const mag = Math.abs(delta).toFixed(1);
+  if (!unit) return `Δ ${sign}${mag}`;
+  if (unit === "%") return `Δ ${sign}${mag}%`;
+  return `Δ ${sign}${mag} ${unit}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                   Heatline Strip v4 — Premium Telemetry Bar               */
+/* -------------------------------------------------------------------------- */
+
+type HeatlineStripProps = {
   values: number[];
   accent: string;
   label: string;
-}) {
-  /* --- Limit to last 12 rounds --- */
-  const recent = values.slice(-12);
+  isPositiveTrend: boolean | null;
+};
+
+function HeatlineStrip({ values, accent, label, isPositiveTrend }: HeatlineStripProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
+  // Last 12 rounds only
+  const recent = useMemo(
+    () => (values.length > 12 ? values.slice(-12) : values),
+    [values]
+  );
+  const startIndex = values.length - recent.length;
 
   const min = Math.min(...recent);
   const max = Math.max(...recent);
   const range = max - min || 1;
 
-  /* Flow animation shimmer */
-  const shimmerGradient = `
-    linear-gradient(
-      to top,
-      ${accent}15,
-      ${accent}44,
-      ${accent}80
-    )`;
+  const unit = useMemo(() => inferUnit(label), [label]);
+  const gradientId = useId();
+
+  const baselineTranslate =
+    isPositiveTrend == null
+      ? "translateY(0)"
+      : isPositiveTrend
+      ? "translateY(-4px)"
+      : "translateY(4px)";
 
   return (
     <div
@@ -48,12 +87,40 @@ function HeatlineStrip({
       <div className="absolute left-0 top-0 h-full w-6 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none" />
       <div className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-black via-black/60 to-transparent pointer-events-none" />
 
-      {/* Midline baseline */}
-      <div className="absolute top-1/2 left-0 w-full border-t border-white/5 pointer-events-none" />
-
-      {/* Flow animation overlay */}
+      {/* Midline baseline with rising animation when positive */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.18] animate-[flowMove_3.2s_linear_infinite]"
+        className="absolute left-0 w-full border-t border-white/7 pointer-events-none transition-transform duration-400"
+        style={{
+          top: "50%",
+          transform: baselineTranslate,
+        }}
+      />
+
+      {/* SVG scan sweep (subtle) */}
+      <svg
+        className="absolute inset-0 pointer-events-none opacity-[0.16]"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="transparent" />
+            <stop offset="50%" stopColor={accent} stopOpacity={0.7} />
+            <stop offset="100%" stopColor="transparent" />
+          </linearGradient>
+        </defs>
+        <rect
+          x="-40%"
+          y="0"
+          width="40%"
+          height="100%"
+          fill={`url(#${gradientId})`}
+          style={{ animation: "scanSweep 5s linear infinite" }}
+        />
+      </svg>
+
+      {/* Flow shimmer overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.14]"
         style={{
           background: `repeating-linear-gradient(
             -75deg,
@@ -61,24 +128,16 @@ function HeatlineStrip({
             ${accent}22 8%,
             transparent 16%
           )`,
+          animation: "flowMove 3.6s linear infinite",
         }}
       />
 
-      <style>{`
-        @keyframes flowMove {
-          0% { background-position: 0% 0%; }
-          100% { background-position: 200% 0%; }
-        }
-      `}</style>
-
-      {/* Bars + mobile 2-row switch */}
+      {/* Bars + mobile 2-row layout (6x2 on mobile, 12x1 on >= sm) */}
       <div
         className="
           w-full h-full grid 
-          grid-cols-12 
-          sm:grid-cols-12 
-          [@media(max-width:430px)]:grid-rows-2 
-          [@media(max-width:430px)]:grid-cols-6
+          grid-cols-6 grid-rows-2 
+          sm:grid-cols-12 sm:grid-rows-1
           gap-[2px] 
           items-end
           px-[4px]
@@ -92,13 +151,20 @@ function HeatlineStrip({
           const isLow = v === min;
           const isHover = hoverIndex === i;
 
-          /* Colour ramp: darker base → bright → glow */
+          // Colour ramp: darker base → bright → glow
           const ramp = `linear-gradient(
             to top,
             ${accent}22,
             ${accent}55,
             ${accent}cc
           )`;
+
+          const globalIndex = startIndex + i;
+          const prevVal = globalIndex > 0 ? values[globalIndex - 1] : null;
+          const delta = prevVal != null ? v - prevVal : null;
+
+          const valueLabel = formatTooltipValue(v, unit);
+          const deltaLabel = formatTooltipDelta(delta, unit);
 
           return (
             <div
@@ -107,45 +173,51 @@ function HeatlineStrip({
               onMouseEnter={() => setHoverIndex(i)}
               onMouseLeave={() => setHoverIndex(null)}
             >
-              {/* Extreme ticks */}
+              {/* Extreme ticks + micro labels */}
               {isPeak && (
-                <div
-                  className="absolute top-[2px] h-[3px] w-[4px] rounded-sm"
-                  style={{
-                    background: accent,
-                    boxShadow: `0 0 4px ${accent}`,
-                  }}
-                />
+                <>
+                  <div
+                    className="absolute top-[2px] h-[3px] w-[4px] rounded-sm"
+                    style={{
+                      background: accent,
+                      boxShadow: `0 0 4px ${accent}`,
+                    }}
+                  />
+                  <div className="absolute top-[8px] text-[7px] font-semibold text-neutral-200 tracking-[0.14em] uppercase">
+                    H
+                  </div>
+                </>
               )}
               {isLow && (
-                <div
-                  className="absolute bottom-[2px] h-[3px] w-[4px] rounded-sm"
-                  style={{
-                    background: accent,
-                    boxShadow: `0 0 4px ${accent}`,
-                  }}
-                />
+                <>
+                  <div
+                    className="absolute bottom-[2px] h-[3px] w-[4px] rounded-sm"
+                    style={{
+                      background: accent,
+                      boxShadow: `0 0 4px ${accent}`,
+                    }}
+                  />
+                  <div className="absolute bottom-[8px] text-[7px] font-semibold text-neutral-400 tracking-[0.14em] uppercase">
+                    L
+                  </div>
+                </>
               )}
 
               {/* Main bar */}
               <div
-                className="
-                  w-[4px] rounded-full transition-all duration-200 
-                  origin-bottom
-                "
+                className="w-[4px] rounded-full transition-all duration-200 origin-bottom"
                 style={{
                   height: `${barH}px`,
                   background: ramp,
-                  opacity: isHover ? 1 : 0.8,
+                  opacity: isHover ? 1 : 0.82,
                   boxShadow: isHover
                     ? `0 0 6px ${accent}, 0 0 14px ${accent}cc`
                     : `0 0 3px ${accent}55`,
                   transform: isHover
-                    ? "scaleY(1.15) scaleX(1.15)"
-                    : "scale(1)",
-                  filter: isHover
-                    ? `drop-shadow(0 0 8px ${accent}aa)`
-                    : "none",
+                    ? "translateZ(0) scaleY(1.18) scaleX(1.12)"
+                    : "translateZ(0) scale(1)",
+                  filter: isHover ? `drop-shadow(0 0 8px ${accent}aa)` : "none",
+                  willChange: "transform, opacity",
                 }}
               />
 
@@ -159,21 +231,41 @@ function HeatlineStrip({
                   "
                 >
                   <div className="uppercase text-[8px] tracking-wider text-neutral-400">
-                    Round {values.length - 11 + i}
+                    Round {globalIndex + 1}
                   </div>
-                  <div className="font-semibold">{v.toFixed(1)}</div>
+                  <div className="font-semibold">{valueLabel}</div>
+                  {delta !== null && (
+                    <div className="text-[9px] text-neutral-400">{deltaLabel}</div>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Keyframes (global, but defined once per component mount) */}
+      <style>{`
+        @keyframes flowMove {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 200% 0%; }
+        }
+        @keyframes scanSweep {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(200%); }
+        }
+        @keyframes breath {
+          0% { opacity: 0.0; transform: scale(0.96); }
+          50% { opacity: 1; transform: scale(1.04); }
+          100% { opacity: 0.0; transform: scale(0.96); }
+        }
+      `}</style>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         Metric summary & helpers                           */
+/*                         Metric summary (5-round smoothing)                 */
 /* -------------------------------------------------------------------------- */
 
 type TrendDirection = "up" | "down" | "flat";
@@ -190,7 +282,10 @@ function average(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-function computeMetricSummary(values: number[], goodDirection: "up" | "down"): MetricSummary {
+function computeMetricSummary(
+  values: number[],
+  goodDirection: "up" | "down"
+): MetricSummary {
   if (!values.length) {
     return { current: 0, deltaPct: null, direction: "flat", isGood: null };
   }
@@ -212,6 +307,7 @@ function computeMetricSummary(values: number[], goodDirection: "up" | "down"): M
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
+  // Clamp volatility
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -230,7 +326,7 @@ function formatNumber(value: number, isPercentMetric: boolean): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                      TrendBlock — updated to use HeatlineStrip            */
+/*                             Trend block component                          */
 /* -------------------------------------------------------------------------- */
 
 type TrendSeries = {
@@ -262,12 +358,13 @@ function TrendBlock({
           "0 18px 48px rgba(0,0,0,0.85), 0 0 22px rgba(15,23,42,0.6)",
       }}
     >
-      {/* Halo */}
+      {/* Live breathing halo on hover */}
       <div
         className="pointer-events-none absolute -inset-px rounded-[26px] 
         opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
         style={{
           background: `radial-gradient(circle_at_top, ${accent}14, transparent 60%)`,
+          animation: "breath 3.4s ease-in-out infinite",
         }}
       />
 
@@ -323,6 +420,8 @@ function TrendBlock({
             }
 
             const valueLabel = formatNumber(summary.current, isPercent);
+            const isPositiveTrend =
+              summary.deltaPct !== null ? summary.deltaPct >= 0 : null;
 
             return (
               <div
@@ -362,9 +461,14 @@ function TrendBlock({
                   </div>
                 </div>
 
-                {/* HeatlineStrip v3 */}
+                {/* Heatline strip (replaces sparkline) */}
                 <div className="mt-1 h-[54px] rounded-xl overflow-hidden">
-                  <HeatlineStrip values={s.values} accent={accent} label={s.label} />
+                  <HeatlineStrip
+                    values={s.values}
+                    accent={accent}
+                    label={s.label}
+                    isPositiveTrend={isPositiveTrend}
+                  />
                 </div>
               </div>
             );
@@ -376,13 +480,48 @@ function TrendBlock({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         TeamTrends (data untouched)                        */
+/*                       Mocked rolling data helpers (smoothed)               */
+/* -------------------------------------------------------------------------- */
+
+function buildPressureSeries(length: number): number[] {
+  const values: number[] = [];
+  let base = 55;
+  for (let i = 0; i < length; i++) {
+    base =
+      base +
+      (Math.random() - 0.5) * 2 + // gentle random walk
+      Math.sin(i / 4); // soft oscillation
+    values.push(Math.round(base));
+  }
+  return values;
+}
+
+function buildPercentSeries(
+  length: number,
+  base: number,
+  swing: number
+): number[] {
+  const values: number[] = [];
+  let current = base;
+  for (let i = 0; i < length; i++) {
+    const drift = Math.sin(i / 6) * (swing * 0.3);
+    const noise = (Math.random() - 0.5) * swing * 0.35;
+    current = current + drift * 0.04 + noise * 0.15;
+    const v = Math.max(0, Math.min(100, current));
+    values.push(v);
+  }
+  return values;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               TeamTrends section                           */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamTrends() {
   const rounds = 23;
 
   /* ------------------------------- ATTACK -------------------------------- */
+
   const attackPoints = useMemo(() => {
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
@@ -397,48 +536,58 @@ export default function TeamTrends() {
   }, [rounds]);
 
   const attackExpected = useMemo(
-    () => attackPoints.map((v, i) => (v + (attackPoints[i - 1] ?? v)) / 2),
+    () =>
+      attackPoints.map((v, i) => {
+        const prev = attackPoints[i - 1] ?? v;
+        return (v + prev) / 2;
+      }),
     [attackPoints]
   );
 
   const attackF50 = useMemo(
-    () => Array.from({ length: rounds }, () => 50 + Math.random() * 10),
+    () => buildPercentSeries(rounds, 56, 12),
     [rounds]
   );
 
   const attackTrend = useMemo(
-    () => Array.from({ length: rounds }, () => 60 + Math.random() * 10),
+    () => buildPercentSeries(rounds, 68, 10),
     [rounds]
   );
 
   /* ------------------------------ DEFENCE -------------------------------- */
+
   const defenceConceded = useMemo(() => {
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
-      const conceded = MOCK_TEAMS.map((t) => t.scores[r] - t.margins[r]);
+      const conceded = MOCK_TEAMS.map(
+        (t) => t.scores[r] - t.margins[r]
+      );
       arr.push(
-        Math.round(conceded.reduce((a, b) => a + b, 0) / conceded.length)
+        Math.round(
+          conceded.reduce((a, b) => a + b, 0) / conceded.length
+        )
       );
     }
     return arr;
   }, [rounds]);
 
   const pressureIndex = useMemo(
-    () => Array.from({ length: rounds }, () => 55 + Math.random() * 10),
+    () => buildPressureSeries(rounds),
     [rounds]
   );
 
   const interceptMarks = useMemo(
-    () => Array.from({ length: rounds }, () => 48 + Math.random() * 14),
+    () => buildPercentSeries(rounds, 60, 14),
     [rounds]
   );
 
   const defenceTrend = useMemo(
-    () => Array.from({ length: rounds }, () => 59 + Math.random() * 10),
+    () => buildPercentSeries(rounds, 65, 11),
     [rounds]
   );
 
   /* ------------------------------ MIDFIELD ------------------------------- */
+
   const contestedInfluence = useMemo(() => {
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
@@ -446,45 +595,72 @@ export default function TeamTrends() {
         (t) => t.clearanceDom[r] + t.margins[r] / 3
       );
       arr.push(
-        Math.round(contested.reduce((a, b) => a + b, 0) / contested.length)
+        Math.round(
+          contested.reduce((a, b) => a + b, 0) / contested.length
+        )
       );
     }
     return arr;
   }, [rounds]);
 
   const stoppageWins = useMemo(
-    () => contestedInfluence.map((v) => v - (5 - Math.random() * 6)),
+    () =>
+      contestedInfluence.map(
+        (v) => v - (5 - Math.random() * 6)
+      ),
     [contestedInfluence]
   );
 
   const midfieldClearances = useMemo(
-    () => Array.from({ length: rounds }, () => 50 + Math.random() * 15),
+    () => buildPercentSeries(rounds, 52, 10),
     [rounds]
   );
 
   const midfieldTrend = useMemo(
-    () => Array.from({ length: rounds }, () => 58 + Math.random() * 12),
+    () => buildPercentSeries(rounds, 66, 9),
     [rounds]
   );
 
   /* -------------------------------- RUCK --------------------------------- */
+
   const ruckHitOuts = useMemo(
-    () => Array.from({ length: rounds }, () => 40 + Math.random() * 8),
+    () =>
+      Array.from({ length: rounds }, (_, i) =>
+        Math.round(
+          40 +
+            Math.sin(i / 3) * 4 +
+            (Math.random() * 4 - 2)
+        )
+      ),
     [rounds]
   );
 
   const ruckHitOutsAdv = useMemo(
-    () => Array.from({ length: rounds }, () => 12 + Math.random() * 6),
+    () =>
+      Array.from({ length: rounds }, (_, i) =>
+        Math.round(
+          12 +
+            Math.sin(i / 4) * 3 +
+            (Math.random() * 3 - 1.5)
+        )
+      ),
     [rounds]
   );
 
   const ruckClearances = useMemo(
-    () => Array.from({ length: rounds }, () => 22 + Math.random() * 6),
+    () =>
+      Array.from({ length: rounds }, (_, i) =>
+        Math.round(
+          22 +
+            Math.sin(i / 3.5) * 3 +
+            (Math.random() * 3 - 1.5)
+        )
+      ),
     [rounds]
   );
 
   const ruckTrend = useMemo(
-    () => Array.from({ length: rounds }, () => 60 + Math.random() * 10),
+    () => buildPercentSeries(rounds, 60, 10),
     [rounds]
   );
 
@@ -492,9 +668,11 @@ export default function TeamTrends() {
     <section className="mt-10">
       {/* Whole glass section */}
       <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl md:px-7 md:pb-9 md:pt-7">
+        {/* Halo */}
         <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
         <div className="relative">
+          {/* Header pill */}
           <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
             <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.85)]" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
