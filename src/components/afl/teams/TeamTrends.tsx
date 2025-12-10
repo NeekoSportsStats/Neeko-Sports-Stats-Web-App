@@ -13,12 +13,17 @@ import {
 /*                           Sparkline (smoothed line)                        */
 /* -------------------------------------------------------------------------- */
 
+/** 
+ * Updated: supports *asymmetric vertical padding*
+ * So we can visually re-center the sparkline inside the pill.
+ */
 function buildSmoothPath(
   values: number[],
   width: number,
   height: number,
   paddingX: number,
-  paddingY: number
+  paddingTop: number,
+  paddingBottom: number
 ): string {
   if (!values || values.length === 0) return "";
 
@@ -27,14 +32,15 @@ function buildSmoothPath(
   const range = max - min || 1;
 
   const innerWidth = width - paddingX * 2;
-  const innerHeight = height - paddingY * 2;
+  const innerHeight = height - paddingTop - paddingBottom;
+
   const stepX =
     values.length === 1 ? 0 : innerWidth / (values.length - 1);
 
   const points = values.map((v, i) => {
     const norm = (v - min) / range;
     const x = paddingX + i * stepX;
-    const y = paddingY + (1 - norm) * innerHeight;
+    const y = paddingTop + (1 - norm) * innerHeight;
     return { x, y };
   });
 
@@ -56,6 +62,8 @@ function buildSmoothPath(
   return d;
 }
 
+/* -------------------------------------------------------------------------- */
+
 function SparklineLarge({
   values,
   color,
@@ -64,13 +72,23 @@ function SparklineLarge({
   color: string;
 }) {
   const width = 100;
-  const height = 50; // UPDATED: larger sparkline height
+  const height = 50; // increased height
 
+  // Balanced option:
   const PADDING_X = 10;
-  const PADDING_Y = 14; // option B spacing
+  const PADDING_TOP = 12;
+  const PADDING_BOTTOM = 8;
 
   const pathD = useMemo(
-    () => buildSmoothPath(values, width, height, PADDING_X, PADDING_Y),
+    () =>
+      buildSmoothPath(
+        values,
+        width,
+        height,
+        PADDING_X,
+        PADDING_TOP,
+        PADDING_BOTTOM
+      ),
     [values]
   );
 
@@ -132,7 +150,7 @@ function SparklineLarge({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         Metric summary (5-round smoothing)                 */
+/*                 Metric summary (unchanged from your working version)       */
 /* -------------------------------------------------------------------------- */
 
 type TrendDirection = "up" | "down" | "flat";
@@ -164,12 +182,7 @@ function computeMetricSummary(
 
   if (values.length < 10) {
     const current = average(values);
-    return {
-      current,
-      deltaPct: null,
-      direction: "flat",
-      isGood: null,
-    };
+    return { current, deltaPct: null, direction: "flat", isGood: null };
   }
 
   const last5 = values.slice(-5);
@@ -179,16 +192,10 @@ function computeMetricSummary(
   const prevAvg = average(prev5);
 
   if (prevAvg === 0) {
-    return {
-      current: lastAvg,
-      deltaPct: null,
-      direction: "flat",
-      isGood: null,
-    };
+    return { current: lastAvg, deltaPct: null, direction: "flat", isGood: null };
   }
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
-
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -273,7 +280,7 @@ function TrendBlock({
         <div className="mt-4 border-t border-neutral-800/70 pt-4" />
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
-          {series.map((s, i) => {
+          {series.map((s, idx) => {
             const summary = computeMetricSummary(s.values, s.goodDirection);
             const isPercent = s.label.includes("%");
             const isTrendLabel = s.label.toLowerCase() === "trend";
@@ -284,17 +291,15 @@ function TrendBlock({
 
             if (summary.deltaPct !== null) {
               const abs = Math.abs(summary.deltaPct);
-
               if (abs < 0.1) {
                 deltaLabel = "– 0.0%";
               } else {
-                const formatted = abs.toFixed(1) + "%";
                 arrow = summary.direction === "up" ? "▲" : "▼";
                 deltaClass =
                   summary.isGood === true
                     ? "text-emerald-400"
                     : "text-rose-400";
-                deltaLabel = `${arrow} ${formatted}`;
+                deltaLabel = `${arrow} ${abs.toFixed(1)}%`;
               }
             }
 
@@ -304,7 +309,7 @@ function TrendBlock({
               <div
                 key={s.label}
                 className={
-                  i % 2 === 1
+                  idx % 2 === 1
                     ? "space-y-2 md:border-l md:border-neutral-900/70 md:pl-4"
                     : "space-y-2 md:pr-4"
                 }
@@ -319,7 +324,7 @@ function TrendBlock({
                   >
                     {isTrendLabel && (
                       <span
-                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full"
                         style={{
                           background: accent,
                           boxShadow: `0 0 8px ${accent}a0`,
@@ -337,7 +342,7 @@ function TrendBlock({
                   </div>
                 </div>
 
-                {/* Updated wrapper height */}
+                {/* Balanced vertical centering */}
                 <div className="mt-1 h-[54px] rounded-xl overflow-hidden">
                   <SparklineLarge values={s.values} color={accent} />
                 </div>
@@ -351,10 +356,10 @@ function TrendBlock({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                       Mocked rolling data helpers                          */
+/*                       Mock series helpers (unchanged)                      */
 /* -------------------------------------------------------------------------- */
 
-function buildPressureSeries(length: number): number[] {
+function buildPressureSeries(length: number) {
   const out: number[] = [];
   for (let i = 0; i < length; i++) {
     out.push(
@@ -380,7 +385,7 @@ function buildPercentSeries(length: number, base: number, swing: number) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               TeamTrends section                           */
+/*                               TeamTrends Section                           */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamTrends() {

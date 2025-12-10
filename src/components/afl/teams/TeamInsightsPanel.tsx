@@ -1,217 +1,239 @@
 // src/components/afl/teams/TeamInsightsPanel.tsx
-import React, { useEffect } from "react";
-import { AnimatePresence, motion, useAnimation } from "framer-motion";
-import { X } from "lucide-react";
 
-// import MODE_CONFIG so mode labels render correctly
+import React, { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { MODE_CONFIG } from "./TeamMasterTable";
 
-interface TeamInsightsPanelProps {
-  onClose: () => void;
+interface Props {
   team: any;
-  mode: string;
+  mode: any;
   modeSeries: number[];
-  modeSummary: {
-    min: number;
-    max: number;
-    average: number;
-    total: number;
-  };
+  modeSummary: { min: number; max: number; average: number; total: number };
+  onClose: () => void;
 }
 
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = React.useState(false);
-
-  useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth < 768);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return isMobile;
-};
-
 export default function TeamInsightsPanel({
-  onClose,
   team,
   mode,
   modeSeries,
   modeSummary,
-}: TeamInsightsPanelProps) {
-  const isMobile = useIsMobile();
-  const controls = useAnimation();
+  onClose,
+}: Props) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const startY = useRef(0);
+  const currentY = useRef(0);
+  const dragging = useRef(false);
 
-  const teamName = team?.name ?? "Team";
-  const teamCode = team?.code ?? "";
+  const [sheetY, setSheetY] = useState(0); // transform offset
+  const [isMobile, setIsMobile] = useState(false);
 
-  const last8 = modeSeries.slice(-8);
-  const last5 = modeSeries.slice(-5);
-
-  const label = MODE_CONFIG[mode]?.label ?? "Scoring";
-
-  // Slide up on mobile
+  /* Detect mobile layout */
   useEffect(() => {
-    if (isMobile) {
-      controls.start({
-        y: 0,
-        transition: { type: "spring", stiffness: 300, damping: 28 },
-      });
-    }
-  }, [controls, isMobile]);
+    const handle = () => setIsMobile(window.innerWidth < 768);
+    handle();
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
 
-  const handleDragEnd = (_: any, info: any) => {
-    if (info.offset.y > 120 || info.velocity.y > 500) {
-      controls
-        .start({
-          y: "100%",
-          transition: { type: "spring", stiffness: 260, damping: 30 },
-        })
-        .then(() => onClose());
+  /* ---------------------- DRAG HANDLERS (MOBILE) ---------------------- */
+
+  function onTouchStart(e: React.TouchEvent) {
+    dragging.current = true;
+    startY.current = e.touches[0].clientY;
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (!dragging.current) return;
+
+    currentY.current = e.touches[0].clientY;
+    const delta = currentY.current - startY.current;
+
+    if (delta > 0) {
+      // allow drag down only
+      setSheetY(delta * 0.6); // softer feel
+    }
+  }
+
+  function onTouchEnd() {
+    dragging.current = false;
+
+    if (sheetY > 120) {
+      // snap closed
+      setSheetY(500);
+      setTimeout(onClose, 180);
     } else {
-      controls.start({
-        y: 0,
-        transition: { type: "spring", stiffness: 300, damping: 28 },
-      });
+      // snap back
+      setSheetY(0);
     }
-  };
+  }
 
-  const Content = (
-    <div className="flex h-full flex-col bg-black/95 text-neutral-50">
-      {/* HEADER */}
-      <div className="flex items-start justify-between border-b border-yellow-500/20 px-5 py-4">
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-yellow-400">
-            TEAM INSIGHTS
-          </p>
-          <h2 className="mt-1 text-lg font-semibold">{teamName}</h2>
-          <p className="text-xs uppercase tracking-widest text-neutral-400">{teamCode}</p>
-        </div>
+  /* ------------------------ DESKTOP PANEL ------------------------ */
 
-        <button
+  if (!isMobile) {
+    return (
+      <>
+        {/* BACKDROP */}
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
           onClick={onClose}
-          className="h-8 w-8 flex items-center justify-center rounded-full border border-yellow-500/40 bg-black/60 hover:border-yellow-400 hover:text-yellow-300"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+        />
 
-      {/* MAIN SCROLLABLE BODY */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+        {/* SIDE PANEL */}
+        <div className="fixed right-0 top-0 h-full w-[380px] bg-neutral-950 border-l border-neutral-800 z-[100] p-6 overflow-y-auto no-scrollbar">
+          <button
+            className="absolute right-4 top-4 text-neutral-400 hover:text-white"
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
 
-        {/* Last 8 Window */}
-        <section className="rounded-2xl border border-yellow-500/20 bg-black/60 px-4 py-4">
-          <div className="flex justify-between mb-3">
-            <div>
-              <p className="text-[11px] font-semibold text-yellow-300 tracking-widest">
-                {label} WINDOW
-              </p>
-              <p className="text-xs text-neutral-400">Last 8 rounds</p>
-            </div>
-            <p className="text-xl font-semibold text-yellow-300">{modeSummary.average}</p>
-          </div>
+          {/* CONTENT */}
+          <InsightsContent
+            team={team}
+            mode={mode}
+            modeSeries={modeSeries}
+            modeSummary={modeSummary}
+          />
+        </div>
+      </>
+    );
+  }
 
-          <div className="flex flex-wrap gap-2">
-            {last8.map((v, i) => (
-              <span
-                key={i}
-                className="px-3 py-1 rounded-full border border-yellow-500/20 bg-black/70 text-sm"
-              >
-                {v}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        {/* Stats */}
-        <section className="rounded-2xl border border-yellow-500/20 bg-black/60 px-4 py-4">
-          <p className="text-[11px] font-semibold tracking-widest text-neutral-400 mb-3">
-            {label} STATS
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-[11px] uppercase text-neutral-500">AVG</p>
-              <p className="text-lg font-semibold">{modeSummary.average}</p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase text-neutral-500">TOTAL</p>
-              <p className="text-lg font-semibold">{modeSummary.total}</p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase text-neutral-500">MIN</p>
-              <p className="text-lg font-semibold">{modeSummary.min}</p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase text-neutral-500">MAX</p>
-              <p className="text-lg font-semibold">{modeSummary.max}</p>
-            </div>
-          </div>
-
-          <p className="mt-4 mb-2 text-[11px] uppercase text-neutral-500">Last 5</p>
-          <div className="flex flex-wrap gap-2">
-            {last5.map((v, i) => (
-              <span key={i} className="px-3 py-1 rounded-full bg-neutral-900 text-sm">
-                {v}
-              </span>
-            ))}
-          </div>
-        </section>
-
-        {/* AI Summary */}
-        <section className="rounded-2xl border border-yellow-500/20 bg-black/80 px-4 py-4">
-          <p className="text-[11px] text-yellow-300 tracking-widest mb-2">AI SUMMARY</p>
-          <p className="text-sm leading-relaxed">
-            {team.aiSummary ??
-              `${teamName} is showing neutral-positive territory in ${label.toLowerCase()} trends.`}
-          </p>
-        </section>
-      </div>
-    </div>
-  );
+  /* -------------------------- MOBILE SHEET -------------------------- */
 
   return (
-    <AnimatePresence>
+    <>
       {/* BACKDROP */}
-      <motion.div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90]"
         onClick={onClose}
       />
 
-      {/* MOBILE BOTTOM SHEET */}
-      {isMobile ? (
-        <motion.div
-          className="fixed bottom-0 inset-x-0 z-50"
-          initial={{ y: "100%" }}
-          animate={controls}
-          exit={{ y: "100%" }}
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          onDragEnd={handleDragEnd}
+      {/* SHEET */}
+      <div
+        ref={sheetRef}
+        className="fixed left-0 right-0 bottom-0 z-[100] bg-neutral-950 rounded-t-2xl border-t border-neutral-800 shadow-xl"
+        style={{
+          transform: `translateY(${sheetY}px)`,
+          transition: dragging.current ? "none" : "transform 0.18s ease-out",
+          maxHeight: "92vh",
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* DRAG HANDLE */}
+        <div className="w-full flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1.5 rounded-full bg-neutral-600/60" />
+        </div>
+
+        {/* CLOSE BUTTON */}
+        <button
+          className="absolute right-4 top-4 text-neutral-400 hover:text-white"
+          onClick={onClose}
         >
-          <div className="mx-auto max-w-xl w-full rounded-t-3xl border border-yellow-500/30 bg-black/95">
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="h-1.5 w-14 bg-neutral-700 rounded-full" />
+          <X size={20} />
+        </button>
+
+        {/* CONTENT SCROLL */}
+        <div className="overflow-y-auto max-h-[80vh] px-6 pb-10 no-scrollbar">
+          <InsightsContent
+            team={team}
+            mode={mode}
+            modeSeries={modeSeries}
+            modeSummary={modeSummary}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        CONTENT (SHARED DESKTOP + MOBILE)                   */
+/* -------------------------------------------------------------------------- */
+
+function InsightsContent({ team, mode, modeSeries, modeSummary }: any) {
+  const config = MODE_CONFIG[mode];
+
+  return (
+    <>
+      <h2 className="text-xl font-semibold text-white mt-6">{team.name}</h2>
+      <p className="text-neutral-400 text-xs mt-1">{team.code}</p>
+
+      {/* WINDOW BOX */}
+      <div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
+        <div className="text-xs text-neutral-400 uppercase tracking-wide">
+          {config.label} Window
+        </div>
+        <div className="text-2xl font-semibold text-yellow-300 mt-1">
+          {modeSummary.average}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-3">
+          {modeSeries.slice(-8).map((v: number, i: number) => (
+            <div
+              key={i}
+              className="px-2 py-1 bg-neutral-800 rounded-md text-[11px] text-neutral-200"
+            >
+              {v}
             </div>
-            <div className="max-h-[80vh] overflow-y-auto">{Content}</div>
-          </div>
-        </motion.div>
-      ) : (
-        /* DESKTOP SIDE PANEL */
-        <motion.div
-          className="fixed inset-y-0 right-0 z-50 w-full max-w-md"
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-        >
-          <div className="h-full bg-black/95 border-l border-yellow-500/30 overflow-hidden">
-            {Content}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          ))}
+        </div>
+      </div>
+
+      {/* STATS */}
+      <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
+        <div className="text-xs text-neutral-400 uppercase tracking-wide">
+          {config.label} Stats
+        </div>
+
+        <div className="grid grid-cols-2 gap-y-2 mt-3 text-sm">
+          <div className="text-neutral-400">Average</div>
+          <div className="text-white font-medium">{modeSummary.average}</div>
+
+          <div className="text-neutral-400">Total</div>
+          <div className="text-white font-medium">{modeSummary.total}</div>
+
+          <div className="text-neutral-400">Min</div>
+          <div className="text-white font-medium">{modeSummary.min}</div>
+
+          <div className="text-neutral-400">Max</div>
+          <div className="text-white font-medium">{modeSummary.max}</div>
+        </div>
+
+        <div className="text-xs text-neutral-400 uppercase tracking-wide mt-4">
+          Last 5 Rounds
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {modeSeries.slice(-5).map((v: number, i: number) => (
+            <div
+              key={i}
+              className="px-2 py-1 bg-neutral-800 rounded-md text-[11px] text-neutral-200"
+            >
+              {v}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* AI SUMMARY */}
+      <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900/40 p-4 mb-10">
+        <div className="text-xs text-neutral-400 uppercase tracking-wide">
+          AI Summary
+        </div>
+
+        <p className="text-neutral-300 text-sm leading-relaxed mt-2">
+          {team.name} is showing{" "}
+          <span className="text-yellow-300 font-medium">neutral–positive</span>{" "}
+          momentum in {config.label.toLowerCase()} over the last block. Values
+          are stabilising around{" "}
+          <span className="text-yellow-300 font-medium">
+            {modeSummary.average}
+          </span>{" "}
+          per game with moderate volatility.
+        </p>
+      </div>
+    </>
   );
 }
