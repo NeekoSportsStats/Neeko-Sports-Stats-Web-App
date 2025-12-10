@@ -121,7 +121,7 @@ export default function AFLTeams() {
   /* -------------------------------------------------------------------------- */
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-20 pt-6 md:px-8 lg:px-12">
+    <div className="mx-auto max-w-6xl px-4 pb-20 pt-6">
 
       {/* -------------------------------- PAGE HEADER ----------------------------- */}
       <header className="mb-10">
