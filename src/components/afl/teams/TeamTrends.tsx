@@ -1,12 +1,12 @@
-// UPDATED — TeamTrends.tsx
-// Sparkline removed — replaced with HeatlineStrip (C2 Tooltip Version)
+// FINAL TeamTrends.tsx — HeatlineStrip v3 (flow animation + extreme ticks)
+// Fully replaces SparklineLarge everywhere.
 
 import React, { useMemo, useState } from "react";
 import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                               Heatline Strip                               */
+/*                   Heatline Strip v3 — Premium Telemetry Bar               */
 /* -------------------------------------------------------------------------- */
 
 function HeatlineStrip({
@@ -18,11 +18,22 @@ function HeatlineStrip({
   accent: string;
   label: string;
 }) {
+  /* --- Limit to last 12 rounds --- */
+  const recent = values.slice(-12);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...recent);
+  const max = Math.max(...recent);
   const range = max - min || 1;
+
+  /* Flow animation shimmer */
+  const shimmerGradient = `
+    linear-gradient(
+      to top,
+      ${accent}15,
+      ${accent}44,
+      ${accent}80
+    )`;
 
   return (
     <div
@@ -30,69 +41,139 @@ function HeatlineStrip({
         relative h-[54px] w-full rounded-xl overflow-hidden 
         bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black
         border border-slate-400/20 shadow-[0_6px_16px_rgba(0,0,0,0.55)]
-        flex items-end justify-between px-[6px]
+        flex items-center justify-between px-[6px]
       "
     >
-      {/* Glow */}
+      {/* Fade edges */}
+      <div className="absolute left-0 top-0 h-full w-6 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none" />
+      <div className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-black via-black/60 to-transparent pointer-events-none" />
+
+      {/* Midline baseline */}
+      <div className="absolute top-1/2 left-0 w-full border-t border-white/5 pointer-events-none" />
+
+      {/* Flow animation overlay */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none opacity-[0.18] animate-[flowMove_3.2s_linear_infinite]"
         style={{
-          background: `radial-gradient(circle at center, ${accent}26, transparent 70%)`,
+          background: `repeating-linear-gradient(
+            -75deg,
+            transparent 0%,
+            ${accent}22 8%,
+            transparent 16%
+          )`,
         }}
       />
 
-      {/* Bars */}
-      {values.map((v, i) => {
-        const norm = (v - min) / range;
-        const h = 10 + norm * 34; // Keep elegant, never too tall
+      <style>{`
+        @keyframes flowMove {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 200% 0%; }
+        }
+      `}</style>
 
-        const isHover = hoverIndex === i;
+      {/* Bars + mobile 2-row switch */}
+      <div
+        className="
+          w-full h-full grid 
+          grid-cols-12 
+          sm:grid-cols-12 
+          [@media(max-width:430px)]:grid-rows-2 
+          [@media(max-width:430px)]:grid-cols-6
+          gap-[2px] 
+          items-end
+          px-[4px]
+        "
+      >
+        {recent.map((v, i) => {
+          const norm = (v - min) / range;
+          const barH = 6 + norm * 34;
 
-        return (
-          <div
-            key={i}
-            className="relative flex-1 flex items-end justify-center"
-            onMouseEnter={() => setHoverIndex(i)}
-            onMouseLeave={() => setHoverIndex(null)}
-          >
+          const isPeak = v === max;
+          const isLow = v === min;
+          const isHover = hoverIndex === i;
+
+          /* Colour ramp: darker base → bright → glow */
+          const ramp = `linear-gradient(
+            to top,
+            ${accent}22,
+            ${accent}55,
+            ${accent}cc
+          )`;
+
+          return (
             <div
-              className="w-[3px] rounded-full transition-all duration-150"
-              style={{
-                height: `${h}px`,
-                background: accent,
-                opacity: isHover ? 0.95 : 0.75,
-                boxShadow: isHover
-                  ? `0 0 8px ${accent}, 0 0 16px ${accent}aa`
-                  : `0 0 4px ${accent}55`,
-                scale: isHover ? "1.25" : "1",
-              }}
-            />
+              key={i}
+              className="relative flex items-end justify-center"
+              onMouseEnter={() => setHoverIndex(i)}
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              {/* Extreme ticks */}
+              {isPeak && (
+                <div
+                  className="absolute top-[2px] h-[3px] w-[4px] rounded-sm"
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 4px ${accent}`,
+                  }}
+                />
+              )}
+              {isLow && (
+                <div
+                  className="absolute bottom-[2px] h-[3px] w-[4px] rounded-sm"
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 4px ${accent}`,
+                  }}
+                />
+              )}
 
-            {/* Tooltip */}
-            {isHover && (
+              {/* Main bar */}
               <div
                 className="
-                  absolute bottom-full mb-1 px-2 py-1 rounded-md text-[10px] 
-                  bg-black/90 backdrop-blur-sm border border-white/10 text-neutral-200
-                  whitespace-nowrap pointer-events-none z-20
+                  w-[4px] rounded-full transition-all duration-200 
+                  origin-bottom
                 "
-                style={{ transform: "translateY(-4px)" }}
-              >
-                <div className="uppercase text-[8px] tracking-wider text-neutral-400">
-                  Round {i + 1}
+                style={{
+                  height: `${barH}px`,
+                  background: ramp,
+                  opacity: isHover ? 1 : 0.8,
+                  boxShadow: isHover
+                    ? `0 0 6px ${accent}, 0 0 14px ${accent}cc`
+                    : `0 0 3px ${accent}55`,
+                  transform: isHover
+                    ? "scaleY(1.15) scaleX(1.15)"
+                    : "scale(1)",
+                  filter: isHover
+                    ? `drop-shadow(0 0 8px ${accent}aa)`
+                    : "none",
+                }}
+              />
+
+              {/* Tooltip */}
+              {isHover && (
+                <div
+                  className="
+                    absolute bottom-full mb-1 px-2 py-1 rounded-md text-[10px] 
+                    bg-black/90 backdrop-blur-sm border border-white/10 text-neutral-200
+                    whitespace-nowrap pointer-events-none z-20
+                  "
+                >
+                  <div className="uppercase text-[8px] tracking-wider text-neutral-400">
+                    Round {values.length - 11 + i}
+                  </div>
+                  <div className="font-semibold">{v.toFixed(1)}</div>
                 </div>
-                <div className="font-semibold">{v.toFixed(1)}</div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         Metric summary (UNCHANGED)                         */
+/*                         Metric summary & helpers                           */
 /* -------------------------------------------------------------------------- */
 
 type TrendDirection = "up" | "down" | "flat";
@@ -109,10 +190,7 @@ function average(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-function computeMetricSummary(
-  values: number[],
-  goodDirection: "up" | "down"
-): MetricSummary {
+function computeMetricSummary(values: number[], goodDirection: "up" | "down"): MetricSummary {
   if (!values.length) {
     return { current: 0, deltaPct: null, direction: "flat", isGood: null };
   }
@@ -134,7 +212,6 @@ function computeMetricSummary(
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
 
-  // Clamp volatility
   if (deltaPct > 15) deltaPct = 15;
   if (deltaPct < -15) deltaPct = -15;
 
@@ -142,8 +219,7 @@ function computeMetricSummary(
   if (deltaPct > 0.1) direction = "up";
   else if (deltaPct < -0.1) direction = "down";
 
-  const isGood =
-    goodDirection === "up" ? deltaPct >= 0 : deltaPct <= 0;
+  const isGood = goodDirection === "up" ? deltaPct >= 0 : deltaPct <= 0;
 
   return { current: lastAvg, deltaPct, direction, isGood };
 }
@@ -154,7 +230,7 @@ function formatNumber(value: number, isPercentMetric: boolean): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         Trend block (patched)                              */
+/*                      TrendBlock — updated to use HeatlineStrip            */
 /* -------------------------------------------------------------------------- */
 
 type TrendSeries = {
@@ -286,13 +362,9 @@ function TrendBlock({
                   </div>
                 </div>
 
-                {/* New Heatline Strip */}
+                {/* HeatlineStrip v3 */}
                 <div className="mt-1 h-[54px] rounded-xl overflow-hidden">
-                  <HeatlineStrip
-                    values={s.values}
-                    accent={accent}
-                    label={s.label}
-                  />
+                  <HeatlineStrip values={s.values} accent={accent} label={s.label} />
                 </div>
               </div>
             );
@@ -304,22 +376,204 @@ function TrendBlock({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                            TeamTrends section                              */
+/*                         TeamTrends (data untouched)                        */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamTrends() {
   const rounds = 23;
 
-  /* identical data logic untouched… */
+  /* ------------------------------- ATTACK -------------------------------- */
+  const attackPoints = useMemo(() => {
+    const arr: number[] = [];
+    for (let r = 0; r < rounds; r++) {
+      const roundScores = MOCK_TEAMS.map((t) => t.scores[r]);
+      arr.push(
+        Math.round(
+          roundScores.reduce((a, b) => a + b, 0) / roundScores.length
+        )
+      );
+    }
+    return arr;
+  }, [rounds]);
 
-  // (you keep all your existing useMemo data generation here)
-  // ...
-  
-  // I am omitting repeated data logic for brevity (unchanged).
+  const attackExpected = useMemo(
+    () => attackPoints.map((v, i) => (v + (attackPoints[i - 1] ?? v)) / 2),
+    [attackPoints]
+  );
+
+  const attackF50 = useMemo(
+    () => Array.from({ length: rounds }, () => 50 + Math.random() * 10),
+    [rounds]
+  );
+
+  const attackTrend = useMemo(
+    () => Array.from({ length: rounds }, () => 60 + Math.random() * 10),
+    [rounds]
+  );
+
+  /* ------------------------------ DEFENCE -------------------------------- */
+  const defenceConceded = useMemo(() => {
+    const arr: number[] = [];
+    for (let r = 0; r < rounds; r++) {
+      const conceded = MOCK_TEAMS.map((t) => t.scores[r] - t.margins[r]);
+      arr.push(
+        Math.round(conceded.reduce((a, b) => a + b, 0) / conceded.length)
+      );
+    }
+    return arr;
+  }, [rounds]);
+
+  const pressureIndex = useMemo(
+    () => Array.from({ length: rounds }, () => 55 + Math.random() * 10),
+    [rounds]
+  );
+
+  const interceptMarks = useMemo(
+    () => Array.from({ length: rounds }, () => 48 + Math.random() * 14),
+    [rounds]
+  );
+
+  const defenceTrend = useMemo(
+    () => Array.from({ length: rounds }, () => 59 + Math.random() * 10),
+    [rounds]
+  );
+
+  /* ------------------------------ MIDFIELD ------------------------------- */
+  const contestedInfluence = useMemo(() => {
+    const arr: number[] = [];
+    for (let r = 0; r < rounds; r++) {
+      const contested = MOCK_TEAMS.map(
+        (t) => t.clearanceDom[r] + t.margins[r] / 3
+      );
+      arr.push(
+        Math.round(contested.reduce((a, b) => a + b, 0) / contested.length)
+      );
+    }
+    return arr;
+  }, [rounds]);
+
+  const stoppageWins = useMemo(
+    () => contestedInfluence.map((v) => v - (5 - Math.random() * 6)),
+    [contestedInfluence]
+  );
+
+  const midfieldClearances = useMemo(
+    () => Array.from({ length: rounds }, () => 50 + Math.random() * 15),
+    [rounds]
+  );
+
+  const midfieldTrend = useMemo(
+    () => Array.from({ length: rounds }, () => 58 + Math.random() * 12),
+    [rounds]
+  );
+
+  /* -------------------------------- RUCK --------------------------------- */
+  const ruckHitOuts = useMemo(
+    () => Array.from({ length: rounds }, () => 40 + Math.random() * 8),
+    [rounds]
+  );
+
+  const ruckHitOutsAdv = useMemo(
+    () => Array.from({ length: rounds }, () => 12 + Math.random() * 6),
+    [rounds]
+  );
+
+  const ruckClearances = useMemo(
+    () => Array.from({ length: rounds }, () => 22 + Math.random() * 6),
+    [rounds]
+  );
+
+  const ruckTrend = useMemo(
+    () => Array.from({ length: rounds }, () => 60 + Math.random() * 10),
+    [rounds]
+  );
 
   return (
     <section className="mt-10">
-      {/* (UI unchanged) */}
+      {/* Whole glass section */}
+      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl md:px-7 md:pb-9 md:pt-7">
+        <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
+
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.85)]" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
+              Team Trends
+            </span>
+          </div>
+
+          <h2 className="mt-4 text-2xl font-semibold text-neutral-50 md:text-3xl">
+            League-wide evolution across all four key positions
+          </h2>
+
+          <p className="mt-2 max-w-2xl text-xs text-neutral-400">
+            Rolling trends highlighting attacking quality, defensive solidity, midfield control and ruck dominance.
+          </p>
+
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+            League averages • Last 23 rounds • Synthetic positional trend lenses
+          </p>
+
+          {/* Positional cards grid */}
+          <div className="mt-8 grid gap-8 md:grid-cols-2 lg:gap-10">
+            {/* Attack */}
+            <TrendBlock
+              title="Attack Trend"
+              icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
+              accent="#FACC15"
+              description="Scoring output, expected conversion and forward-50 strength."
+              series={[
+                { label: "Points Scored", values: attackPoints, goodDirection: "up" },
+                { label: "Expected Score", values: attackExpected, goodDirection: "up" },
+                { label: "Forward-50 Efficiency (%)", values: attackF50, goodDirection: "up" },
+                { label: "Trend", values: attackTrend, goodDirection: "up" },
+              ]}
+            />
+
+            {/* Defence */}
+            <TrendBlock
+              title="Defence Trend"
+              icon={<Shield className="h-4 w-4 text-cyan-200" />}
+              accent="#22D3EE"
+              description="Conceded scoring, pressure indicators and intercept capability."
+              series={[
+                { label: "Points Conceded", values: defenceConceded, goodDirection: "down" },
+                { label: "Pressure Index", values: pressureIndex, goodDirection: "up" },
+                { label: "Intercept Marks", values: interceptMarks, goodDirection: "up" },
+                { label: "Trend", values: defenceTrend, goodDirection: "down" },
+              ]}
+            />
+
+            {/* Midfield */}
+            <TrendBlock
+              title="Midfield Trend"
+              icon={<Activity className="h-4 w-4 text-orange-300" />}
+              accent="#FB923C"
+              description="Contested strength, stoppage craft and clearance control."
+              series={[
+                { label: "Contested Influence", values: contestedInfluence, goodDirection: "up" },
+                { label: "Stoppage Wins", values: stoppageWins, goodDirection: "up" },
+                { label: "Clearance", values: midfieldClearances, goodDirection: "up" },
+                { label: "Trend", values: midfieldTrend, goodDirection: "up" },
+              ]}
+            />
+
+            {/* Ruck */}
+            <TrendBlock
+              title="Ruck Trend"
+              icon={<MoveVertical className="h-4 w-4 text-violet-200" />}
+              accent="#A78BFA"
+              description="Hit-out strength, advantage taps and ruck-led clearances."
+              series={[
+                { label: "Hit Outs", values: ruckHitOuts, goodDirection: "up" },
+                { label: "Hit Outs to Advantage", values: ruckHitOutsAdv, goodDirection: "up" },
+                { label: "Clearances", values: ruckClearances, goodDirection: "up" },
+                { label: "Trend", values: ruckTrend, goodDirection: "up" },
+              ]}
+            />
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
