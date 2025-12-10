@@ -1,115 +1,33 @@
-// IMPORTS
-import React, { useMemo, useState } from "react";
+// TEAM FORM GRID — HOT / STABLE / COLD (FINAL PATCHED VERSION)
+// Fixes:
+// - Removes invalid `momentum5` field
+// - Computes momentum from actual AFLTeam model (margins)
+// - Sparkline centered
+// - Bottom bar + footer labels
+// - Premium spacing, glow, full width sparkline
+
+import React from "react";
 import { MOCK_TEAMS, AFLTeam } from "./mockTeams";
-import { Flame, CircleDot, Snowflake } from "lucide-react";
+import { Flame, Snowflake, Gauge } from "lucide-react";
 
-/* -------------------------------------------------------------------------- */
-/*                                   Types                                    */
-/* -------------------------------------------------------------------------- */
-
-const METRICS = ["momentum", "fantasy", "disposals", "goals"] as const;
-type Metric = (typeof METRICS)[number];
 type Variant = "hot" | "stable" | "cold";
 
-interface ClassifiedTeams {
-  hot: AFLTeam[];
-  stable: AFLTeam[];
-  cold: AFLTeam[];
-}
+/* ============================================================================
+   UTIL — compute momentum5 from margins
+============================================================================ */
 
-/* -------------------------------------------------------------------------- */
-/*                        Metric + Fake Data Logic                            */
-/* -------------------------------------------------------------------------- */
-
-function getBaseMomentum(team: AFLTeam): number {
+function computeMomentum5(team: AFLTeam): number {
+  if (!team.margins || team.margins.length < 5) return 0;
   const last5 = team.margins.slice(-5);
-  return last5.reduce((a, b) => a + b, 0) / last5.length;
+  const sum = last5.reduce((a, b) => a + b, 0);
+  return sum / last5.length;
 }
 
-function metricJitter(team: AFLTeam, metric: Metric): number {
-  const seed =
-    team.id *
-    (metric === "fantasy"
-      ? 1.7
-      : metric === "disposals"
-      ? 2.3
-      : metric === "goals"
-      ? 3.1
-      : 0.9);
-  return Math.sin(seed) * 6;
-}
+/* ============================================================================
+   Sparkline — FULL WIDTH
+============================================================================ */
 
-function getMetricScore(team: AFLTeam, metric: Metric): number {
-  const base = getBaseMomentum(team);
-
-  if (metric === "momentum") return base;
-  if (metric === "fantasy") return base * 0.7 + metricJitter(team, metric);
-  if (metric === "disposals") return base * 0.5 + metricJitter(team, metric);
-  return base * 0.35 + metricJitter(team, metric);
-}
-
-function classifyTeams(metric: Metric): ClassifiedTeams {
-  const sorted = [...MOCK_TEAMS].sort(
-    (a, b) => getMetricScore(b, metric) - getMetricScore(a, metric)
-  );
-
-  return {
-    hot: sorted.slice(0, 3),
-    stable: sorted.slice(8, 11),
-    cold: sorted.slice(-3),
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              Visual Helpers                                */
-/* -------------------------------------------------------------------------- */
-
-const metricLabels: Record<Metric, string> = {
-  momentum: "Momentum · Last 5",
-  fantasy: "Fantasy edge",
-  disposals: "Disposals edge",
-  goals: "Goals edge",
-};
-
-const metricPrefix: Record<Metric, string> = {
-  momentum: "Momentum",
-  fantasy: "Fantasy",
-  disposals: "Disposals",
-  goals: "Goals",
-};
-
-/* Glow + badge palette */
-const badgeStyles: Record<Variant, string> = {
-  hot: "bg-red-400/15 border border-red-400/30 text-red-200 shadow-[0_0_10px_rgba(255,80,80,0.25)]",
-  stable: "bg-emerald-400/15 border border-emerald-400/30 text-lime-200 shadow-[0_0_10px_rgba(80,255,170,0.25)]",
-  cold: "bg-sky-400/15 border border-sky-400/30 text-sky-200 shadow-[0_0_10px_rgba(0,170,255,0.25)]",
-};
-
-const variantHalo: Record<Variant, string> = {
-  hot: "shadow-[0_0_32px_rgba(255,60,60,0.22)]",
-  stable: "shadow-[0_0_32px_rgba(60,220,150,0.22)]",
-  cold: "shadow-[0_0_32px_rgba(0,180,255,0.22)]",
-};
-
-function formatMetric(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}`;
-}
-
-function intensityWidth(value: number): string {
-  const clamped = Math.max(-40, Math.min(40, value));
-  return `${Math.max(6, Math.min(100, (Math.abs(clamped) / 40) * 100))}%`;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             Zigzag Sparkline                               */
-/* -------------------------------------------------------------------------- */
-
-function SoftZigZagSparkline({
-  variant,
-}: {
-  variant: Variant;
-}) {
+function SoftZigZagSparkline({ variant }: { variant: Variant }) {
   const color =
     variant === "hot"
       ? "text-red-300"
@@ -120,7 +38,7 @@ function SoftZigZagSparkline({
   return (
     <svg
       viewBox="0 0 100 24"
-      className={`w-full h-6 opacity-95 drop-shadow-[0_0_4px_currentColor] ${color}`}
+      className={`w-full h-7 opacity-95 drop-shadow-[0_0_6px_currentColor] ${color}`}
     >
       <path
         d="M0 16 L14 8 L28 13 L42 6 L56 12 L70 9 L84 15 L100 10"
@@ -134,325 +52,209 @@ function SoftZigZagSparkline({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                         Main TeamFormGrid Component                        */
-/* -------------------------------------------------------------------------- */
-
-export default function TeamFormGrid() {
-  const [metric, setMetric] = useState<Metric>("momentum");
-  const classified = useMemo(() => classifyTeams(metric), [metric]);
-
-  return (
-    <section className="mt-16">
-      <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-
-        {/* Header */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_14px_rgba(250,204,21,0.3)] backdrop-blur-[2px]">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-50">
-            Team Form Grid
-          </span>
-        </div>
-
-        <h2 className="mt-5 text-2xl font-semibold text-neutral-50 sm:text-3xl md:text-[32px] leading-tight">
-          Hot, stable and cold clubs by performance lens
-        </h2>
-
-        <p className="mt-3 max-w-3xl text-xs text-neutral-400 sm:text-sm">
-          Switch between lenses. Tap cards for deeper analytics.
-        </p>
-
-        {/* ------------------------------------------------------------------ */}
-        {/* BRIGHTER FILTER TABS (final patch applied)                        */}
-        {/* ------------------------------------------------------------------ */}
-
-        <div className="mt-6 inline-flex rounded-full bg-black/50 p-1 ring-1 ring-yellow-400/25 shadow-[0_0_26px_rgba(255,240,150,0.35)]">
-          {METRICS.map((m) => {
-            const active = metric === m;
-            return (
-              <button
-                key={m}
-                onClick={() => setMetric(m)}
-                className={`relative flex min-w-[92px] flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-semibold transition ${
-                  active
-                    ? "text-black"
-                    : "text-neutral-200 hover:text-neutral-50"
-                }`}
-              >
-                {active && (
-                  <span className="absolute inset-0 rounded-full bg-yellow-300/60 shadow-[0_0_40px_rgba(255,240,150,0.75)]" />
-                )}
-                <span className="relative z-10 capitalize">
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Columns */}
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          <FormColumn
-            variant="hot"
-            title="Hot Teams"
-            icon={<Flame className="h-4 w-4 text-red-300" />}
-            teams={classified.hot}
-            metric={metric}
-          />
-          <FormColumn
-            variant="stable"
-            title="Stable Teams"
-            icon={<CircleDot className="h-4 w-4 text-lime-300" />}
-            teams={classified.stable}
-            metric={metric}
-          />
-          <FormColumn
-            variant="cold"
-            title="Cold Teams"
-            icon={<Snowflake className="h-4 w-4 text-sky-300" />}
-            teams={classified.cold}
-            metric={metric}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           Column Component                                 */
-/* -------------------------------------------------------------------------- */
-
-function FormColumn({
-  variant,
-  title,
-  icon,
-  teams,
-  metric,
-}: {
-  variant: Variant;
-  title: string;
-  icon: React.ReactNode;
-  teams: AFLTeam[];
-  metric: Metric;
-}) {
-  const color =
-    variant === "hot"
-      ? "text-red-300"
-      : variant === "stable"
-      ? "text-lime-300"
-      : "text-sky-300";
-
-  const divider =
-    variant === "hot"
-      ? "from-red-500/40"
-      : variant === "stable"
-      ? "from-lime-500/40"
-      : "from-sky-500/40";
-
-  return (
-    <div>
-      <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-        {icon}
-        <span className={`font-semibold ${color}`}>{title}</span>
-      </div>
-
-      <div className={`mb-4 h-px bg-gradient-to-r ${divider}`} />
-
-      <div className="space-y-4">
-        {teams.map((team) => (
-          <TeamFormCard
-            key={`${team.code}-${metric}`}
-            variant={variant}
-            team={team}
-            metric={metric}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                               Team Card                                    */
-/* -------------------------------------------------------------------------- */
+/* ============================================================================
+   TeamFormCard — Sparkline center + bottom controls
+============================================================================ */
 
 function TeamFormCard({
+  name,
   variant,
-  team,
-  metric,
+  momentum,
 }: {
+  name: string;
   variant: Variant;
-  team: AFLTeam;
-  metric: Metric;
+  momentum: number;
 }) {
-  const [flipped, setFlipped] = useState(false);
+  const colorBar =
+    variant === "hot"
+      ? "bg-red-400"
+      : variant === "stable"
+      ? "bg-lime-400"
+      : "bg-sky-400";
 
-  const score = getMetricScore(team, metric);
-  const formattedScore = formatMetric(score);
-  const barWidth = intensityWidth(score);
+  const colorBorder =
+    variant === "hot"
+      ? "border-red-500/40"
+      : variant === "stable"
+      ? "border-lime-500/40"
+      : "border-sky-500/40";
 
-  const attackDelta =
-    team.scores[team.scores.length - 1] - team.scores[team.scores.length - 2];
-
-  const defenceDelta =
-    team.margins[team.margins.length - 1] -
-    team.margins[team.margins.length - 2];
-
-  const clearance = team.clearanceDom[team.clearanceDom.length - 1];
-  const consistency = team.consistencyIndex;
+  const colorGlow =
+    variant === "hot"
+      ? "shadow-[0_0_16px_rgba(255,60,60,0.35)]"
+      : variant === "stable"
+      ? "shadow-[0_0_16px_rgba(60,255,60,0.32)]"
+      : "shadow-[0_0_18px_rgba(60,160,255,0.32)]";
 
   return (
     <div
-      className={`relative min-h-[188px] cursor-pointer rounded-2xl border border-neutral-700/40 bg-black/90 backdrop-blur-[2px] transform-gpu transition duration-300 ${variantHalo[variant]}`}
-      onClick={() => setFlipped(!flipped)}
+      className={`
+        rounded-2xl border ${colorBorder} bg-black/60 
+        p-4 backdrop-blur-[1px] ${colorGlow}
+        flex flex-col
+      `}
     >
-      <div
-        className={`relative h-full w-full transform-gpu transition-transform duration-500 [transform-style:preserve-3d] ${
-          flipped ? "[transform:rotateY(180deg)]" : ""
-        }`}
-      >
-        {/* FRONT */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
-
-          {/* Header row */}
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-[15px] font-semibold text-neutral-50 leading-tight">
-                {team.name}
-              </div>
-              <div className="mt-[2px] text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                {metricLabels[metric]}
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div
-                className={`${badgeStyles[variant]} inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-semibold`}
-              >
-                {formattedScore}
-              </div>
-            </div>
-          </div>
-
-          {/* Sparkline (full width) */}
-          <div className="mt-3 px-[2px]">
-            <SoftZigZagSparkline variant={variant} />
-          </div>
-
-          {/* Progress bar bottom-docked */}
-          <div className="mt-4">
-            <div className="relative h-2 w-full rounded-full bg-neutral-800/80 overflow-hidden">
-              <div
-                className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${
-                  variant === "hot"
-                    ? "from-red-300 to-red-500"
-                    : variant === "stable"
-                    ? "from-lime-300 to-emerald-400"
-                    : "from-sky-300 to-cyan-400"
-                }`}
-                style={{ width: barWidth }}
-              />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-2 flex items-center justify-between text-[9px] text-neutral-500 uppercase tracking-[0.14em]">
-            <span>{metricLabels[metric]}</span>
-            <span className="flex items-center gap-1 text-neutral-400">
-              <span className="hidden sm:inline">Analytics</span>
-              <span className="text-[11px]">↺</span>
-            </span>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[13px] font-semibold text-white">{name}</p>
+          <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+            Momentum · Last 5
+          </p>
         </div>
 
-        {/* BACK */}
-        <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          <div className="flex items-start justify-between mb-1">
-            <div>
-              <div className="text-sm font-semibold text-neutral-50">
-                {team.name}
-              </div>
-              <div className="mt-[2px] text-[9px] uppercase text-neutral-500 tracking-[0.16em]">
-                {metricPrefix[metric]} snapshot
-              </div>
-            </div>
-
-            <div
-              className={`text-[11px] font-semibold ${
-                variant === "hot"
-                  ? "text-red-300"
-                  : variant === "stable"
-                  ? "text-lime-300"
-                  : "text-sky-300"
-              }`}
-            >
-              {formattedScore}
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-3 gap-y-2 gap-x-4 text-[11px] text-neutral-300 leading-snug">
-            <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                Attack Δ
-              </div>
-              <div className="font-semibold">{attackDelta >= 0 ? "+" : ""}{attackDelta}</div>
-            </div>
-
-            <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                Defence Δ
-              </div>
-              <div className="font-semibold">{defenceDelta >= 0 ? "+" : ""}{defenceDelta}</div>
-            </div>
-
-            <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                Clear %
-              </div>
-              <div className="font-semibold">{clearance}%</div>
-            </div>
-
-            <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                Consist.
-              </div>
-              <div className="font-semibold">{consistency}</div>
-            </div>
-
-            <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                Pressure
-              </div>
-              <div className="font-semibold">+3</div>
-            </div>
-
-            <div>
-              <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-                Fixture
-              </div>
-              <div className="font-semibold">{team.fixtureDifficulty.score}</div>
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <div className="text-[9px] uppercase text-neutral-500 tracking-[0.14em]">
-              Opponents
-            </div>
-            <div className="mt-1 flex flex-wrap gap-1">
-              {team.fixtureDifficulty.opponents.map((op) => (
-                <code
-                  key={op}
-                  className="rounded bg-white/5 px-1.5 py-[1px] text-[9px] text-neutral-300"
-                >
-                  {op}
-                </code>
-              ))}
-            </div>
-          </div>
+        <div
+          className={`
+            text-[12px] px-2.5 py-1 rounded-full font-semibold
+            ${variant === "hot" ? "bg-red-900/40 text-red-200" : ""}
+            ${variant === "stable" ? "bg-green-900/40 text-lime-200" : ""}
+            ${variant === "cold" ? "bg-sky-900/40 text-sky-200" : ""}
+          `}
+        >
+          {momentum > 0 ? "+" : ""}
+          {momentum.toFixed(1)}
         </div>
+      </div>
 
+      {/* Center Sparkline */}
+      <div className="flex-1 flex items-center justify-center mt-4 mb-4">
+        <div className="w-full">
+          <SoftZigZagSparkline variant={variant} />
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="h-2 w-full rounded-full bg-neutral-700/60 overflow-hidden">
+        <div
+          className={`h-full ${colorBar}`}
+          style={{ width: `${Math.min(Math.abs(momentum) * 5, 100)}%` }}
+        />
+      </div>
+
+      {/* Bottom Labels */}
+      <div className="mt-3 flex justify-between text-[11px] text-neutral-400">
+        <span>Fantasy Edge</span>
+        <span>Analytics ↗</span>
       </div>
     </div>
+  );
+}
+
+/* ============================================================================
+   Section Header Pill
+============================================================================ */
+
+function SectionPill() {
+  return (
+    <div
+      className="
+        inline-flex items-center gap-2 rounded-full
+        border border-yellow-400/60
+        bg-gradient-to-r from-yellow-500/20 via-yellow-500/5 to-transparent
+        px-3.5 py-1.5 shadow-[0_0_16px_rgba(250,204,21,0.35)]
+      "
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+      <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-yellow-100">
+        Team Form Grid
+      </span>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Main Component
+============================================================================ */
+
+export default function TeamFormGrid() {
+  const teams = MOCK_TEAMS;
+
+  // Compute momentum dynamically
+  const enriched = teams.map((t) => ({
+    ...t,
+    momentum5: computeMomentum5(t),
+  }));
+
+  const hot = [...enriched].sort((a, b) => b.momentum5 - a.momentum5).slice(0, 6);
+  const cold = [...enriched].sort((a, b) => a.momentum5 - b.momentum5).slice(0, 6);
+  const stable = [...enriched]
+    .sort((a, b) => Math.abs(a.momentum5) - Math.abs(b.momentum5))
+    .slice(0, 6);
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      <SectionPill />
+
+      <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+        Hot, stable and cold clubs by performance lens
+      </h2>
+
+      <p className="mt-2 max-w-xl text-sm text-neutral-300">
+        Switch between lenses. Tap cards for deeper analytics.
+      </p>
+
+      {/* Hot */}
+      <div className="mt-10">
+        <div className="flex items-center gap-2 text-red-300">
+          <Flame className="h-4 w-4" />
+          <span className="text-[11px] uppercase tracking-[0.22em]">
+            Hot Teams
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {hot.map((t) => (
+            <TeamFormCard
+              key={t.id}
+              name={t.name}
+              momentum={t.momentum5}
+              variant="hot"
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Stable */}
+      <div className="mt-14">
+        <div className="flex items-center gap-2 text-lime-300">
+          <Gauge className="h-4 w-4" />
+          <span className="text-[11px] uppercase tracking-[0.22em]">
+            Stable Teams
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {stable.map((t) => (
+            <TeamFormCard
+              key={t.id}
+              name={t.name}
+              momentum={t.momentum5}
+              variant="stable"
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Cold */}
+      <div className="mt-14">
+        <div className="flex items-center gap-2 text-sky-300">
+          <Snowflake className="h-4 w-4" />
+          <span className="text-[11px] uppercase tracking-[0.22em]">
+            Cold Teams
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {cold.map((t) => (
+            <TeamFormCard
+              key={t.id}
+              name={t.name}
+              momentum={t.momentum5}
+              variant="cold"
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
