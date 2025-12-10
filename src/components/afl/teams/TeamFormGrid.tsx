@@ -116,27 +116,26 @@ function smooth(values: number[]) {
 }
 
 function RealTrendSparkline({ values }: { values: number[] }) {
-  const trimmed = values.slice(-8); // last 8 rounds for smoother sparkline
+  const trimmed = values.slice(-8); // last 8 rounds
   const smoothed = smooth(trimmed);
 
   const min = Math.min(...smoothed);
   const max = Math.max(...smoothed);
   const range = max - min || 1;
 
-  const points = smoothed
-    .map((v, i) => {
-      const x = (i / (smoothed.length - 1)) * 100;
-      const y = 28 - ((v - min) / range) * 20;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const pts = smoothed.map((v, i) => {
+    const x = (i / (smoothed.length - 1)) * 100;
+    const y = 28 - ((v - min) / range) * 20;
+    return { x, y };
+  });
 
-  const endX = 100;
-  const endY = points.split(" ").slice(-1)[0]?.split(",")[1];
+  const points = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const end = pts[pts.length - 1] ?? { x: 100, y: 20 };
 
   return (
-    <div className="relative h-10 w-full overflow-hidden rounded-xl bg-black/40 border border-neutral-800/60">
-      <svg viewBox="0 0 100 40" className="w-full h-full">
+    // NOTE: no inner mini-card — this fills the full content width
+    <div className="relative h-10 w-full">
+      <svg viewBox="0 0 100 40" className="absolute inset-0 h-full w-full">
         <defs>
           <filter id="glow">
             <feGaussianBlur in="SourceGraphic" stdDeviation="1.4" />
@@ -165,7 +164,7 @@ function RealTrendSparkline({ values }: { values: number[] }) {
           fill="none"
         />
 
-        <circle cx={endX} cy={endY} r={2} fill="white" />
+        <circle cx={end.x} cy={end.y} r={2} fill="white" />
       </svg>
     </div>
   );
@@ -182,7 +181,6 @@ export default function TeamFormGrid() {
   return (
     <section className="mt-16">
       <div className="rounded-[32px] border border-yellow-500/10 bg-gradient-to-b from-yellow-900/5 via-black/70 to-black/95 px-4 py-8 sm:px-6 md:px-10 lg:px-12">
-
         {/* Header */}
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-400/15 px-4 py-1 shadow-[0_0_14px_rgba(250,204,21,0.3)] backdrop-blur-[2px]">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(250,204,21,0.9)]" />
@@ -349,7 +347,6 @@ function TeamFormCard({
       >
         {/* FRONT */}
         <div className="absolute inset-0 flex h-full flex-col justify-between px-4 py-3 [backface-visibility:hidden]">
-
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
@@ -403,7 +400,6 @@ function TeamFormCard({
 
         {/* BACK */}
         <div className="absolute inset-0 flex h-full flex-col justify-between rounded-xl border border-white/5 bg-black/65 px-4 py-4 backdrop-blur-[4px] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-
           <div className="flex items-start justify-between mb-1">
             <div>
               <div className="text-sm font-semibold text-neutral-50">
@@ -495,7 +491,6 @@ function TeamFormCard({
               ))}
             </div>
           </div>
-
         </div>
       </div>
     </div>
