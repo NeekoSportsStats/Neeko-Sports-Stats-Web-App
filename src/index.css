@@ -155,5 +155,14 @@
   .animate-gold-glide {
     opacity: 1 !important;
   }
-}
 
+  /* ✨ SPARKLINE DRAW ANIMATION */
+  @keyframes sparkline-draw {
+    from {
+      stroke-dashoffset: 300;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
