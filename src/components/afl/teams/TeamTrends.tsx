@@ -25,7 +25,7 @@ type SparkPathResult = {
 };
 
 /* -------------------------------------------------------------------------- */
-/*                     Sparkline path + points (asymmetric pad)              */
+/*                     Sparkline path + points (asymmetric pad)               */
 /* -------------------------------------------------------------------------- */
 
 function buildSmoothPathAndPoints(
@@ -83,15 +83,13 @@ function inferUnit(label: string): string {
   if (lower.includes("%")) return "%";
   if (lower.includes("efficiency")) return "%";
 
-  if (lower.includes("points") || lower.includes("score"))
-    return "pts";
+  if (lower.includes("points") || lower.includes("score")) return "pts";
 
   if (lower.includes("conceded")) return "pts";
   if (lower.includes("clearance")) return "clearances";
   if (lower.includes("wins")) return "wins";
   if (lower.includes("intercept")) return "marks";
-  if (lower.includes("hit outs") || lower.includes("hit outs"))
-    return "hitouts";
+  if (lower.includes("hit outs") || lower.includes("hit out")) return "hitouts";
   if (lower.includes("influence")) return "rating";
   if (lower.includes("pressure")) return "index";
   if (lower.includes("trend")) return "index";
@@ -109,7 +107,6 @@ function formatTooltipValue(value: number, unit: string): string {
 function formatTooltipDelta(delta: number | null, unit: string): string {
   if (delta === null) return "Δ —";
 
-  // treat |delta|<0.05 as essentially flat
   if (Math.abs(delta) < 0.05) return "Δ 0.0";
 
   const sign = delta > 0 ? "+" : "−";
@@ -121,7 +118,7 @@ function formatTooltipDelta(delta: number | null, unit: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Sparkline component (dynamic)                  */
+/*                             Sparkline component (Dynamic)                  */
 /* -------------------------------------------------------------------------- */
 
 function SparklineLarge({
@@ -134,27 +131,28 @@ function SparklineLarge({
   label: string;
 }) {
   const width = 100; // logical SVG width
-  const [height, setHeight] = useState(54); // dynamic height based on container
+  const [height, setHeight] = useState(54);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Measure actual rendered height of the container (desktop + mobile)
+  // Measure actual pill height (desktop + mobile)
   useEffect(() => {
     if (!containerRef.current) return;
 
     const obs = new ResizeObserver((entries) => {
-      const rect = entries[0].contentRect;
-      const h = rect.height || 54;
-      setHeight(Math.max(40, h)); // safety floor so SVG never collapses
+      const h = entries[0].contentRect.height || 54;
+      setHeight(Math.max(40, h));
     });
 
     obs.observe(containerRef.current);
     return () => obs.disconnect();
   }, []);
 
-  // Dynamic padding based on true height (keeps sparkline visually centered)
+  // MOBILE vs DESKTOP padding — mobile = slightly above center
+  const isMobile = height < 60; // pill is visually smaller on mobile
+
   const PADDING_X = 10;
-  const PADDING_TOP = height * 0.24;
-  const PADDING_BOTTOM = height * 0.15;
+  const PADDING_TOP = isMobile ? height * 0.04 : height * 0.24;
+  const PADDING_BOTTOM = isMobile ? height * 0.10 : height * 0.15;
 
   const unit = useMemo(() => inferUnit(label), [label]);
 
@@ -183,29 +181,32 @@ function SparklineLarge({
       points.length - 1,
       Math.max(0, Math.round(ratio * (points.length - 1)))
     );
+
     setHoverIndex(idx);
   };
 
   const hoverPoint = hoverIndex !== null ? points[hoverIndex] : null;
-  const hoverValue = hoverIndex !== null ? values[hoverIndex] : null;
+  const hoverValue =
+    hoverIndex !== null ? values[hoverIndex] : null;
   const prevValue =
     hoverIndex !== null && hoverIndex > 0
       ? values[hoverIndex - 1]
       : null;
+
   const hoverDelta =
     hoverValue !== null && prevValue !== null
       ? hoverValue - prevValue
       : null;
+
   const tooltipRound =
     hoverIndex !== null ? hoverIndex + 1 : null;
 
   return (
     <div
       ref={containerRef}
-      className="group relative w-full rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)]"
+      className="group relative w-full rounded-xl bg-gradient-to-b from-neutral-700/40 via-neutral-900/80 to-black border border-slate-400/25 shadow-[0_6px_16px_rgba(0,0,0,0.6)] h-full min-h-[54px]"
       style={{
         overflow: "hidden",
-        height: "100%",
         WebkitMaskImage: "linear-gradient(black, black)",
         maskImage: "linear-gradient(black, black)",
       }}
@@ -235,7 +236,7 @@ function SparklineLarge({
         />
       </svg>
 
-      {/* Actual sparkline (animated, magnified on hover) */}
+      {/* Sparkline path */}
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -290,19 +291,18 @@ function SparklineLarge({
       {/* Tooltip */}
       {hoverPoint && tooltipRound !== null && hoverValue !== null && (
         <div
-          className="pointer-events-none absolute z-10 rounded-lg border border-white/10 bg-black/85 px-2.5 py-1.5 text-[10px] leading-tight text-neutral-50 shadow-[0_12px_32px_rgba(0,0,0,0.8)] backdrop-blur-sm transition-opacity duration-100"
+          className="pointer-events-none absolute z-20 rounded-lg border border-white/10 bg-black/85 px-2.5 py-1.5 text-[10px] leading-tight text-neutral-50 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md"
           style={{
             left: `${(hoverPoint.x / width) * 100}%`,
             top: `${(hoverPoint.y / height) * 100}%`,
             transform: "translate(-50%, -115%)",
-            opacity: 1,
             whiteSpace: "nowrap",
           }}
         >
           <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-400">
             Round {tooltipRound}
           </div>
-          <div className="text-[11px] font-semibold text-neutral-50 mt-[1px]">
+          <div className="text-[11px] font-semibold">
             {formatTooltipValue(hoverValue, unit)}
           </div>
           <div className="text-[9px] text-neutral-300 mt-[1px]">
@@ -545,7 +545,7 @@ function TrendBlock({
                 </div>
 
                 {/* Sparkline – animated + tooltipped */}
-                <div className="mt-1 h-[64px] md:h-[54px] rounded-xl overflow-hidden">
+                <div className="mt-1 rounded-xl overflow-hidden h-full min-h-[54px]">
                   <SparklineLarge
                     values={s.values}
                     color={accent}
