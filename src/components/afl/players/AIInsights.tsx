@@ -1,7 +1,7 @@
 // src/components/afl/players/AIInsights.tsx
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { BrainCircuit } from "lucide-react";
+import { BrainCircuit, X } from "lucide-react";
 import {
   useAFLMockPlayers,
   lastN,
@@ -159,7 +159,7 @@ function AIInsightRow({
       className={cn(
         "relative overflow-hidden rounded-2xl border border-neutral-800/80",
         "bg-gradient-to-br from-black/95 via-neutral-950 to-black",
-        "px-4 py-4 md:px-5 md:py-5",
+        "px-4 py-3.5 md:px-5 md:py-5",
         "shadow-[0_0_40px_rgba(0,0,0,0.75)]"
       )}
     >
@@ -170,7 +170,7 @@ function AIInsightRow({
       <div
         className={cn(
           "relative",
-          blurred && "blur-md brightness-[0.5] select-none pointer-events-none"
+          blurred && "blur-md brightness-[0.4] select-none pointer-events-none"
         )}
       >
         {/* Top Row - Player + sparkline */}
@@ -248,11 +248,77 @@ function AIInsightRow({
 }
 
 /* ---------------------------------------------------------
+   NEEKO+ UPGRADE MODAL (local)
+--------------------------------------------------------- */
+
+function NeekoPlusUpgradeModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 backdrop-blur-md">
+      <div className="relative w-[90%] max-w-md rounded-3xl border border-yellow-500/50 bg-gradient-to-b from-neutral-950 via-black to-black px-5 py-6 shadow-[0_0_70px_rgba(250,204,21,0.9)]">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-neutral-300 hover:bg-neutral-800"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* Pill */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-yellow-400/70 bg-yellow-400/20 text-[11px] text-yellow-300">
+            +
+          </span>
+          Neeko+ Upgrade
+        </div>
+
+        {/* Title + body */}
+        <h3 className="mt-3 text-lg font-semibold text-neutral-50">
+          Unlock full AFL AI analysis
+        </h3>
+        <p className="mt-2 text-[13px] leading-relaxed text-neutral-300">
+          Neeko+ unlocks every team, every trend, volatility models, forecasting and
+          AI-generated matchup insights.
+        </p>
+
+        <ul className="mt-3 space-y-1.5 text-[12px] text-neutral-300">
+          <li>• Full analysis for all 18 AFL clubs.</li>
+          <li>• Deep momentum, attack/defence and clearance trend models.</li>
+          <li>• Premium AI features across other sports as they launch.</li>
+        </ul>
+
+        {/* CTA buttons */}
+        <div className="mt-5 flex flex-col gap-2">
+          <a
+            href="/neeko-plus"
+            className={cn(
+              "flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-black",
+              "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400",
+              "shadow-[0_0_34px_rgba(250,204,21,0.95)] hover:brightness-110 transition"
+            )}
+          >
+            Upgrade to Neeko+
+          </a>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-full border border-neutral-700 bg-black/70 px-5 py-2 text-sm text-neutral-200 hover:bg-neutral-900"
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
    MAIN COMPONENT
 --------------------------------------------------------- */
 
 export default function AIInsights() {
   const players = useAFLMockPlayers();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Build real free rows (top 3)
   const freeRows: AIInsightRowModel[] = players.slice(0, 3).map((p, idx) => {
@@ -327,147 +393,155 @@ export default function AIInsights() {
   ];
 
   const gatingBlurClass = !IS_PREMIUM
-    ? "blur-md brightness-[0.45] select-none pointer-events-none"
+    ? "blur-md brightness-[0.35] select-none pointer-events-none"
     : "";
 
   return (
-    <section
-      id="ai-insights"
-      className={cn(
-        "relative mt-10 rounded-3xl border border-yellow-500/40",
-        "bg-gradient-to-b from-neutral-950/95 via-black/96 to-black",
-        "px-4 py-8 md:px-6 md:py-10",
-        "shadow-[0_0_70px_rgba(0,0,0,0.85)]"
-      )}
-    >
-      {/* Header */}
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
-          <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
-          <span className="uppercase tracking-[0.18em]">AI Insights</span>
+    <>
+      <section
+        id="ai-insights"
+        className={cn(
+          "relative mt-10 rounded-3xl border border-yellow-500/40",
+          "bg-gradient-to-b from-neutral-950/95 via-black/96 to-black",
+          "px-4 py-8 md:px-6 md:py-10",
+          "shadow-[0_0_70px_rgba(0,0,0,0.85)]"
+        )}
+      >
+        {/* Header */}
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/60 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
+            <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
+            <span className="uppercase tracking-[0.18em]">AI Insights</span>
+          </div>
+
+          <h2 className="text-xl font-semibold text-neutral-50 md:text-2xl">
+            AI Projection • Usage Forecast • Role Signals
+          </h2>
+
+          <p className="max-w-xl text-sm text-neutral-300">
+            Predictions generated by Neeko AI — combining role tendencies, matchup
+            profiles and volatility pathways.
+          </p>
+
+          <p className="mt-2 max-w-xl text-[10px] leading-relaxed text-neutral-500">
+            <span className="font-medium text-neutral-300">Role stable</span> =
+            consistent position &amp; CBA pattern.{" "}
+            <span className="font-medium text-neutral-300">Usage steady</span> =
+            involvement near baseline.{" "}
+            <span className="font-medium text-neutral-300">Neutral matchup</span> =
+            average opponent fantasy concession.
+          </p>
         </div>
 
-        <h2 className="text-xl font-semibold text-neutral-50 md:text-2xl">
-          AI Projection • Usage Forecast • Role Signals
-        </h2>
-
-        <p className="max-w-xl text-sm text-neutral-300">
-          Predictions generated by Neeko AI — combining role tendencies, matchup
-          profiles and volatility pathways.
-        </p>
-
-        <p className="mt-2 max-w-xl text-[10px] leading-relaxed text-neutral-500">
-          <span className="font-medium text-neutral-300">Role stable</span> =
-          consistent position &amp; CBA pattern.{" "}
-          <span className="font-medium text-neutral-300">Usage steady</span> =
-          involvement near baseline.{" "}
-          <span className="font-medium text-neutral-300">Neutral matchup</span> =
-          average opponent fantasy concession.
-        </p>
-      </div>
-
-      {/* FREE ROWS */}
-      {/* Mobile: scroll-snap carousel (92% width) */}
-      <div className="mt-6 flex gap-4 overflow-x-auto pb-2 md:hidden snap-x snap-mandatory">
-        {freeRows.map((row) => (
-          <div
-            key={row.id}
-            className="snap-center shrink-0 basis-[92%]"
-          >
-            <AIInsightRow row={row} />
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop: 3-column grid */}
-      <div className="mt-6 hidden md:grid md:grid-cols-3 md:gap-4">
-        {freeRows.map((row) => (
-          <AIInsightRow key={row.id} row={row} />
-        ))}
-      </div>
-
-      {/* PREMIUM GATED ROWS */}
-      <div className="relative mt-6">
-        {/* Mobile premium carousel */}
-        <div className={cn("flex gap-4 overflow-x-auto pb-2 md:hidden snap-x snap-mandatory", gatingBlurClass)}>
-          {premiumRows.map((row) => (
-            <div
-              key={row.id}
-              className="snap-center shrink-0 basis-[92%]"
-            >
-              <AIInsightRow row={row} blurred={!!gatingBlurClass} />
+        {/* FREE ROWS */}
+        {/* Mobile: scroll-snap carousel (slightly smaller cards) */}
+        <div className="mt-6 flex gap-4 overflow-x-auto pb-2 md:hidden snap-x snap-mandatory">
+          {freeRows.map((row) => (
+            <div key={row.id} className="snap-center shrink-0 basis-[88%]">
+              <AIInsightRow row={row} />
             </div>
           ))}
         </div>
 
-        {/* Desktop premium grid */}
-        <div
-          className={cn(
-            "hidden md:grid md:grid-cols-3 md:gap-4",
-            gatingBlurClass
-          )}
-        >
-          {premiumRows.map((row) => (
-            <AIInsightRow key={row.id} row={row} blurred={!!gatingBlurClass} />
+        {/* Desktop: 3-column grid */}
+        <div className="mt-6 hidden md:grid md:grid-cols-3 md:gap-4">
+          {freeRows.map((row) => (
+            <AIInsightRow key={row.id} row={row} />
           ))}
         </div>
 
-        {/* Heavy blur / shimmer overlay + CTA */}
-        {!IS_PREMIUM && (
+        {/* PREMIUM GATED ROWS */}
+        <div className="relative mt-6">
+          {/* Mobile premium carousel */}
           <div
             className={cn(
-              "pointer-events-auto absolute inset-0 flex flex-col items-center justify-center",
-              "rounded-3xl border border-yellow-500/70",
-              "bg-gradient-to-b from-black/10 via-black/80 to-black/95",
-              "shadow-[0_0_50px_rgba(250,204,21,0.75)]"
+              "flex gap-4 overflow-x-auto pb-2 md:hidden snap-x snap-mandatory",
+              gatingBlurClass
             )}
           >
-            {/* Gold shimmer wash */}
+            {premiumRows.map((row) => (
+              <div key={row.id} className="snap-center shrink-0 basis-[88%]">
+                <AIInsightRow row={row} blurred={!!gatingBlurClass} />
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop premium grid */}
+          <div
+            className={cn(
+              "hidden md:grid md:grid-cols-3 md:gap-4",
+              gatingBlurClass
+            )}
+          >
+            {premiumRows.map((row) => (
+              <AIInsightRow key={row.id} row={row} blurred={!!gatingBlurClass} />
+            ))}
+          </div>
+
+          {/* Heavy shimmer overlay + CTA like Teams */}
+          {!IS_PREMIUM && (
             <div
               className={cn(
-                "pointer-events-none absolute -inset-10",
-                "bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.28),transparent_55%)]",
-                "opacity-70 mix-blend-screen animate-pulse"
+                "pointer-events-auto absolute inset-0 flex flex-col items-center justify-center",
+                "rounded-3xl border border-yellow-500/70",
+                "bg-gradient-to-b from-black/10 via-black/80 to-black/95",
+                "shadow-[0_0_50px_rgba(250,204,21,0.75)]"
               )}
-            />
+            >
+              {/* Gold shimmer wash */}
+              <div
+                className={cn(
+                  "pointer-events-none absolute -inset-10",
+                  "bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.28),transparent_55%),",
+                  "radial-gradient(circle_at_bottom,_rgba(250,204,21,0.18),transparent_55%)]",
+                  "opacity-80 mix-blend-screen animate-pulse"
+                )}
+              />
 
-            <div className="relative z-10 flex flex-col items-center gap-3 px-6 text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/70 bg-black/80 px-3 py-1">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-yellow-400/70 bg-yellow-400/20 text-xs font-semibold text-yellow-300">
-                  +
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-                  Neeko+ AI Suite
-                </span>
-              </div>
+              <div className="relative z-10 flex flex-col items-center gap-3 px-6 text-center">
+                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/70 bg-black/85 px-3 py-1">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-yellow-400/70 bg-yellow-400/20 text-xs font-semibold text-yellow-300">
+                    +
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                    Neeko+ AI Suite
+                  </span>
+                </div>
 
-              <p className="text-sm text-yellow-50/95">
-                Unlock full AI projections, volatility indexes and role-driven matchup
-                intelligence for every player.
-              </p>
+                <p className="text-sm text-yellow-50/95">
+                  Unlock full AI projections, volatility indexes and role-driven matchup
+                  intelligence for every player.
+                </p>
 
-              <div className="mt-1 flex flex-col gap-2">
-                <a
-                  href="/sports/afl/ai-analysis"
-                  className={cn(
-                    "rounded-full px-6 py-2 text-sm font-semibold text-black",
-                    "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400",
-                    "shadow-[0_0_30px_rgba(250,204,21,0.9)] hover:brightness-110 transition"
-                  )}
-                >
-                  Unlock Neeko+ Insights
-                </a>
-                <a
-                  href="/sports/afl/ai-analysis"
-                  className="text-[11px] text-yellow-200/85 underline underline-offset-4 hover:text-yellow-200"
-                >
-                  View full AI Analysis →
-                </a>
+                <div className="mt-1 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeModal(true)}
+                    className={cn(
+                      "rounded-full px-6 py-2 text-sm font-semibold text-black",
+                      "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400",
+                      "shadow-[0_0_30px_rgba(250,204,21,0.9)] hover:brightness-110 transition"
+                    )}
+                  >
+                    Unlock Neeko+ Insights
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="text-[11px] text-yellow-200/85 underline underline-offset-4 hover:text-yellow-200"
+                  >
+                    View full AI Analysis →
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </section>
+          )}
+        </div>
+      </section>
+
+      {showUpgradeModal && (
+        <NeekoPlusUpgradeModal onClose={() => setShowUpgradeModal(false)} />
+      )}
+    </>
   );
 }
