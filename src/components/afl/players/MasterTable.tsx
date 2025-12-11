@@ -137,17 +137,30 @@ function getRounds(player: PlayerRow, lens: StatLens): number[] {
 
 function computeSummary(player: PlayerRow, lens: StatLens) {
   const values = getRounds(player, lens);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const total = values.reduce((a, b) => a + b, 0);
-  const avg = total / values.length;
-  return { min, max, total, avg };
+  if (!values.length) {
+    return { min: 0, max: 0, total: 0, avg: 0, games: 0 };
+  }
+
+  const clean = values.filter((v) => typeof v === "number");
+  if (!clean.length) {
+    return { min: 0, max: 0, total: 0, avg: 0, games: 0 };
+  }
+
+  const min = Math.min(...clean);
+  const max = Math.max(...clean);
+  const total = clean.reduce((a, b) => a + b, 0);
+  const games = clean.length;
+  const avg = total / games;
+  return { min, max, total, avg, games };
 }
 
 function computeHitRates(player: PlayerRow, lens: StatLens) {
   const values = getRounds(player, lens);
+  const clean = values.filter((v) => typeof v === "number");
+  const games = clean.length || 1;
+
   return STAT_CONFIG[lens].thresholds.map((t) =>
-    Math.round((values.filter((v) => v >= t).length / values.length) * 100)
+    Math.round((clean.filter((v) => v >= t).length / games) * 100)
   );
 }
 
@@ -279,6 +292,8 @@ export default function MasterTable() {
   const showMore = () =>
     setVisibleCount((v) => Math.min(v + 20, filteredPlayers.length));
 
+  const statConfig = STAT_CONFIG[selectedStat];
+
   return (
     <>
       {/* HEADER */}
@@ -327,7 +342,9 @@ export default function MasterTable() {
                 onCheckedChange={setCompactMode}
                 className="data-[state=checked]:bg-yellow-400"
               />
-              <span className="text-[11px] text-neutral-100">Compact rows</span>
+              <span className="text-[11px] text-neutral-100">
+                Compact rows (summary-only)
+              </span>
             </div>
 
             {/* Search */}
@@ -354,7 +371,7 @@ export default function MasterTable() {
           {visiblePlayers.map((p, index) => {
             const blur =
               !isPremium && index >= 20
-                ? "blur-[3px] brightness-[0.6]"
+                ? "blur-[3px] brightness-[0.6] pointer-events-none"
                 : "";
 
             return (
@@ -387,90 +404,156 @@ export default function MasterTable() {
       {/* DESKTOP TABLE */}
       <div className="mt-8 hidden md:block">
         <div className="overflow-hidden rounded-3xl border border-neutral-800 bg-black/90 shadow-xl">
-          <div className="max-h-[520px] overflow-y-auto">
-            <table className="min-w-full text-[11px]">
-              <thead className="bg-neutral-950/80 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                <tr>
-                  <th className="px-4 py-3 text-left">#</th>
-                  <th className="px-4 py-3 text-left">Player</th>
-                  <th className="px-4 py-3 text-left">Team / Role</th>
-                  <th className="px-4 py-3 text-left">
-                    {STAT_CONFIG[selectedStat].label} avg
-                  </th>
-                  <th className="px-4 py-3 text-left">Best</th>
-                  <th className="px-4 py-3 text-left">Worst</th>
-                  <th className="px-4 py-3 text-left">Hit-rate band</th>
-                  <th className="px-4 py-3 text-right">Insights</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPlayers.map((player, index) => {
-                  const summary = computeSummary(player, selectedStat);
-                  const hits = computeHitRates(player, selectedStat);
-                  const config = STAT_CONFIG[selectedStat];
-
-                  // take the middle threshold as the main band
-                  const midIndex =
-                    config.thresholds.length >= 3
-                      ? 2
-                      : config.thresholds.length - 1;
-                  const midThreshold = config.thresholds[midIndex];
-                  const midHit = hits[midIndex];
-                  const hitClass = getHitRateColorClasses(midHit);
-
-                  const rowPad = compactMode ? "py-2" : "py-3";
-
-                  return (
-                    <tr
-                      key={player.id}
-                      onClick={() => setSelectedPlayer(player)}
-                      className={`cursor-pointer border-t border-neutral-800/70 hover:bg-neutral-900/60 ${rowPad}`}
+          <div className="relative max-h-[520px] overflow-y-auto">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-[11px]">
+                <thead className="sticky top-0 z-20 bg-neutral-950/95 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                  <tr>
+                    {/* Sticky player column */}
+                    <th
+                      className="sticky left-0 z-30 border-r border-neutral-800 bg-neutral-950/95 px-4 py-3 text-left"
+                      style={{ minWidth: 220 }}
                     >
-                      <td className="px-4 align-middle text-neutral-500">
-                        {index + 1}
-                      </td>
-                      <td className="px-4 align-middle text-[12px] text-neutral-50">
-                        {player.name}
-                      </td>
-                      <td className="px-4 align-middle text-neutral-400">
-                        {player.team} • {player.role}
-                      </td>
-                      <td className="px-4 align-middle text-yellow-200">
-                        {summary.avg.toFixed(1)} {config.valueUnitShort}
-                      </td>
-                      <td className="px-4 align-middle text-neutral-100">
-                        {summary.max}
-                      </td>
-                      <td className="px-4 align-middle text-neutral-100">
-                        {summary.min}
-                      </td>
-                      <td className="px-4 align-middle">
-                        <span className="text-[10px] text-neutral-400">
-                          {midThreshold}+:
-                        </span>{" "}
-                        <span
-                          className={`text-[11px] font-semibold ${hitClass}`}
+                      Player
+                    </th>
+                    <th className="px-4 py-3 text-left">Team / Role</th>
+
+                    {/* Round columns (OR–R23) – hidden in compact mode */}
+                    {!compactMode &&
+                      ROUND_LABELS.map((label) => (
+                        <th
+                          key={label}
+                          className="px-2 py-3 text-center text-[9px]"
                         >
-                          {midHit}%
-                        </span>
-                      </td>
-                      <td className="px-4 align-middle text-right">
-                        <button className="rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          {label}
+                        </th>
+                      ))}
+
+                    {/* Summary columns */}
+                    <th className="px-3 py-3 text-center">Min</th>
+                    <th className="px-3 py-3 text-center">Max</th>
+                    <th className="px-3 py-3 text-center">
+                      {statConfig.label} avg
+                    </th>
+                    <th className="px-3 py-3 text-center">Total</th>
+                    <th className="px-3 py-3 text-center">Games</th>
+
+                    {/* Hit-rate columns */}
+                    {statConfig.thresholds.map((t) => (
+                      <th
+                        key={t}
+                        className="px-3 py-3 text-center text-[9px]"
+                      >
+                        {t}+
+                      </th>
+                    ))}
+
+                    <th className="px-4 py-3 text-right">Insights</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPlayers.map((player, index) => {
+                    const summary = computeSummary(player, selectedStat);
+                    const hits = computeHitRates(player, selectedStat);
+                    const rounds = getRounds(player, selectedStat);
+
+                    const rowPad = compactMode ? "py-2" : "py-3";
+                    const isBlurred = !isPremium && index >= 20;
+
+                    return (
+                      <tr
+                        key={player.id}
+                        onClick={() =>
+                          !isBlurred ? setSelectedPlayer(player) : null
+                        }
+                        className={`border-t border-neutral-800/70 hover:bg-neutral-900/60 ${rowPad} ${
+                          isBlurred
+                            ? "blur-[3px] brightness-[0.6] pointer-events-none"
+                            : "cursor-pointer"
+                        }`}
+                      >
+                        {/* Sticky player cell */}
+                        <td
+                          className="sticky left-0 z-10 border-r border-neutral-800 bg-black/95 px-4 align-middle"
+                          style={{ minWidth: 220 }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/80 bg-black/80 text-[11px] text-neutral-300">
+                              {player.rank}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[12px] font-medium text-neutral-50">
+                                {player.name}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                                {player.team} • {player.role}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-4 align-middle text-neutral-400">
+                          {player.team} • {player.role}
+                        </td>
+
+                        {/* Round cells */}
+                        {!compactMode &&
+                          ROUND_LABELS.map((label, roundIndex) => (
+                            <td
+                              key={label}
+                              className="px-2 text-center align-middle text-[10px] text-neutral-100"
+                            >
+                              {rounds[roundIndex] ?? "-"}
+                            </td>
+                          ))}
+
+                        {/* Summary cells */}
+                        <td className="px-3 text-center align-middle text-neutral-100">
+                          {summary.min}
+                        </td>
+                        <td className="px-3 text-center align-middle text-neutral-100">
+                          {summary.max}
+                        </td>
+                        <td className="px-3 text-center align-middle text-yellow-200">
+                          {summary.avg.toFixed(1)} {statConfig.valueUnitShort}
+                        </td>
+                        <td className="px-3 text-center align-middle text-neutral-100">
+                          {summary.total}
+                        </td>
+                        <td className="px-3 text-center align-middle text-neutral-100">
+                          {summary.games}
+                        </td>
+
+                        {/* Hit-rate cells */}
+                        {hits.map((hit, i) => (
+                          <td
+                            key={i}
+                            className={`px-3 text-center align-middle text-[11px] font-semibold ${getHitRateColorClasses(
+                              hit
+                            )}`}
+                          >
+                            {hit}%
+                          </td>
+                        ))}
+
+                        <td className="px-4 text-right align-middle">
+                          <button className="rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="flex items-center justify-between border-t border-neutral-800 px-4 py-2 text-[10px] text-neutral-500">
             <span>
               Showing {filteredPlayers.length} players • Lens:{" "}
               <span className="text-yellow-200">
-                {STAT_CONFIG[selectedStat].label}
+                {statConfig.label}
               </span>
             </span>
             {isPremium ? (
