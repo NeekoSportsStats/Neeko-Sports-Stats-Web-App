@@ -39,7 +39,6 @@ export default function PlayerInsightsOverlay({
     const scrollBox = scrollRef.current;
     if (!scrollBox) return;
 
-    // strict: can only drag down if at top
     if (scrollBox.scrollTop > 0) return;
 
     draggingRef.current = true;
@@ -48,7 +47,6 @@ export default function PlayerInsightsOverlay({
 
   const handleMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
-
     const dy = e.touches[0].clientY - startYRef.current;
 
     if (dy > 0) {
@@ -61,16 +59,13 @@ export default function PlayerInsightsOverlay({
     if (!draggingRef.current || !sheetRef.current) return;
 
     draggingRef.current = false;
+    const dy = e.changedTouches[0].client.clientY - startYRef.current;
 
-    const dy = e.changedTouches[0].clientY - startYRef.current;
-
-    // Close threshold
     if (dy > 120) {
       onClose();
       return;
     }
 
-    // Snap back
     sheetRef.current.style.transition = "transform 0.25s ease-out";
     sheetRef.current.style.transform = "translateY(0)";
     setTimeout(() => {
@@ -80,7 +75,7 @@ export default function PlayerInsightsOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md"
+      className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md touch-none"
       onClick={onClose}
     >
       {/* MOBILE SHEET */}
@@ -93,7 +88,7 @@ export default function PlayerInsightsOverlay({
           className="w-full rounded-t-3xl border border-yellow-500/30 bg-gradient-to-b from-neutral-950 to-black px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)] overscroll-contain"
           style={{ height: "80vh", maxHeight: "80vh" }}
         >
-          {/* DRAG HANDLE — FIXED HITBOX */}
+          {/* DRAG HANDLE — LARGE HITBOX */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
@@ -126,7 +121,7 @@ export default function PlayerInsightsOverlay({
             </button>
           </div>
 
-          {/* LENS PILLS */}
+          {/* PILLS */}
           <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
@@ -143,7 +138,7 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* SCROLLABLE CONTENT */}
+          {/* SCROLL CONTENT */}
           <div
             ref={scrollRef}
             className="h-[calc(80vh-130px)] overflow-y-auto pb-3 overscroll-contain"
