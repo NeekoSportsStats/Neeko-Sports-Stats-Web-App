@@ -1,5 +1,5 @@
 import type { PlayerRow, StatLens } from "./MasterTable";
-import { STAT_CONFIG } from "./MasterTable";
+import { STAT_CONFIG } from "./playerStatConfig";
 
 export function getRoundsForLens(player: PlayerRow, lens: StatLens) {
   if (lens === "Fantasy") return player.roundsFantasy;
