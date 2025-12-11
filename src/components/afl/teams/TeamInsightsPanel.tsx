@@ -1,35 +1,79 @@
 // src/components/afl/teams/TeamInsightsPanel.tsx
-
-import React, { useEffect, useRef, useState } from "react";
-import { X, ArrowRight } from "lucide-react";
-import { MODE_CONFIG, Mode } from "./TeamMasterTable";
-import { TeamRow } from "./mockTeams";
-import { useAuth } from "@/lib/auth";
+import React, { useEffect, useState } from "react";
+import { X, Sparkles, BarChart3 } from "lucide-react";
+import type { TeamRow } from "./mockTeams";
+import { ROUND_LABELS } from "./mockTeams";
 
 /* -------------------------------------------------------------------------- */
-/*                             TYPES                                           */
+/*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
+
+type Mode = "scoring" | "fantasy" | "disposals" | "goals";
+
+type ModeSummary = {
+  min: number;
+  max: number;
+  average: number;
+  total: number;
+};
 
 type TeamInsightsPanelProps = {
   team: TeamRow;
   mode: Mode;
   modeSeries: number[];
-  modeSummary: { min: number; max: number; average: number; total: number };
+  modeSummary: ModeSummary;
   onClose: () => void;
 };
 
 /* -------------------------------------------------------------------------- */
-/*                                HAPTICS                                     */
+/*                              LOCAL MODE CONFIG                             */
 /* -------------------------------------------------------------------------- */
 
-function triggerHaptic() {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-    navigator.vibrate(10);
-  }
-}
+const MODE_CONFIG: Record<
+  Mode,
+  { label: string; subtitle: string; unit: string; thresholds: number[] }
+> = {
+  scoring: {
+    label: "Scoring",
+    subtitle: "Total points per game",
+    unit: "pts",
+    thresholds: [60, 70, 80, 90, 100],
+  },
+  fantasy: {
+    label: "Fantasy",
+    subtitle: "Fantasy points per game",
+    unit: "pts",
+    thresholds: [80, 90, 100, 110, 120],
+  },
+  disposals: {
+    label: "Disposals",
+    subtitle: "Total disposals per game",
+    unit: "disp",
+    thresholds: [15, 20, 25, 30, 35],
+  },
+  goals: {
+    label: "Goals",
+    subtitle: "Goals per game",
+    unit: "g",
+    thresholds: [1, 2, 3, 4, 5],
+  },
+};
+
+const rateClass = (v: number) => {
+  if (v >= 90) return "text-lime-300";
+  if (v >= 75) return "text-yellow-200";
+  if (v >= 50) return "text-amber-300";
+  if (v >= 15) return "text-orange-300";
+  return "text-red-400";
+};
+
+const computeHitRate = (series: number[], thresholds: number[]) =>
+  thresholds.map((t) =>
+    Math.round((series.filter((v) => v >= t).length / series.length) * 100)
+  );
 
 /* -------------------------------------------------------------------------- */
-/*                             MAIN COMPONENT                                 */
+/*                             BOTTOM SHEET PANEL                             */
 /* -------------------------------------------------------------------------- */
 
 const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
@@ -39,418 +83,282 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
   modeSummary,
   onClose,
 }) => {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
+  // Lock background scroll + animate in
   useEffect(() => {
-    const handle = () => setIsMobile(window.innerWidth < 768);
-    handle();
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // small delay so transition runs
+    const t = window.setTimeout(() => setIsVisible(true), 10);
+
+    return () => {
+      window.clearTimeout(t);
+      document.body.style.overflow = prevOverflow;
+    };
   }, []);
 
-  if (!isMobile) {
-    return (
-      <>
-        {/* Desktop backdrop */}
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[90]"
-          onClick={() => {
-            triggerHaptic();
-            onClose();
-          }}
-        />
+  const handleClose = () => {
+    setIsVisible(false);
+    // wait for animation to finish
+    window.setTimeout(onClose, 220);
+  };
 
-        {/* Desktop side panel */}
-        <div className="fixed right-0 top-0 h-full w-[380px] bg-neutral-950/98 border-l border-neutral-800 z-[100] shadow-[0_0_40px_rgba(0,0,0,0.85)]">
-          <button
-            className="absolute right-4 top-4 text-neutral-400 hover:text-white"
-            onClick={() => {
-              triggerHaptic();
-              onClose();
-            }}
-          >
-            <X size={20} />
-          </button>
+  const modeConfig = MODE_CONFIG[mode];
+  const hitRates = computeHitRate(modeSeries, modeConfig.thresholds);
 
-          <div className="h-full overflow-y-auto pt-10 px-5 pb-8 no-scrollbar">
-            <InsightsContent
-              team={team}
-              mode={mode}
-              modeSeries={modeSeries}
-              modeSummary={modeSummary}
-            />
-          </div>
-        </div>
-      </>
-    );
-  }
+  const lastIndex = modeSeries.length - 1;
+  const lastValue = lastIndex >= 0 ? modeSeries[lastIndex] : 0;
+  const prevValue = lastIndex >= 1 ? modeSeries[lastIndex - 1] : lastValue;
+  const delta = lastValue - prevValue;
+  const deltaSign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+  const deltaClass =
+    delta > 0
+      ? "text-lime-300"
+      : delta < 0
+      ? "text-red-400"
+      : "text-neutral-300";
+
+  // choose up to last 5 rounds for small spark row / chips
+  const recentRounds = modeSeries.slice(-5);
+  const recentLabels = ROUND_LABELS.slice(
+    Math.max(0, ROUND_LABELS.length - recentRounds.length)
+  );
+
+  const mainThresholdIndex =
+    modeConfig.thresholds.length >= 3 ? 2 : modeConfig.thresholds.length - 1;
+  const mainThreshold = modeConfig.thresholds[mainThresholdIndex];
+  const mainHit = hitRates[mainThresholdIndex];
 
   return (
-    <MobileSheet
-      team={team}
-      mode={mode}
-      modeSeries={modeSeries}
-      modeSummary={modeSummary}
-      onClose={onClose}
-    />
+    <div
+      className={`fixed inset-0 z-[90] flex items-end justify-center sm:items-center ${
+        isVisible ? "pointer-events-auto" : "pointer-events-none"
+      }`}
+      aria-modal="true"
+      role="dialog"
+    >
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Close team insights"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+          isVisible ? "opacity-100" : "opacity-0"
+        }`}
+        onClick={handleClose}
+      />
+
+      {/* Bottom sheet */}
+      <div
+        className={`relative w-full max-w-xl transform rounded-t-3xl border border-yellow-500/30 bg-gradient-to-b from-black/95 via-neutral-950/95 to-black shadow-[0_-30px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)] transition-transform duration-220 ease-out sm:rounded-3xl sm:border-yellow-500/40 sm:shadow-[0_24px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)] ${
+          isVisible ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{
+          maxHeight: "88vh",
+        }}
+      >
+        {/* Drag handle */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-1 sm:px-5 sm:pt-4">
+          <div className="flex-1">
+            <div className="mx-auto h-1 w-10 rounded-full bg-neutral-700/80 sm:hidden" />
+          </div>
+          <button
+            type="button"
+            className="ml-auto rounded-full p-1.5 text-neutral-400 hover:bg-neutral-800/80 hover:text-neutral-100"
+            onClick={handleClose}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="relative z-10 flex flex-col gap-4 px-4 pb-5 pt-1 sm:px-6 sm:pb-6">
+          {/* Gold side glow strip */}
+          <div className="pointer-events-none absolute inset-y-6 left-0 w-[2px] rounded-r-full bg-gradient-to-b from-yellow-400 via-amber-300 to-yellow-500 opacity-70 sm:inset-y-7" />
+
+          {/* Header: team + mode */}
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-yellow-500/50 bg-black/80 shadow-[0_0_18px_rgba(250,204,21,0.45)] flex items-center justify-center"
+              style={{
+                boxShadow: `0 0 18px ${team.colours.primary}55`,
+              }}
+            >
+              <span
+                className="h-3 w-3 rounded-full"
+                style={{
+                  backgroundColor: team.colours.primary,
+                  boxShadow: `0 0 10px ${team.colours.primary}`,
+                }}
+              />
+            </div>
+
+            <div className="flex flex-1 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[13px] font-semibold text-neutral-50">
+                  {team.name}
+                </span>
+                <span className="rounded-full border border-neutral-700 bg-black/70 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-neutral-400">
+                  {team.code} • {modeConfig.label}
+                </span>
+              </div>
+              <p className="text-[11px] text-neutral-400">
+                {modeConfig.subtitle}. Quick view of{" "}
+                <span className="font-medium text-neutral-100">
+                  recent trend, consistency &amp; hit-rates
+                </span>{" "}
+                for this club.
+              </p>
+            </div>
+          </div>
+
+          {/* Key stats row */}
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-black/80 px-3 py-3 text-[11px] sm:grid-cols-4 sm:px-4 sm:py-3.5">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Avg this season
+              </span>
+              <span className="text-sm font-semibold text-yellow-200">
+                {modeSummary.average.toFixed(1)}{" "}
+                <span className="text-[11px] text-neutral-400">
+                  {modeConfig.unit}
+                </span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                High watermark
+              </span>
+              <span className="text-sm font-semibold text-neutral-100">
+                {modeSummary.max}{" "}
+                <span className="text-[11px] text-neutral-400">
+                  {modeConfig.unit}
+                </span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                Last round
+              </span>
+              <span className="text-sm font-semibold text-neutral-100">
+                {lastValue}{" "}
+                <span className="text-[11px] text-neutral-400">
+                  {modeConfig.unit}
+                </span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                vs prev
+              </span>
+              <span className={`text-sm font-semibold ${deltaClass}`}>
+                {deltaSign}
+                {Math.abs(delta).toFixed(1)}{" "}
+                <span className="text-[11px] text-neutral-400">
+                  {modeConfig.unit}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* Recent rounds mini grid */}
+          <div className="flex flex-col gap-2 rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-950/95 via-black to-black/95 px-3 py-3 sm:px-4 sm:py-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5 text-yellow-300" />
+                <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                  Recent rounds snapshot
+                </span>
+              </div>
+              <span className="rounded-full bg-neutral-900/90 px-2 py-0.5 text-[9px] text-neutral-400">
+                Last {recentRounds.length} rounds
+              </span>
+            </div>
+
+            <div className="mt-1 grid grid-cols-5 gap-1.5 text-center text-[10px]">
+              {recentRounds.map((value, i) => (
+                <div
+                  key={`${recentLabels[i]}-${i}`}
+                  className="flex flex-col items-center gap-0.5 rounded-xl border border-neutral-800/80 bg-black/70 px-1.5 py-1.5"
+                >
+                  <span className="text-[9px] uppercase tracking-[0.14em] text-neutral-500">
+                    {recentLabels[i]}
+                  </span>
+                  <span className="text-[11px] text-neutral-50">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Hit-rate lanes */}
+          <div className="flex flex-col gap-2 rounded-2xl border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),_#020617)] px-3 py-3 sm:px-4 sm:py-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+                <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-100/90">
+                  Hit-rate ladder
+                </span>
+              </div>
+              <span className="rounded-full border border-yellow-500/50 bg-black/70 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-yellow-200">
+                {modeConfig.label}
+              </span>
+            </div>
+
+            <div className="mt-2 flex flex-col gap-1.5 text-[11px]">
+              {modeConfig.thresholds.map((t, i) => {
+                const rate = hitRates[i] ?? 0;
+                const isPrimary = t === mainThreshold;
+                return (
+                  <div
+                    key={t}
+                    className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 ${
+                      isPrimary
+                        ? "border-yellow-400/80 bg-black/80 shadow-[0_0_18px_rgba(250,204,21,0.4)]"
+                        : "border-neutral-800 bg-black/70"
+                    }`}
+                  >
+                    <div className="flex w-20 items-center gap-1.5">
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                        {t}+
+                      </span>
+                    </div>
+
+                    <div className="relative flex-1 overflow-hidden rounded-full bg-neutral-900/90">
+                      <div
+                        className="h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-yellow-300 to-amber-400"
+                        style={{ width: `${Math.min(rate, 100)}%` }}
+                      />
+                    </div>
+
+                    <span
+                      className={`w-12 text-right text-[11px] font-semibold ${rateClass(
+                        rate
+                      )}`}
+                    >
+                      {rate}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Footer helper text */}
+          <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
+            These are{" "}
+            <span className="text-neutral-300">
+              structural consistency signals
+            </span>{" "}
+            only – tap other clubs in the table to compare profiles. Full Neeko+
+            will later add{" "}
+            <span className="text-neutral-300">
+              AI matchup overlays &amp; usage trends
+            </span>{" "}
+            on top of this base grid.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default TeamInsightsPanel;
-
-/* -------------------------------------------------------------------------- */
-/*                           MOBILE BOTTOM SHEET                              */
-/* -------------------------------------------------------------------------- */
-
-type MobileSheetProps = TeamInsightsPanelProps;
-
-const MobileSheet: React.FC<MobileSheetProps> = ({
-  team,
-  mode,
-  modeSeries,
-  modeSummary,
-  onClose,
-}) => {
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const startY = useRef(0);
-  const lastY = useRef(0);
-  const velocity = useRef(0);
-
-  const dragging = useRef(false);
-  const animating = useRef(false);
-
-  const [sheetY, setSheetY] = useState(0);
-  const [backdropOpacity, setBackdropOpacity] = useState(1);
-
-  useEffect(() => {
-    setSheetY(0);
-    setBackdropOpacity(1);
-  }, []);
-
-  const snapBack = () => {
-    animating.current = true;
-    const duration = 180;
-    const start = sheetY;
-    const startTime = performance.now();
-
-    const step = (time: number) => {
-      const t = Math.min((time - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const value = start * (1 - eased);
-
-      setSheetY(value);
-      setBackdropOpacity(Math.max(0, 1 - value / 300));
-
-      if (t < 1) requestAnimationFrame(step);
-      else animating.current = false;
-    };
-
-    requestAnimationFrame(step);
-  };
-
-  const closeSheet = () => {
-    animating.current = true;
-    const duration = 220;
-    const start = sheetY;
-    const end = 600;
-    const startTime = performance.now();
-
-    const step = (time: number) => {
-      const t = Math.min((time - startTime) / duration, 1);
-      const eased = Math.pow(t, 1.8);
-      const value = start + (end - start) * eased;
-
-      setSheetY(value);
-      setBackdropOpacity(Math.max(0, 1 - value / 300));
-
-      if (t < 1) requestAnimationFrame(step);
-      else {
-        animating.current = false;
-        onClose();
-      }
-    };
-
-    requestAnimationFrame(step);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (animating.current) return;
-
-    const scrollTop = scrollRef.current?.scrollTop ?? 0;
-    if (scrollTop > 0) {
-      dragging.current = false;
-      return;
-    }
-
-    dragging.current = true;
-    startY.current = e.touches[0].clientY;
-    lastY.current = startY.current;
-    velocity.current = 0;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current) return;
-
-    const y = e.touches[0].clientY;
-    const delta = y - startY.current;
-
-    velocity.current = y - lastY.current;
-    lastY.current = y;
-
-    if (delta > 0) {
-      const eased = delta * 0.55;
-      setSheetY(eased);
-      setBackdropOpacity(Math.max(0, 1 - eased / 300));
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (!dragging.current) return;
-    dragging.current = false;
-
-    const fast = velocity.current > 12;
-    const far = sheetY > 140;
-
-    if (fast || far) {
-      triggerHaptic();
-      closeSheet();
-    } else {
-      snapBack();
-    }
-  };
-
-  return (
-    <>
-      <div
-        className="fixed inset-0 bg-black backdrop-blur-sm z-[90]"
-        style={{ opacity: backdropOpacity }}
-        onClick={() => {
-          triggerHaptic();
-          closeSheet();
-        }}
-      />
-
-      <div
-        ref={sheetRef}
-        className="fixed left-0 right-0 bottom-0 z-[100] bg-neutral-950 rounded-t-3xl border-t border-neutral-800 shadow-[0_-24px_80px_rgba(0,0,0,0.95)]"
-        style={{ transform: `translateY(${sheetY}px)`, maxHeight: "92vh" }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div className="relative flex items-center justify-center pt-3 pb-1">
-          <div className="w-10 h-1.5 rounded-full bg-neutral-600/60" />
-          <button
-            className="absolute right-5 top-1 text-neutral-400 hover:text-white"
-            onClick={() => {
-              triggerHaptic();
-              closeSheet();
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div
-          ref={scrollRef}
-          className="overflow-y-auto max-h-[80vh] px-5 pb-8 no-scrollbar"
-        >
-          <InsightsContent
-            team={team}
-            mode={mode}
-            modeSeries={modeSeries}
-            modeSummary={modeSummary}
-          />
-        </div>
-      </div>
-    </>
-  );
-};
-
-/* -------------------------------------------------------------------------- */
-/*                             CONTENT LAYOUT                                 */
-/* -------------------------------------------------------------------------- */
-
-type InsightsContentProps = {
-  team: TeamRow;
-  mode: Mode;
-  modeSeries: number[];
-  modeSummary: { min: number; max: number; average: number; total: number };
-};
-
-const InsightsContent: React.FC<InsightsContentProps> = ({
-  team,
-  mode,
-  modeSeries,
-  modeSummary,
-}) => {
-  const { isPremium } = useAuth();
-  const config = MODE_CONFIG[mode];
-
-  const windowSeries = modeSeries.slice(-8);
-  const last5 = modeSeries.slice(-5);
-
-  return (
-    <div>
-      {/* Header */}
-      <div className="mb-4">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-300">
-          Team Insights
-        </p>
-        <h2 className="mt-1 text-xl font-semibold text-white">{team.name}</h2>
-        <p className="text-xs text-neutral-400 mt-0.5">{team.code}</p>
-      </div>
-
-      {/* Hero card */}
-      <div className="rounded-2xl bg-gradient-to-br from-neutral-900 to-black border border-neutral-800 px-4 py-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-              {config.label} window
-            </p>
-            <p className="text-[11px] text-neutral-400 mt-0.5">
-              Last 8 rounds · form & stability
-            </p>
-          </div>
-
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              Avg
-            </p>
-            <p className="text-3xl font-semibold text-yellow-300">
-              {modeSummary.average}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5 mt-1">
-          {windowSeries.map((v, i) => (
-            <div
-              key={i}
-              className="px-2 py-1 rounded-full bg-neutral-800/80 text-[11px] text-neutral-100"
-            >
-              {v}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats grid */}
-      <div className="rounded-2xl bg-neutral-950 border border-neutral-800 px-4 py-4 mb-4">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-          {config.label} stats
-        </p>
-
-        <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-3 text-sm">
-          <div>
-            <p className="text-[11px] text-neutral-500">Average</p>
-            <p className="text-neutral-50 font-semibold">
-              {modeSummary.average}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-[11px] text-neutral-500">Total</p>
-            <p className="text-neutral-50 font-semibold">
-              {modeSummary.total}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-[11px] text-neutral-500">Min</p>
-            <p className="text-neutral-50 font-semibold">
-              {modeSummary.min}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-[11px] text-neutral-500">Max</p>
-            <p className="text-neutral-50 font-semibold">
-              {modeSummary.max}
-            </p>
-          </div>
-        </div>
-
-        {/* Last 5 */}
-        <div className="mt-4">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-            Last 5 rounds
-          </p>
-
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {last5.map((v, i) => (
-              <div
-                key={i}
-                className="px-2 py-1 rounded-full bg-neutral-800/80 text-[11px] text-neutral-100"
-              >
-                {v}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* AI SUMMARY */}
-      <div className="rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-950 via-neutral-950 to-neutral-900 px-4 py-4 mb-4">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-yellow-300 flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.7)]" />
-          AI Summary
-        </p>
-
-        <p className="mt-2 text-sm leading-relaxed text-neutral-200">
-          {team.name} is showing{" "}
-          <span className="font-semibold text-yellow-200">
-            neutral–positive momentum
-          </span>{" "}
-          in {config.label.toLowerCase()} over the latest block. Current output
-          is stabilising around{" "}
-          <span className="font-semibold text-yellow-200">
-            {modeSummary.average}
-          </span>{" "}
-          per game with{" "}
-          <span className="font-semibold text-neutral-100">
-            moderate volatility
-          </span>
-          .
-        </p>
-      </div>
-
-      {/* UPGRADE CTA */}
-      {!isPremium && (
-        <div className="rounded-2xl border border-yellow-500/40 bg-gradient-to-b from-yellow-500/15 via-neutral-950 to-neutral-950 px-4 py-4 mt-1">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-yellow-200 mb-1">
-            Neeko+ Upgrade
-          </p>
-
-          <p className="text-sm font-semibold text-white">
-            Unlock full AFL AI analysis
-          </p>
-
-          <p className="mt-1 text-xs text-neutral-200">
-            Access deeper trend breakdowns, volatility curves, forecasting and
-            AI-generated matchup insights across all 18 clubs.
-          </p>
-
-          {/* ⛔ REPLACED next/link → normal <a> for Vite */}
-          <a
-            href="/neeko-plus"
-            className="mt-4 flex h-11 w-full items-center justify-center rounded-full bg-yellow-400 text-[13px] font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.7)] active:scale-95 transition"
-            onClick={triggerHaptic}
-          >
-            Upgrade to Neeko+
-            <ArrowRight className="ml-1.5 h-4 w-4" />
-          </a>
-
-          <button
-            type="button"
-            className="mt-2 h-10 w-full rounded-full border border-neutral-700 bg-neutral-950 text-[12px] text-neutral-200 active:scale-95 transition"
-          >
-            Maybe later
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
