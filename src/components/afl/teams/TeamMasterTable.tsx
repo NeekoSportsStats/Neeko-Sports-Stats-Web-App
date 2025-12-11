@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/lib/auth";
 import { MOCK_TEAMS, TeamRow, ROUND_LABELS } from "./mockTeams";
+
 import TeamInsightsPanel from "./TeamInsightsPanel";
 
 /* -------------------------------------------------------------------------- */
@@ -312,7 +313,7 @@ export default function TeamMasterTable() {
         </div>
       </div>
 
-      {/* DESKTOP TABLE */}
+      {/* DESKTOP TABLE – 3-ZONE FREEZE */}
       <div className="mt-8 hidden md:block">
         <div className="overflow-hidden rounded-3xl border border-neutral-800 bg-black/90 shadow-xl">
           <div className="relative max-h-[520px] overflow-y-auto">
@@ -320,45 +321,34 @@ export default function TeamMasterTable() {
               <table className="min-w-full text-[11px]">
                 <thead className="sticky top-0 z-20 bg-neutral-950/95 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
                   <tr>
-                    {/* Sticky team column */}
+                    {/* ZONE 1: Sticky left identity */}
                     <th
                       className="sticky left-0 z-30 border-r border-neutral-800 bg-neutral-950/95 px-4 py-3 text-left"
-                      style={{ minWidth: 180 }}
+                      style={{ minWidth: 220 }}
                     >
                       Team
                     </th>
 
-                    {/* Round columns (OR, R1–R23) – hidden in compact mode */}
+                    {/* ZONE 2: Rounds (scrollable middle) */}
                     {!compactMode &&
                       ROUND_LABELS.map((label) => (
                         <th
                           key={label}
-                          className="px-2 py-3 text-center text-[9px]"
+                          className="border-r border-neutral-900 px-2 py-3 text-center text-[9px]"
                         >
                           {label}
                         </th>
                       ))}
 
-                    {/* Summary block */}
-                    <th className="px-3 py-3 text-center">Min</th>
-                    <th className="px-3 py-3 text-center">Max</th>
-                    <th className="px-3 py-3 text-center">
-                      {MODE_CONFIG[selectedMode].label} avg
+                    {/* ZONE 3: Sticky right summary + hit-rates + CTA */}
+                    <th
+                      className="sticky right-0 z-30 border-l border-neutral-800 bg-neutral-950/95 px-4 py-3 text-right"
+                      style={{ minWidth: 260 }}
+                    >
+                      <span className="text-[9px] tracking-[0.18em] text-neutral-400">
+                        SUMMARY &amp; HIT-RATE
+                      </span>
                     </th>
-                    <th className="px-3 py-3 text-center">Total</th>
-                    <th className="px-3 py-3 text-center">Games</th>
-
-                    {/* Hit-rate columns */}
-                    {MODE_CONFIG[selectedMode].hits.map((threshold) => (
-                      <th
-                        key={threshold}
-                        className="px-3 py-3 text-center text-[9px]"
-                      >
-                        {threshold}+
-                      </th>
-                    ))}
-
-                    <th className="px-4 py-3 text-right">Insights</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,10 +373,10 @@ export default function TeamMasterTable() {
                             : "cursor-pointer"
                         }`}
                       >
-                        {/* Sticky team cell */}
+                        {/* ZONE 1: Sticky left identity cell */}
                         <td
                           className="sticky left-0 z-10 border-r border-neutral-800 bg-black/95 px-4 align-middle"
-                          style={{ minWidth: 180 }}
+                          style={{ minWidth: 220 }}
                         >
                           <div className="flex items-center gap-3">
                             <div
@@ -414,53 +404,76 @@ export default function TeamMasterTable() {
                           </div>
                         </td>
 
-                        {/* Round cells – hidden in compact mode */}
+                        {/* ZONE 2: Rounds (raw ledger) */}
                         {!compactMode &&
                           ROUND_LABELS.map((label, roundIndex) => (
                             <td
                               key={label}
-                              className="px-2 text-center align-middle text-[10px] text-neutral-100"
+                              className="border-r border-neutral-900 px-2 text-center align-middle text-[10px] text-neutral-100"
                             >
                               {series[roundIndex] ?? "-"}
                             </td>
                           ))}
 
-                        {/* Summary cells */}
-                        <td className="px-3 text-center align-middle text-neutral-100">
-                          {min}
-                        </td>
-                        <td className="px-3 text-center align-middle text-neutral-100">
-                          {max}
-                        </td>
-                        <td className="px-3 text-center align-middle text-yellow-200">
-                          {average}{" "}
-                          {MODE_CONFIG[selectedMode].subtitle.includes("points")
-                            ? "pts"
-                            : ""}
-                        </td>
-                        <td className="px-3 text-center align-middle text-neutral-100">
-                          {total}
-                        </td>
-                        <td className="px-3 text-center align-middle text-neutral-100">
-                          {games}
-                        </td>
+                        {/* ZONE 3: Sticky right summary + hit-rates + CTA */}
+                        <td
+                          className="sticky right-0 z-10 border-l border-neutral-800 bg-black/95 px-4 align-middle"
+                          style={{ minWidth: 260 }}
+                        >
+                          <div className="flex flex-col items-end gap-1">
+                            {/* Summary row */}
+                            <div className="flex gap-3 text-[10px] text-neutral-400">
+                              <span>MIN</span>
+                              <span>MAX</span>
+                              <span>AVG</span>
+                              <span>TOTAL</span>
+                              <span>GMS</span>
+                            </div>
+                            <div className="flex gap-3 text-[11px]">
+                              <span className="text-neutral-100">{min}</span>
+                              <span className="text-neutral-100">{max}</span>
+                              <span className="text-yellow-200">
+                                {average}{" "}
+                                {MODE_CONFIG[
+                                  selectedMode
+                                ].subtitle.includes("points")
+                                  ? "pts"
+                                  : ""}
+                              </span>
+                              <span className="text-neutral-100">{total}</span>
+                              <span className="text-neutral-100">{games}</span>
+                            </div>
 
-                        {/* Hit-rate cells */}
-                        {hitRates.map((hit, i) => (
-                          <td
-                            key={i}
-                            className={`px-3 text-center align-middle text-[11px] font-semibold ${getHitRateColorClasses(
-                              hit
-                            )}`}
-                          >
-                            {hit}%
-                          </td>
-                        ))}
+                            {/* Hit-rate row */}
+                            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
+                              {MODE_CONFIG[selectedMode].hits.map(
+                                (threshold, i) => {
+                                  const hit = hitRates[i] ?? 0;
+                                  return (
+                                    <div
+                                      key={threshold}
+                                      className="flex flex-col items-center"
+                                    >
+                                      <span className="text-[9px] text-neutral-500">
+                                        {threshold}+
+                                      </span>
+                                      <span
+                                        className={`text-[11px] font-semibold ${getHitRateColorClasses(
+                                          hit
+                                        )}`}
+                                      >
+                                        {hit}%
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                              )}
 
-                        <td className="px-4 text-right align-middle">
-                          <button className="rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
-                            View
-                          </button>
+                              <button className="ml-2 rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
+                                View
+                              </button>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     );
