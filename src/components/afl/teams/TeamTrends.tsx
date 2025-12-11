@@ -1,5 +1,3 @@
-// src/components/afl/teams/TeamTrends.tsx
-
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MOCK_TEAMS } from "./mockTeams";
@@ -90,6 +88,7 @@ function TrendTooltipPortal({ tooltip }: { tooltip: TooltipPayload | null }) {
 
 /* -------------------------------------------------------------------------- */
 /*                    SparklineLarge — desktop hover + mobile tap             */
+/*                SINGLE ROW on mobile with adaptive compression              */
 /* -------------------------------------------------------------------------- */
 
 type SparklineProps = {
@@ -131,7 +130,7 @@ function SparklineLarge({
   ) {
     try {
       const rect = el.getBoundingClientRect();
-      const offset = isTouchDevice ? 4 : 6; // closer on mobile
+      const offset = isTouchDevice ? 4 : 6; // slightly closer on mobile
       onShowTooltip?.({
         x: rect.left + rect.width / 2,
         y: rect.top - offset,
@@ -141,7 +140,7 @@ function SparklineLarge({
         unit,
       });
     } catch {
-      // fail safe – never crash on mobile
+      // fail-safe; never crash on mobile
     }
   }
 
@@ -156,12 +155,12 @@ function SparklineLarge({
         px-[4px] sm:px-[6px]
       "
     >
-      {/* subtle highlight */}
+      {/* highlights */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[40%] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.12),transparent_65%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[30%] bg-gradient-to-t from-black/80 via-black/0" />
 
-      {/* mobile: 2-row grid, desktop: flex row */}
-      <div className="relative z-10 grid h-full w-full grid-cols-6 grid-rows-2 items-end gap-[3px] sm:flex sm:gap-[2px]">
+      {/* SINGLE ROW, adaptive compression on all breakpoints */}
+      <div className="relative z-10 flex h-full w-full items-end gap-[3px] sm:gap-[2px]">
         {recent.map((v, i) => {
           const norm = (v - min) / range;
           const height = 6 + norm * 34;
@@ -173,7 +172,7 @@ function SparklineLarge({
             <div
               key={i}
               data-sparkline-bar="true"
-              className="w-full h-full flex items-end justify-center"
+              className="flex-1 flex items-end justify-center h-full"
               onMouseEnter={(e) => {
                 if (isTouchDevice) return; // mobile uses tap
                 showFromElement(e.currentTarget as HTMLElement, v, delta, index);
