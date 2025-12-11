@@ -1,7 +1,6 @@
-// src/components/afl/players/AIInsights.tsx
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { BrainCircuit } from "lucide-react";
+import { BrainCircuit, Lock, ArrowRight, X } from "lucide-react";
 import {
   useAFLMockPlayers,
   lastN,
@@ -140,36 +139,23 @@ function ConfidenceBadge({ value }: { value: number }) {
 }
 
 /* ---------------------------------------------------------
-   INDIVIDUAL ROW CARD (pure presentational)
+   REAL PLAYER CARD (3-col grid / mobile carousel)
 --------------------------------------------------------- */
 
-function AIInsightRow({
-  row,
-  index,
-  blurred,
-}: {
-  row: AIInsightRowModel;
-  index: number;
-  blurred?: boolean;
-}) {
+function PlayerRealCard({ row }: { row: AIInsightRowModel }) {
   return (
-    <div
+    <article
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-white/5",
-        "bg-gradient-to-br from-[#0c0c11] via-[#0c0c12] to-[#0a0a0e]",
+        "relative min-w-[260px] snap-start",
+        "rounded-3xl border border-neutral-800/90",
+        "bg-gradient-to-b from-[#0c0c11] via-[#0c0c12] to-black",
         "px-5 py-5 md:px-6 md:py-6",
-        "shadow-[0_0_25px_rgba(0,0,0,0.45)]"
+        "shadow-[0_0_45px_rgba(0,0,0,0.8)] transition hover:brightness-110"
       )}
     >
       <GoldPulseStrip />
 
-      {/* Content wrapper (blur for premium gating) */}
-      <div
-        className={cn(
-          "relative",
-          blurred && "blur-sm brightness-[0.6] select-none pointer-events-none"
-        )}
-      >
+      <div className="relative">
         {/* Top Row - Player + sparkline */}
         <div className="flex items-start justify-between">
           <div>
@@ -203,7 +189,7 @@ function AIInsightRow({
         </div>
 
         {/* AI Summary Sentence */}
-        <p className="text-sm text-white/75 leading-relaxed mt-4 pr-10">
+        <p className="text-sm text-white/75 leading-relaxed mt-4">
           {row.aiText}
         </p>
 
@@ -241,7 +227,76 @@ function AIInsightRow({
           </div>
         </div>
       </div>
-    </div>
+    </article>
+  );
+}
+
+/* ---------------------------------------------------------
+   BLURRED LOCKED CARD (Player version of Team BlurredCard)
+--------------------------------------------------------- */
+
+function PlayerBlurredCard() {
+  return (
+    <article
+      className={cn(
+        "relative min-w-[260px] snap-start rounded-3xl border border-yellow-500/25",
+        "bg-black/50 px-5 py-5 backdrop-blur-2xl opacity-30 scale-[0.98]",
+        "select-none pointer-events-none shadow-[0_0_45px_rgba(0,0,0,0.8)] overflow-hidden"
+      )}
+    >
+      {/* Deep blur base layer */}
+      <div className="absolute inset-0 backdrop-blur-3xl bg-black/40 pointer-events-none z-0" />
+
+      {/* Gold shimmer */}
+      <div className="pointer-events-none absolute inset-0 z-[1] opacity-70 mix-blend-screen animate-pulse">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(250,204,21,0.22),transparent_65%),radial-gradient(circle_at_80%_100%,rgba(250,204,21,0.18),transparent_60%)]" />
+      </div>
+
+      {/* GOLD → AMBER luxury diagonal streak */}
+      <div
+        className="
+          pointer-events-none absolute inset-0 z-[2]
+          bg-gradient-to-br from-yellow-300/20 via-amber-400/20 to-transparent
+          animate-[luxstreak_7s_ease-in-out_infinite]
+        "
+        style={{
+          maskImage:
+            "linear-gradient(55deg, transparent 45%, black 50%, transparent 55%)",
+          WebkitMaskImage:
+            "linear-gradient(55deg, transparent 45%, black 50%, transparent 55%)",
+        }}
+      />
+
+      {/* Content (blurred behind) */}
+      <div className="relative z-[3]">
+        <div className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border border-yellow-500/50 bg-black/70 shadow-[0_0_16px_rgba(250,204,21,0.65)]">
+          <Lock className="h-3.5 w-3.5 text-yellow-300" />
+        </div>
+
+        <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
+          AI Projections Locked
+        </div>
+
+        <div className="mt-1 text-sm font-semibold text-neutral-200/80">
+          Hidden Player
+        </div>
+
+        <ul className="mt-3 space-y-2 text-[11px] leading-relaxed text-neutral-300/75">
+          <li className="flex gap-2">
+            <span className="mt-[5px] h-[3px] w-[3px] rounded-full bg-neutral-400/80" />
+            <span>Projection range unavailable.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="mt-[5px] h-[3px] w-[3px] rounded-full bg-neutral-400/80" />
+            <span>Role &amp; usage model hidden.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="mt-[5px] h-[3px] w-[3px] rounded-full bg-neutral-400/80" />
+            <span>Volatility profile locked behind Neeko+.</span>
+          </li>
+        </ul>
+      </div>
+    </article>
   );
 }
 
@@ -251,6 +306,7 @@ function AIInsightRow({
 
 export default function AIInsights() {
   const players = useAFLMockPlayers();
+  const [showModal, setShowModal] = useState(false);
 
   // Build real free rows (top 3)
   const freeRows: AIInsightRowModel[] = players.slice(0, 3).map((p, idx) => {
@@ -325,112 +381,167 @@ export default function AIInsights() {
   ];
 
   return (
-    <section
-      id="ai-insights"
-      className={cn(
-        "relative mt-12 rounded-3xl border border-white/10",
-        "bg-gradient-to-b from-[#0c0c11] via-[#0a0a0d] to-[#050507]",
-        "px-4 py-8 md:px-6 md:py-10",
-        "shadow-[0_0_60px_rgba(0,0,0,0.65)]"
-      )}
-    >
-      {/* Header */}
-      <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
-          <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
-          <span className="uppercase tracking-[0.18em]">AI Insights</span>
+    <>
+      <section
+        id="ai-insights"
+        className={cn(
+          "relative mt-12 rounded-3xl border border-white/10",
+          "bg-gradient-to-b from-[#0c0c11] via-[#0a0a0d] to-[#050507]",
+          "px-4 py-8 md:px-6 md:py-10",
+          "shadow-[0_0_60px_rgba(0,0,0,0.65)]"
+        )}
+      >
+        {/* Header */}
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-black/80 px-3 py-1 text-xs text-yellow-200/90">
+            <BrainCircuit className="h-3.5 w-3.5 text-yellow-300" />
+            <span className="uppercase tracking-[0.18em]">AI Insights</span>
+          </div>
+
+          <h2 className="text-xl font-semibold md:text-2xl">
+            AI Projection • Usage Forecast • Role Signals
+          </h2>
+
+          <p className="max-w-xl text-sm text-white/70">
+            Predictions generated by Neeko AI — combining role tendencies, matchup
+            profiles and volatility pathways.
+          </p>
+
+          {/* Legend */}
+          <p className="max-w-xl text-[10px] text-white/35 leading-relaxed mt-2">
+            <span className="font-medium text-white/45">Role stable</span> =
+            consistent position &amp; CBA pattern.{" "}
+            <span className="font-medium text-white/45">Usage steady</span> =
+            involvement near baseline.{" "}
+            <span className="font-medium text-white/45">Neutral matchup</span> =
+            average opponent fantasy concession.
+          </p>
         </div>
 
-        <h2 className="text-xl font-semibold md:text-2xl">
-          AI Projection • Usage Forecast • Role Signals
-        </h2>
-
-        <p className="max-w-xl text-sm text-white/70">
-          Predictions generated by Neeko AI — combining role tendencies, matchup
-          profiles and volatility pathways.
-        </p>
-
-        {/* Legend */}
-        <p className="max-w-xl text-[10px] text-white/35 leading-relaxed mt-2">
-          <span className="font-medium text-white/45">Role stable</span> =
-          consistent position &amp; CBA pattern.{" "}
-          <span className="font-medium text-white/45">Usage steady</span> =
-          involvement near baseline.{" "}
-          <span className="font-medium text-white/45">Neutral matchup</span> =
-          average opponent fantasy concession.
-        </p>
-      </div>
-
-      {/* FREE ROWS */}
-      <div className="space-y-4 mt-6">
-        {freeRows.map((row, idx) => (
-          <AIInsightRow key={row.id} row={row} index={idx} blurred={false} />
-        ))}
-      </div>
-
-      {/* PREMIUM GATED ROWS */}
-      <div className="relative mt-6">
-        <div
-          className={cn(
-            "space-y-4",
-            !IS_PREMIUM && "blur-sm brightness-[0.6] select-none pointer-events-none"
-          )}
-        >
-          {premiumRows.map((row, idx) => (
-            <AIInsightRow
-              key={row.id}
-              row={row}
-              index={idx + freeRows.length}
-              blurred={false} // blur handled at wrapper level
-            />
+        {/* FREE PLAYER CARDS — horizontal carousel on mobile, 3-col grid on desktop */}
+        <div className="mt-6 mb-6 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible">
+          {freeRows.map((row) => (
+            <PlayerRealCard key={row.id} row={row} />
           ))}
         </div>
 
+        {/* PREMIUM LOCKED CARDS — blurred, shimmered, same as Team AI pattern */}
+        <div className="mb-8 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible">
+          {premiumRows.map((row) => (
+            <PlayerBlurredCard key={row.id} />
+          ))}
+        </div>
+
+        {/* Neeko+ CTA card (opens modal) */}
         {!IS_PREMIUM && (
-          <div
-            className={cn(
-              "absolute inset-0 flex flex-col items-center justify-center",
-              "rounded-3xl bg-gradient-to-b from-black/10 via-black/75 to-black/95",
-              "border border-yellow-500/35 shadow-[0_0_40px_rgba(250,204,21,0.45)]"
-            )}
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="group inline-flex w-full items-center justify-between rounded-3xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 via-yellow-500/0 to-transparent px-6 py-4 text-left transition hover:brightness-110"
           >
-            <div className="flex flex-col items-center gap-3 px-6 text-center">
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-yellow-400/15 border border-yellow-400/50">
-                  <span className="text-xs font-semibold text-yellow-300">+</span>
-                </span>
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/90">
-                  Neeko+ AI Suite
-                </span>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
+                Neeko+ AI
               </div>
-
-              <p className="text-sm text-yellow-50/95">
-                Unlock full AI projections, volatility indexes and role-driven matchup
-                intelligence for every player.
+              <div className="mt-1 text-sm font-semibold text-yellow-100">
+                Unlock full AFL AI projections across all players
+              </div>
+              <p className="mt-1 text-xs text-neutral-300">
+                Access deeper projection ranges, role-driven matchup flags and
+                volatility models for every listed player.
               </p>
+            </div>
 
-              <div className="flex flex-col gap-2">
-                <a
-                  href="/sports/afl/ai-analysis"
-                  className={cn(
-                    "rounded-full px-6 py-2 text-sm font-semibold text-black",
-                    "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400",
-                    "shadow-[0_0_24px_rgba(250,204,21,0.7)] hover:brightness-110 transition"
-                  )}
-                >
-                  Unlock Neeko+ Insights
-                </a>
-                <a
-                  href="/sports/afl/ai-analysis"
-                  className="text-[11px] text-yellow-200/80 hover:text-yellow-200 underline underline-offset-4"
-                >
-                  View full AI Analysis →
-                </a>
-              </div>
+            <div className="ml-4 flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/50 bg-black/60 shadow-[0_0_14px_rgba(250,204,21,0.6)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+              <ArrowRight className="h-4 w-4 text-yellow-300" />
+            </div>
+          </button>
+        )}
+      </section>
+
+      {/* Neeko+ Modal (same pattern as Team AI modal) */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+          <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-6 py-6 shadow-[0_0_80px_rgba(0,0,0,1)]">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/70 bg-black/70 text-neutral-300 hover:text-white hover:border-neutral-500 transition"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-500/5 to-transparent px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
+                Neeko+ Upgrade
+              </span>
+            </div>
+
+            <h3 className="mt-3 text-xl font-semibold text-neutral-50">
+              Unlock full AFL AI analysis
+            </h3>
+
+            <p className="mt-2 text-xs text-neutral-300">
+              Neeko+ unlocks every player, every projection band, volatility model and
+              role-driven matchup insight across the AFL.
+            </p>
+
+            <ul className="mt-4 space-y-2 text-xs text-neutral-200">
+              <li className="flex gap-2">
+                <span className="h-[4px] w-[4px] rounded-full bg-yellow-400 mt-[5px]" />
+                <span>Full AI projections for every AFL-listed player.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="h-[4px] w-[4px] rounded-full bg-yellow-400 mt-[5px]" />
+                <span>Role, usage and volatility indexes updated round-to-round.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="h-[4px] w-[4px] rounded-full bg-yellow-400 mt-[5px]" />
+                <span>Premium features across other sports as they launch.</span>
+              </li>
+            </ul>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a
+                href="/neeko-plus"
+                className="inline-flex flex-1 items-center justify-center rounded-2xl border border-yellow-400/70 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-300 px-4 py-2.5 text-sm font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.85)] hover:brightness-110 transition"
+              >
+                Upgrade to Neeko+
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+
+              <button
+                onClick={() => setShowModal(false)}
+                className="inline-flex flex-1 items-center justify-center rounded-2xl border border-neutral-700 bg-black/70 px-4 py-2.5 text-sm font-medium text-neutral-200 hover:border-neutral-500 hover:text-white transition"
+              >
+                Maybe later
+              </button>
             </div>
           </div>
-        )}
-      </div>
-    </section>
+        </div>
+      )}
+    </>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     KEYFRAMES: GOLD-AMBER STREAK (GLOBAL)                  */
+/* -------------------------------------------------------------------------- */
+
+const style = `
+@keyframes luxstreak {
+  0% {
+    transform: translate(-55%, -55%) rotate(0deg);
+  }
+  100% {
+    transform: translate(55%, 55%) rotate(0deg);
+  }
+}
+`;
+
+if (typeof document !== "undefined" && !document.getElementById("luxstreak-keyframes")) {
+  const tag = document.createElement("style");
+  tag.id = "luxstreak-keyframes";
+  tag.innerHTML = style;
+  document.head.appendChild(tag);
 }
