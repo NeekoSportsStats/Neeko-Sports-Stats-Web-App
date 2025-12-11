@@ -5,7 +5,7 @@ import type { TeamRow } from "./mockTeams";
 import { ROUND_LABELS } from "./mockTeams";
 
 /* -------------------------------------------------------------------------- */
-/*                                   TYPES                                    */
+/*                                    TYPES                                   */
 /* -------------------------------------------------------------------------- */
 
 type Mode = "scoring" | "fantasy" | "disposals" | "goals";
@@ -26,7 +26,7 @@ type TeamInsightsPanelProps = {
 };
 
 /* -------------------------------------------------------------------------- */
-/*                              MODE CONFIG                                    */
+/*                               MODE CONFIG                                   */
 /* -------------------------------------------------------------------------- */
 
 const MODE_CONFIG: Record<
@@ -60,7 +60,7 @@ const MODE_CONFIG: Record<
 };
 
 /* -------------------------------------------------------------------------- */
-/*                              UTILITY FUNCS                                  */
+/*                            UTILITY FUNCTIONS                                */
 /* -------------------------------------------------------------------------- */
 
 const rateClass = (v: number) => {
@@ -77,7 +77,7 @@ const computeHitRate = (series: number[], thresholds: number[]) =>
   );
 
 /* -------------------------------------------------------------------------- */
-/*                           SCROLL LOCK (iOS SAFE)                           */
+/*                                SCROLL LOCK                                  */
 /* -------------------------------------------------------------------------- */
 
 const lockScroll = () => {
@@ -95,22 +95,29 @@ const unlockScroll = () => {
 };
 
 /* -------------------------------------------------------------------------- */
-/*                           COMPONENT                                        */
+/*                               MAIN COMPONENT                                */
 /* -------------------------------------------------------------------------- */
 
 const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
   team,
   onClose,
   mode: initialMode,
-  modeSeries,
-  modeSummary,
+  modeSeries: seriesInitial,
+  modeSummary: summaryInitial,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [mode, setMode] = useState<Mode>(initialMode);
 
-  /* ---------------------------------------------------------------------- */
-  /*                      DRAG TO CLOSE (ONLY TOP HANDLE)                    */
-  /* ---------------------------------------------------------------------- */
+  // recalc when mode switches
+  const series = seriesInitial;
+  const summary = summaryInitial;
+
+  const thresholds = MODE_CONFIG[mode].thresholds;
+  const hitRates = computeHitRate(series, thresholds);
+
+  /* --------------------------------------------- */
+  /*              Drag-to-Close Logic              */
+  /* --------------------------------------------- */
 
   const DRAG_ZONE_HEIGHT = 32;
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -120,10 +127,11 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
 
   const onTouchStart = (e: React.TouchEvent) => {
     const y = e.touches[0].clientY;
-    const sheetTop = sheetRef.current?.getBoundingClientRect().top ?? 0;
+    const top = sheetRef.current?.getBoundingClientRect().top ?? 0;
 
-    const isInDragZone = y - sheetTop <= DRAG_ZONE_HEIGHT;
-    if (isInDragZone) {
+    const inDragZone = y - top <= DRAG_ZONE_HEIGHT;
+
+    if (inDragZone) {
       setIsDragging(true);
       setDragStartY(y);
     } else {
@@ -158,9 +166,9 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
     }
   };
 
-  /* ---------------------------------------------------------------------- */
-  /*                           MOUNT ANIMATION + LOCK                        */
-  /* ---------------------------------------------------------------------- */
+  /* --------------------------------------------- */
+  /*                 Open / Close                  */
+  /* --------------------------------------------- */
 
   useEffect(() => {
     lockScroll();
@@ -176,35 +184,35 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
     setTimeout(onClose, 220);
   };
 
-  /* ---------------------------------------------------------------------- */
-  /*                       RECALCULATE BASED ON MODE                         */
-  /* ---------------------------------------------------------------------- */
+  /* --------------------------------------------- */
+  /*              Mode-based Calcs                 */
+  /* --------------------------------------------- */
 
   const modeConfig = MODE_CONFIG[mode];
-  const thresholds = modeConfig.thresholds;
-  const hitRates = computeHitRate(modeSeries, thresholds);
 
-  const lastIndex = modeSeries.length - 1;
-  const lastValue = modeSeries[lastIndex] ?? 0;
-  const prevValue = modeSeries[lastIndex - 1] ?? lastValue;
+  const lastIndex = series.length - 1;
+  const lastValue = series[lastIndex] ?? 0;
+  const prevValue = series[lastIndex - 1] ?? lastValue;
 
   const delta = lastValue - prevValue;
   const deltaSign = delta > 0 ? "+" : delta < 0 ? "−" : "";
   const deltaClass =
     delta > 0 ? "text-lime-300" : delta < 0 ? "text-red-400" : "text-neutral-300";
 
-  const mainThresholdIndex = thresholds.length >= 3 ? 2 : thresholds.length - 1;
+  const mainThresholdIndex =
+    thresholds.length >= 3 ? 2 : thresholds.length - 1;
+
   const mainThreshold = thresholds[mainThresholdIndex];
   const mainHit = hitRates[mainThresholdIndex];
 
-  const recentRounds = modeSeries.slice(-5);
+  const recentRounds = series.slice(-5);
   const recentLabels = ROUND_LABELS.slice(
     Math.max(0, ROUND_LABELS.length - recentRounds.length)
   );
 
-  /* ---------------------------------------------------------------------- */
-  /*                                   JSX                                    */
-  /* ---------------------------------------------------------------------- */
+  /* --------------------------------------------- */
+  /*                   RENDER                      */
+  /* --------------------------------------------- */
 
   return (
     <div
@@ -220,17 +228,18 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
         }`}
       />
 
-      {/* Bottom Sheet */}
+      {/* SAFARI TOP GESTURE BLOCKER */}
+      <div className="absolute top-0 left-0 w-full h-10 z-[92]" />
+
+      {/* Sheet */}
       <div
         ref={sheetRef}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className={`relative w-full max-w-xl transform rounded-t-3xl border border-yellow-500/30
-          bg-gradient-to-b from-black/95 via-neutral-950/95 to-black
-          shadow-[0_-30px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)]
-          transition-transform duration-200 ease-out sm:rounded-3xl sm:border-yellow-500/40
-          ${isVisible ? "translate-y-0" : "translate-y-full"}`}
+        className={`relative w-full max-w-xl transform rounded-t-3xl border border-yellow-500/30 bg-gradient-to-b from-black/95 via-neutral-950/95 to-black shadow-[0_-30px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)] transition-transform duration-200 ease-out sm:rounded-3xl sm:border-yellow-500/40 ${
+          isVisible ? "translate-y-0" : "translate-y-full"
+        }`}
         style={{
           maxHeight: "88vh",
           touchAction: "none",
@@ -238,7 +247,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
           overscrollBehaviorY: "contain",
         }}
       >
-        {/* Handle + Close */}
+        {/* Header handle + close */}
         <div className="flex items-center justify-between px-4 pt-3 pb-1 sm:px-5 sm:pt-4">
           <div className="flex-1">
             <div className="mx-auto h-1 w-10 rounded-full bg-neutral-700/80 sm:hidden" />
@@ -251,7 +260,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
           </button>
         </div>
 
-        {/* SCROLLABLE CONTENT */}
+        {/* CONTENT SCROLLER */}
         <div
           className="relative z-10 flex flex-col gap-4 px-4 pb-5 pt-1 sm:px-6 sm:pb-6 overflow-y-auto"
           style={{
@@ -259,8 +268,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             WebkitOverflowScrolling: "touch",
           }}
         >
-
-          {/* Filter Pills */}
+          {/* FILTER PILLS */}
           <div className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-black/70 px-1.5 py-1 self-start mx-auto sm:mx-0 mt-1">
             {(Object.keys(MODE_CONFIG) as Mode[]).map((m) => (
               <button
@@ -277,10 +285,10 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             ))}
           </div>
 
-          {/* Gold strip */}
+          {/* LEFT GOLD STRIP */}
           <div className="pointer-events-none absolute inset-y-6 left-0 w-[2px] rounded-r-full bg-gradient-to-b from-yellow-400 via-amber-300 to-yellow-500 opacity-70 sm:inset-y-7" />
 
-          {/* Header */}
+          {/* HEADER */}
           <div className="flex items-start gap-3 mt-2">
             <div
               className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-yellow-500/50 bg-black/80 flex items-center justify-center"
@@ -314,14 +322,14 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
           </div>
 
-          {/* Season Summary Grid */}
+          {/* SUMMARY GRID */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-2xl border border-neutral-800 bg-black/80 px-3 py-3 text-[11px] sm:px-4 sm:py-3.5">
             <div>
               <span className="text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
                 Avg this season
               </span>
               <div className="text-sm font-semibold text-yellow-200">
-                {modeSummary.average.toFixed(1)}{" "}
+                {summary.average.toFixed(1)}{" "}
                 <span className="text-[11px] text-neutral-400">
                   {modeConfig.unit}
                 </span>
@@ -333,7 +341,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
                 High watermark
               </span>
               <div className="text-sm font-semibold text-neutral-100">
-                {modeSummary.max}
+                {summary.max}
                 <span className="text-[11px] text-neutral-400">
                   {" "}
                   {modeConfig.unit}
@@ -369,7 +377,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
           </div>
 
-          {/* Recent Rounds */}
+          {/* RECENT ROUNDS */}
           <div className="flex flex-col gap-2 rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-950/95 via-black to-black/95 px-3 py-3 sm:px-4 sm:py-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -398,7 +406,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
           </div>
 
-          {/* Hit Rate Ladder */}
+          {/* HIT-RATE LADDER */}
           <div className="flex flex-col gap-2 rounded-2xl border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),_#020617)] px-3 py-3 sm:px-4 sm:py-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -446,6 +454,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
           </div>
 
+          {/* FOOTER */}
           <p className="mt-1 text-[10px] text-neutral-500 leading-relaxed">
             These are{" "}
             <span className="text-neutral-300">consistency indicators</span> only.
