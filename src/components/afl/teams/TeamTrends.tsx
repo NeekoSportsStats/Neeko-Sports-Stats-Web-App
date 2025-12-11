@@ -1,6 +1,5 @@
-// src/components/afl/teams/TeamTrends.tsx
-
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
@@ -41,32 +40,75 @@ function formatTooltipDelta(delta: number | null, unit: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                    SparklineLarge — MOBILE OPTIMIZED                       */
+/*                      Tooltip payload + portal component                    */
+/* -------------------------------------------------------------------------- */
+
+type TooltipPayload = {
+  x: number;
+  y: number;
+  value: number;
+  delta: number | null;
+  round: number;
+  unit: string;
+};
+
+function TrendTooltipPortal({ tooltip }: { tooltip: TooltipPayload | null }) {
+  if (typeof document === "undefined" || !tooltip) return null;
+
+  return createPortal(
+    <div
+      className="
+        pointer-events-none fixed z-[9999]
+        rounded-md border border-white/10 
+        bg-black/90 backdrop-blur-md
+        px-2 py-1 text-[10px] text-neutral-200
+        whitespace-nowrap
+        sm:text-[10px] sm:px-2 sm:py-1
+      "
+      style={{
+        left: tooltip.x,
+        top: tooltip.y,
+        transform: "translate(-50%, -100%)",
+      }}
+    >
+      <div className="text-[8px] uppercase tracking-wider text-neutral-400 sm:text-[8px]">
+        Round {tooltip.round}
+      </div>
+      <div className="font-semibold">
+        {formatTooltipValue(tooltip.value, tooltip.unit)}
+      </div>
+      {tooltip.delta !== null && (
+        <div className="text-[9px] text-neutral-400 sm:text-[9px]">
+          {formatTooltipDelta(tooltip.delta, tooltip.unit)}
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                    SparklineLarge — MOBILE OPTIMISED BARS                  */
 /* -------------------------------------------------------------------------- */
 
 function SparklineLarge({
   values,
   color,
   label,
+  onShowTooltip,
+  onHideTooltip,
 }: {
   values: number[];
   color: string;
   label: string;
+  onShowTooltip?: (payload: TooltipPayload) => void;
+  onHideTooltip?: () => void;
 }) {
   const recent = useMemo(
     () => (values.length > 12 ? values.slice(-12) : values),
     [values]
   );
-
   const startIndex = values.length - recent.length;
-
-  const [tooltip, setTooltip] = useState<{
-    x: number;
-    y: number;
-    value: number;
-    delta: number | null;
-    round: number;
-  } | null>(null);
 
   const unit = useMemo(() => inferUnit(label), [label]);
 
@@ -78,31 +120,26 @@ function SparklineLarge({
     <div
       className="
         relative 
-        h-[54px] w-full 
+        h-[44px] sm:h-[54px] 
+        w-full 
         rounded-xl 
         overflow-hidden 
         bg-gradient-to-b from-neutral-800/40 via-neutral-900/90 to-black
         border border-slate-400/20 
         shadow-[0_6px_14px_rgba(0,0,0,0.55)]
-        px-[6px]
-
-        @media(max-width:640px):h-[44px]
-        @media(max-width:640px):px-[4px]
+        px-[4px] sm:px-[6px]
       "
     >
       {/* subtle highlight */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[40%] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),transparent_65%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[30%] bg-gradient-to-t from-black/80 via-black/0" />
 
+      {/* mobile: 2-row grid, desktop: flex row */}
       <div
         className="
-          relative z-10 flex h-full w-full items-end gap-[2px]
-
-          @media(max-width:640px):grid
-          @media(max-width:640px):grid-cols-6
-          @media(max-width:640px):grid-rows-2
-          @media(max-width:640px):gap-[3px]
-          @media(max-width:640px):items-end
+          relative z-10 
+          grid h-full w-full grid-cols-6 grid-rows-2 items-end gap-[3px]
+          sm:flex sm:gap-[2px]
         "
       >
         {recent.map((v, i) => {
@@ -117,38 +154,33 @@ function SparklineLarge({
               key={i}
               className="
                 flex flex-1 items-end justify-center
-
-                @media(max-width:640px):pb-1
-                @media(max-width:640px):pt-1
+                pb-1 pt-1 sm:pb-0 sm:pt-0
               "
               onMouseEnter={(e) => {
-                const mobile = window.innerWidth < 640;
-                const offsetY = mobile ? -32 : -12;
-                setTooltip({
-                  x: e.clientX,
-                  y: e.clientY + offsetY,
+                if (!onShowTooltip) return;
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const isMobile = window.innerWidth < 640;
+                const offsetY = isMobile ? -8 : -6;
+
+                onShowTooltip({
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + offsetY,
                   value: v,
                   delta,
                   round: index + 1,
+                  unit,
                 });
               }}
-              onMouseMove={(e) => {
-                const mobile = window.innerWidth < 640;
-                const offsetY = mobile ? -32 : -12;
-                setTooltip((t) =>
-                  t ? { ...t, x: e.clientX, y: e.clientY + offsetY } : t
-                );
+              onMouseLeave={() => {
+                onHideTooltip?.();
               }}
-              onMouseLeave={() => setTooltip(null)}
             >
               <div
                 className="
-                  w-[4px] rounded-full
+                  w-[7px] sm:w-[4px] 
+                  rounded-md sm:rounded-full
                   transition-transform duration-150
                   will-change-transform
-
-                  @media(max-width:640px):w-[7px]
-                  @media(max-width:640px):rounded-md
                 "
                 style={{
                   height: `${height}px`,
@@ -160,50 +192,6 @@ function SparklineLarge({
           );
         })}
       </div>
-
-      {/* Tooltip */}
-      {tooltip && (
-        <div
-          className="
-            fixed z-[9999] pointer-events-none 
-            rounded-md border border-white/10 
-            bg-black/90 backdrop-blur-md
-            px-2 py-1 text-[10px] text-neutral-200
-            whitespace-nowrap
-
-            @media(max-width:640px):text-[12px]
-            @media(max-width:640px):px-3
-            @media(max-width:640px):py-2
-          "
-          style={{
-            left: tooltip.x,
-            top: tooltip.y,
-            transform: "translate(-50%, -100%)",
-          }}
-        >
-          <div
-            className="
-              text-[8px] uppercase tracking-wider text-neutral-400
-              @media(max-width:640px):text-[10px]
-            "
-          >
-            Round {tooltip.round}
-          </div>
-          <div className="font-semibold">
-            {formatTooltipValue(tooltip.value, unit)}
-          </div>
-          {tooltip.delta !== null && (
-            <div
-              className="
-                text-[9px] text-neutral-400
-                @media(max-width:640px):text-[11px]
-              "
-            >
-              {formatTooltipDelta(tooltip.delta, unit)}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -280,12 +268,16 @@ function TrendBlock({
   description,
   accent,
   series,
+  onShowTooltip,
+  onHideTooltip,
 }: {
   title: string;
   icon: React.ReactNode;
   description: string;
   accent: string;
   series: TrendSeries[];
+  onShowTooltip: (payload: TooltipPayload) => void;
+  onHideTooltip: () => void;
 }) {
   return (
     <div
@@ -293,11 +285,9 @@ function TrendBlock({
         group relative 
         rounded-3xl border border-neutral-800/70 
         bg-gradient-to-b from-neutral-900/85 via-black to-black/95 
-        p-4 md:p-5 
-
+        p-3 sm:p-4 md:p-5 
         shadow-[0_18px_48px_rgba(0,0,0,0.85)]
-        @media(max-width:640px):p-3
-        @media(max-width:640px):rounded-2xl
+        sm:rounded-3xl
       "
     >
       <div
@@ -333,25 +323,9 @@ function TrendBlock({
           {description}
         </p>
 
-        <div
-          className="
-            mt-4 pt-3 
-            border-t border-neutral-800/70
+        <div className="mt-3 sm:mt-4 border-t border-neutral-800/70 pt-2 sm:pt-3" />
 
-            @media(max-width:640px):mt-3
-            @media(max-width:640px):pt-2
-          "
-        />
-
-        <div
-          className="
-            grid 
-            gap-4 
-            md:grid-cols-2 md:gap-x-6 md:gap-y-5 
-
-            @media(max-width:640px):gap-3
-          "
-        >
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
           {series.map((s, idx) => {
             const summary = computeMetricSummary(s.values, s.goodDirection);
             const isPercent = s.label.includes("%");
@@ -381,11 +355,9 @@ function TrendBlock({
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <div
-                    className={`
-                      text-[9px] md:text-[10px]
-                      uppercase tracking-[0.16em]
-                      ${isTrendLabel ? "text-neutral-400" : "text-neutral-500"}
-                    `}
+                    className={`text-[9px] md:text-[10px] uppercase tracking-[0.16em] ${
+                      isTrendLabel ? "text-neutral-400" : "text-neutral-500"
+                    }`}
                   >
                     {isTrendLabel && (
                       <span
@@ -409,8 +381,14 @@ function TrendBlock({
                   </div>
                 </div>
 
-                <div className="mt-1 h-[54px] @media(max-width:640px):h-[44px] rounded-xl overflow-hidden">
-                  <SparklineLarge values={s.values} color={accent} label={s.label} />
+                <div className="mt-1 h-[44px] sm:h-[54px] rounded-xl overflow-hidden">
+                  <SparklineLarge
+                    values={s.values}
+                    color={accent}
+                    label={s.label}
+                    onShowTooltip={onShowTooltip}
+                    onHideTooltip={onHideTooltip}
+                  />
                 </div>
               </div>
             );
@@ -453,6 +431,8 @@ function buildPercentSeries(length: number, base: number, swing: number): number
 
 export default function TeamTrends() {
   const rounds = 23;
+
+  const [tooltip, setTooltip] = useState<TooltipPayload | null>(null);
 
   /* ------------------------------- ATTACK -------------------------------- */
 
@@ -553,29 +533,16 @@ export default function TeamTrends() {
           relative overflow-hidden 
           rounded-[32px] border border-yellow-500/30 
           bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)]
-          px-4 pb-7 pt-5 
+          px-3 pb-6 pt-4 
           shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl 
+          sm:px-4 sm:pb-7 sm:pt-5 
           md:px-7 md:pb-9 md:pt-7
-
-          @media(max-width:640px):px-3
-          @media(max-width:640px):pt-4
-          @media(max-width:640px):pb-6
         "
       >
-        {/* Gold halo */}
         <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
         <div className="relative">
-          {/* Header pill */}
-          <div
-            className="
-              inline-flex items-center gap-2 
-              rounded-full border border-yellow-500/25 
-              bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)]
-              px-3 py-1 
-              shadow-[0_0_10px_rgba(250,204,21,0.3)]
-            "
-          >
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
             <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.85)]" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
               Team Trends
@@ -606,6 +573,8 @@ export default function TeamTrends() {
                 { label: "Forward-50 Efficiency (%)", values: attackF50, goodDirection: "up" },
                 { label: "Trend", values: attackTrend, goodDirection: "up" },
               ]}
+              onShowTooltip={setTooltip}
+              onHideTooltip={() => setTooltip(null)}
             />
 
             <TrendBlock
@@ -619,6 +588,8 @@ export default function TeamTrends() {
                 { label: "Intercept Marks", values: interceptMarks, goodDirection: "up" },
                 { label: "Trend", values: defenceTrend, goodDirection: "down" },
               ]}
+              onShowTooltip={setTooltip}
+              onHideTooltip={() => setTooltip(null)}
             />
 
             <TrendBlock
@@ -632,6 +603,8 @@ export default function TeamTrends() {
                 { label: "Clearance", values: midfieldClearances, goodDirection: "up" },
                 { label: "Trend", values: midfieldTrend, goodDirection: "up" },
               ]}
+              onShowTooltip={setTooltip}
+              onHideTooltip={() => setTooltip(null)}
             />
 
             <TrendBlock
@@ -645,10 +618,15 @@ export default function TeamTrends() {
                 { label: "Clearances", values: ruckClearances, goodDirection: "up" },
                 { label: "Trend", values: ruckTrend, goodDirection: "up" },
               ]}
+              onShowTooltip={setTooltip}
+              onHideTooltip={() => setTooltip(null)}
             />
           </div>
         </div>
       </div>
+
+      {/* global tooltip portal */}
+      <TrendTooltipPortal tooltip={tooltip} />
     </section>
   );
 }
