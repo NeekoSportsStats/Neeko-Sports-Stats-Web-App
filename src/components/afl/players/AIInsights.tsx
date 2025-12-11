@@ -1,3 +1,5 @@
+// src/components/afl/players/AIInsights.tsx
+
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { BrainCircuit, Lock, ArrowRight, X } from "lucide-react";
@@ -140,6 +142,7 @@ function ConfidenceBadge({ value }: { value: number }) {
 
 /* ---------------------------------------------------------
    REAL PLAYER CARD (3-col grid / mobile carousel)
+   With 3-line fade clamp on AI text
 --------------------------------------------------------- */
 
 function PlayerRealCard({ row }: { row: AIInsightRowModel }) {
@@ -188,13 +191,16 @@ function PlayerRealCard({ row }: { row: AIInsightRowModel }) {
           </div>
         </div>
 
-        {/* AI Summary Sentence */}
-        <p className="text-sm text-white/75 leading-relaxed mt-4">
-          {row.aiText}
-        </p>
+        {/* AI Summary Sentence — fade-clamped to ~3 lines */}
+        <div className="relative mt-5">
+          <p className="text-sm text-white/75 leading-relaxed max-h-[3.9em] overflow-hidden">
+            {row.aiText}
+          </p>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-[#0c0c11] via-[#0c0c11]/70 to-transparent" />
+        </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-2 mt-3.5">
+        <div className="flex flex-wrap gap-2 mt-4">
           {row.tags.map((t, i) => (
             <span
               key={`${row.id}-tag-${i}`}
@@ -206,7 +212,7 @@ function PlayerRealCard({ row }: { row: AIInsightRowModel }) {
         </div>
 
         {/* Confidence Index Row */}
-        <div className="mt-4">
+        <div className="mt-5">
           <div className="flex items-center justify-between mb-1.5">
             <p className="text-[10px] uppercase tracking-[0.16em] text-white/35">
               Confidence Index
@@ -233,6 +239,7 @@ function PlayerRealCard({ row }: { row: AIInsightRowModel }) {
 
 /* ---------------------------------------------------------
    BLURRED LOCKED CARD (Player version of Team BlurredCard)
+   Matches Team AI visual system
 --------------------------------------------------------- */
 
 function PlayerBlurredCard() {
