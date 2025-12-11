@@ -1,3 +1,5 @@
+// src/components/afl/players/MasterTable.tsx
+
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -34,13 +36,34 @@ export type PlayerRow = {
 /* -------------------------------------------------------------------------- */
 
 export const ROUND_LABELS = [
-  "OR","R1","R2","R3","R4","R5","R6","R7","R8","R9","R10",
-  "R11","R12","R13","R14","R15","R16","R17","R18","R19","R20",
-  "R21","R22","R23",
+  "OR",
+  "R1",
+  "R2",
+  "R3",
+  "R4",
+  "R5",
+  "R6",
+  "R7",
+  "R8",
+  "R9",
+  "R10",
+  "R11",
+  "R12",
+  "R13",
+  "R14",
+  "R15",
+  "R16",
+  "R17",
+  "R18",
+  "R19",
+  "R20",
+  "R21",
+  "R22",
+  "R23",
 ];
 
 /* -------------------------------------------------------------------------- */
-/*                       *** STAT CONFIG NOW IMPORTED ***                     */
+/*                      STAT CONFIG (separate file)                           */
 /* -------------------------------------------------------------------------- */
 
 import { STAT_CONFIG } from "./playerStatConfig";
@@ -270,7 +293,7 @@ export default function MasterTable() {
             </div>
 
             <h3 className="mt-3 text-xl font-semibold text-neutral-50 md:text-2xl">
-              Full-season player ledger & hit-rate grid
+              Full-season player ledger &amp; hit-rate grid
             </h3>
 
             <p className="mt-2 max-w-lg text-xs text-neutral-400">
@@ -279,7 +302,7 @@ export default function MasterTable() {
             </p>
           </div>
 
-          {/* Stat pills */}
+          {/* Stat pills + controls */}
           <div className="flex flex-1 flex-col gap-3 md:items-end">
             <div className="flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
               {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((stat) => (
@@ -304,7 +327,7 @@ export default function MasterTable() {
                 onCheckedChange={setCompactMode}
                 className="data-[state=checked]:bg-yellow-400"
               />
-              <span className="text-[11px] text-neutral-100">Compact</span>
+              <span className="text-[11px] text-neutral-100">Compact rows</span>
             </div>
 
             {/* Search */}
@@ -361,6 +384,104 @@ export default function MasterTable() {
         )}
       </div>
 
+      {/* DESKTOP TABLE */}
+      <div className="mt-8 hidden md:block">
+        <div className="overflow-hidden rounded-3xl border border-neutral-800 bg-black/90 shadow-xl">
+          <div className="max-h-[520px] overflow-y-auto">
+            <table className="min-w-full text-[11px]">
+              <thead className="bg-neutral-950/80 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">#</th>
+                  <th className="px-4 py-3 text-left">Player</th>
+                  <th className="px-4 py-3 text-left">Team / Role</th>
+                  <th className="px-4 py-3 text-left">
+                    {STAT_CONFIG[selectedStat].label} avg
+                  </th>
+                  <th className="px-4 py-3 text-left">Best</th>
+                  <th className="px-4 py-3 text-left">Worst</th>
+                  <th className="px-4 py-3 text-left">Hit-rate band</th>
+                  <th className="px-4 py-3 text-right">Insights</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPlayers.map((player, index) => {
+                  const summary = computeSummary(player, selectedStat);
+                  const hits = computeHitRates(player, selectedStat);
+                  const config = STAT_CONFIG[selectedStat];
+
+                  // take the middle threshold as the main band
+                  const midIndex =
+                    config.thresholds.length >= 3
+                      ? 2
+                      : config.thresholds.length - 1;
+                  const midThreshold = config.thresholds[midIndex];
+                  const midHit = hits[midIndex];
+                  const hitClass = getHitRateColorClasses(midHit);
+
+                  const rowPad = compactMode ? "py-2" : "py-3";
+
+                  return (
+                    <tr
+                      key={player.id}
+                      onClick={() => setSelectedPlayer(player)}
+                      className={`cursor-pointer border-t border-neutral-800/70 hover:bg-neutral-900/60 ${rowPad}`}
+                    >
+                      <td className="px-4 align-middle text-neutral-500">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 align-middle text-[12px] text-neutral-50">
+                        {player.name}
+                      </td>
+                      <td className="px-4 align-middle text-neutral-400">
+                        {player.team} • {player.role}
+                      </td>
+                      <td className="px-4 align-middle text-yellow-200">
+                        {summary.avg.toFixed(1)} {config.valueUnitShort}
+                      </td>
+                      <td className="px-4 align-middle text-neutral-100">
+                        {summary.max}
+                      </td>
+                      <td className="px-4 align-middle text-neutral-100">
+                        {summary.min}
+                      </td>
+                      <td className="px-4 align-middle">
+                        <span className="text-[10px] text-neutral-400">
+                          {midThreshold}+:
+                        </span>{" "}
+                        <span
+                          className={`text-[11px] font-semibold ${hitClass}`}
+                        >
+                          {midHit}%
+                        </span>
+                      </td>
+                      <td className="px-4 align-middle text-right">
+                        <button className="rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-neutral-800 px-4 py-2 text-[10px] text-neutral-500">
+            <span>
+              Showing {filteredPlayers.length} players • Lens:{" "}
+              <span className="text-yellow-200">
+                {STAT_CONFIG[selectedStat].label}
+              </span>
+            </span>
+            {isPremium ? (
+              <span>Click any row for full player insights.</span>
+            ) : (
+              <span>Neeko+ unlocks search &amp; deeper hit-rate tools.</span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* BOTTOM CTA */}
       <div className="mt-16 flex flex-col items-center gap-3 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-yellow-200">
@@ -369,7 +490,8 @@ export default function MasterTable() {
         </div>
 
         <p className="max-w-lg text-xs text-neutral-300">
-          Unlock advanced hit-rate bands, compact grid mode and extended filters.
+          Unlock advanced hit-rate bands, compact grid mode and extended
+          filters.
         </p>
 
         <Button
