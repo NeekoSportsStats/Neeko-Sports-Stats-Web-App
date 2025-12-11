@@ -20,27 +20,31 @@ export type Mode = "scoring" | "fantasy" | "disposals" | "goals";
 
 export const MODE_CONFIG: Record<
   Mode,
-  { label: string; subtitle: string; hits: number[] }
+  { label: string; subtitle: string; hits: number[]; unitShort: string }
 > = {
   scoring: {
     label: "Scoring",
     subtitle: "Total points per game",
     hits: [60, 70, 80, 90, 100],
+    unitShort: "pts",
   },
   fantasy: {
     label: "Fantasy",
     subtitle: "Fantasy points per game",
     hits: [80, 90, 100, 110, 120],
+    unitShort: "pts",
   },
   disposals: {
     label: "Disposals",
     subtitle: "Total disposals per game",
     hits: [15, 20, 25, 30, 35],
+    unitShort: "",
   },
   goals: {
     label: "Goals",
     subtitle: "Goals per game",
     hits: [1, 2, 3, 4, 5],
+    unitShort: "",
   },
 };
 
@@ -155,8 +159,7 @@ const TeamCardMobile = ({
             {MODE_CONFIG[mode].label} avg
           </div>
           <div className="text-sm font-semibold text-yellow-200">
-            {summary.average}{" "}
-            {MODE_CONFIG[mode].subtitle.includes("points") ? "pts" : ""}
+            {summary.average} {MODE_CONFIG[mode].unitShort}
           </div>
         </div>
       </div>
@@ -343,7 +346,7 @@ export default function TeamMasterTable() {
                     {/* ZONE 3: Sticky right summary + hit-rates + CTA */}
                     <th
                       className="sticky right-0 z-30 border-l border-neutral-800 bg-neutral-950/95 px-4 py-3 text-right"
-                      style={{ minWidth: 260 }}
+                      style={{ minWidth: 400 }}
                     >
                       <span className="text-[9px] tracking-[0.18em] text-neutral-400">
                         SUMMARY &amp; HIT-RATE
@@ -358,7 +361,7 @@ export default function TeamMasterTable() {
                       computeSummary(series);
                     const hitRates = computeHitRates(series, selectedMode);
 
-                    const rowPad = compactMode ? "py-2" : "py-3";
+                    const rowPad = compactMode ? "py-1.5" : "py-3";
                     const isBlurred = !isPremium && index >= 8;
 
                     return (
@@ -418,58 +421,74 @@ export default function TeamMasterTable() {
                         {/* ZONE 3: Sticky right summary + hit-rates + CTA */}
                         <td
                           className="sticky right-0 z-10 border-l border-neutral-800 bg-black/95 px-4 align-middle"
-                          style={{ minWidth: 260 }}
+                          style={{ minWidth: 400 }}
                         >
-                          <div className="flex flex-col items-end gap-1">
-                            {/* Summary row */}
-                            <div className="flex gap-3 text-[10px] text-neutral-400">
-                              <span>MIN</span>
-                              <span>MAX</span>
-                              <span>AVG</span>
-                              <span>TOTAL</span>
-                              <span>GMS</span>
-                            </div>
-                            <div className="flex gap-3 text-[11px]">
-                              <span className="text-neutral-100">{min}</span>
-                              <span className="text-neutral-100">{max}</span>
-                              <span className="text-yellow-200">
-                                {average}{" "}
-                                {MODE_CONFIG[
-                                  selectedMode
-                                ].subtitle.includes("points")
-                                  ? "pts"
-                                  : ""}
-                              </span>
-                              <span className="text-neutral-100">{total}</span>
-                              <span className="text-neutral-100">{games}</span>
+                          <div
+                            className={`flex flex-col items-end gap-2 ${
+                              compactMode ? "text-[10px]" : "text-[11px]"
+                            }`}
+                          >
+                            {/* SUMMARY BLOCK */}
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
+                                Summary
+                              </div>
+                              <div className="flex gap-4 text-[9px] text-neutral-400">
+                                <span>MIN</span>
+                                <span>MAX</span>
+                                <span>AVG</span>
+                                <span>TOTAL</span>
+                                <span>GMS</span>
+                              </div>
+                              <div className="flex gap-4">
+                                <span className="text-neutral-100">{min}</span>
+                                <span className="text-neutral-100">{max}</span>
+                                <span className="text-yellow-200">
+                                  {average} {MODE_CONFIG[selectedMode].unitShort}
+                                </span>
+                                <span className="text-neutral-100">
+                                  {total}
+                                </span>
+                                <span className="text-neutral-100">
+                                  {games}
+                                </span>
+                              </div>
                             </div>
 
-                            {/* Hit-rate row */}
-                            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
-                              {MODE_CONFIG[selectedMode].hits.map(
-                                (threshold, i) => {
-                                  const hit = hitRates[i] ?? 0;
-                                  return (
-                                    <div
-                                      key={threshold}
-                                      className="flex flex-col items-center"
-                                    >
-                                      <span className="text-[9px] text-neutral-500">
-                                        {threshold}+
-                                      </span>
-                                      <span
-                                        className={`text-[11px] font-semibold ${getHitRateColorClasses(
-                                          hit
-                                        )}`}
+                            {/* HIT-RATE BLOCK */}
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
+                                Hit-rates
+                              </div>
+                              <div className="flex flex-wrap items-center justify-end gap-3">
+                                {MODE_CONFIG[selectedMode].hits.map(
+                                  (threshold, i) => {
+                                    const hit = hitRates[i] ?? 0;
+                                    return (
+                                      <div
+                                        key={threshold}
+                                        className="flex flex-col items-center"
                                       >
-                                        {hit}%
-                                      </span>
-                                    </div>
-                                  );
-                                }
-                              )}
+                                        <span className="text-[9px] text-neutral-500">
+                                          {threshold}+
+                                        </span>
+                                        <span
+                                          className={`text-[11px] font-semibold ${getHitRateColorClasses(
+                                            hit
+                                          )}`}
+                                        >
+                                          {hit}%
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            </div>
 
-                              <button className="ml-2 rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
+                            {/* CTA */}
+                            <div className="mt-1">
+                              <button className="rounded-full bg-yellow-400/90 px-4 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
                                 View
                               </button>
                             </div>
