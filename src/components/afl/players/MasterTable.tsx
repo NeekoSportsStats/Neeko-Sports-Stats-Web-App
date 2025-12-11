@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import PlayerInsightsOverlay from "./PlayerInsightsOverlay";
 
 /* -------------------------------------------------------------------------- */
-/*                               TYPES & CONFIG                               */
+/*                               TYPES                                         */
 /* -------------------------------------------------------------------------- */
 
 export type StatLens = "Fantasy" | "Disposals" | "Goals";
@@ -29,38 +29,24 @@ export type PlayerRow = {
   roundsGoals: number[];
 };
 
-type StatConfig = {
-  label: string;
-  valueUnitShort: string;
-  thresholds: number[];
-};
+/* -------------------------------------------------------------------------- */
+/*                          ROUND LABELS (exported)                           */
+/* -------------------------------------------------------------------------- */
 
-const ROUND_LABELS = [
+export const ROUND_LABELS = [
   "OR","R1","R2","R3","R4","R5","R6","R7","R8","R9","R10",
   "R11","R12","R13","R14","R15","R16","R17","R18","R19","R20",
   "R21","R22","R23",
 ];
 
-const STAT_CONFIG: Record<StatLens, StatConfig> = {
-  Fantasy: {
-    label: "Fantasy",
-    valueUnitShort: "pts",
-    thresholds: [90, 100, 110, 120, 130],
-  },
-  Disposals: {
-    label: "Disposals",
-    valueUnitShort: "dis",
-    thresholds: [20, 25, 30, 35, 40],
-  },
-  Goals: {
-    label: "Goals",
-    valueUnitShort: "g",
-    thresholds: [1, 2, 3, 4, 5],
-  },
-};
+/* -------------------------------------------------------------------------- */
+/*                       *** STAT CONFIG NOW IMPORTED ***                     */
+/* -------------------------------------------------------------------------- */
+
+import { STAT_CONFIG } from "./playerStatConfig";
 
 /* -------------------------------------------------------------------------- */
-/*                               MOCK DATA                                     */
+/*                                  MOCK DATA                                 */
 /* -------------------------------------------------------------------------- */
 
 function buildMockPlayers(): PlayerRow[] {
@@ -111,15 +97,19 @@ function buildMockPlayers(): PlayerRow[] {
 const MOCK_PLAYERS = buildMockPlayers();
 
 /* -------------------------------------------------------------------------- */
-/*                               HELPER LOGIC                                 */
+/*                            HELPER LOGIC                                     */
 /* -------------------------------------------------------------------------- */
 
 function getRounds(player: PlayerRow, lens: StatLens): number[] {
-  return lens === "Fantasy"
-    ? player.roundsFantasy
-    : lens === "Disposals"
-    ? player.roundsDisposals
-    : player.roundsGoals;
+  switch (lens) {
+    case "Fantasy":
+      return player.roundsFantasy;
+    case "Disposals":
+      return player.roundsDisposals;
+    case "Goals":
+    default:
+      return player.roundsGoals;
+  }
 }
 
 function computeSummary(player: PlayerRow, lens: StatLens) {
@@ -307,7 +297,7 @@ export default function MasterTable() {
               ))}
             </div>
 
-            {/* Compact toggle (desktop) */}
+            {/* Compact toggle (desktop only) */}
             <div className="hidden items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-3 py-1.5 md:flex">
               <Switch
                 checked={compactMode}
