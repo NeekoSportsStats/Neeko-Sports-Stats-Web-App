@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { PlayerRow, StatLens } from "./MasterTable";
-import InsightsContent from "./PlayerInsightsContent"; // You already have this content block in MasterTable
+import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
 /*                          STRICT iOS SHEET BEHAVIOUR                        */
@@ -37,29 +37,28 @@ export default function PlayerInsightsOverlay({
   /*                                DRAG LOGIC                                  */
   /* -------------------------------------------------------------------------- */
 
-  const handleStart = (e: React.TouchEvent<HTMLButtonElement>) => {
+  const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const scrollable = scrollRef.current;
     if (!scrollable) return;
 
-    // STRICT iOS BEHAVIOUR: only drag if at top
+    // strict — must be at top
     if (scrollable.scrollTop > 0) return;
 
     draggingRef.current = true;
     startYRef.current = e.touches[0].clientY;
   };
 
-  const handleMove = (e: React.TouchEvent<HTMLButtonElement>) => {
+  const handleMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
 
     const dy = e.touches[0].clientY - startYRef.current;
-
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
       e.preventDefault();
     }
   };
 
-  const handleEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
+  const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
     draggingRef.current = false;
 
@@ -82,25 +81,25 @@ export default function PlayerInsightsOverlay({
       className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
-      <div className="flex h-full w-full items-end justify-center md:hidden"
+      {/* MOBILE SHEET WRAPPER */}
+      <div
+        className="flex h-full w-full items-end justify-center md:hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ----------------------- MOBILE BOTTOM SHEET ----------------------- */}
         <div
           ref={sheetRef}
-          className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 pb-3 pt-2 shadow-[0_0_50px_rgba(250,204,21,0.6)] overscroll-contain"
+          className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.6)] overscroll-contain"
           style={{ height: "80vh", maxHeight: "80vh" }}
         >
-          {/* Handle */}
-          <button
-            type="button"
+          {/* HANDLE (now full div, not button) */}
+          <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
-            className="mx-auto mb-3 flex h-1.5 w-10 items-center justify-center rounded-full bg-yellow-200/80"
+            className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-yellow-200/80"
           />
 
-          {/* Header */}
+          {/* HEADER */}
           <div className="mb-4 flex items-start justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
@@ -122,7 +121,7 @@ export default function PlayerInsightsOverlay({
             </button>
           </div>
 
-          {/* Lens pills */}
+          {/* LENS PILLS */}
           <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
@@ -139,10 +138,10 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* SCROLLABLE CONTENT */}
+          {/* FIXED SCROLL HEIGHT */}
           <div
             ref={scrollRef}
-            className="h-[calc(80vh-140px)] overflow-y-auto pb-3 overscroll-contain"
+            className="h-[calc(80vh-130px)] overflow-y-auto pb-3 overscroll-contain"
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
@@ -164,6 +163,7 @@ export default function PlayerInsightsOverlay({
                 {player.name}
               </div>
             </div>
+
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900 p-1.5 text-neutral-300"
@@ -188,7 +188,7 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          <div className="h-[calc(100%-120px)] overflow-y-auto pr-1">
+          <div className="h-[calc(100%-120px)] overflow-y-auto pr-1 overscroll-contain">
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
         </div>
