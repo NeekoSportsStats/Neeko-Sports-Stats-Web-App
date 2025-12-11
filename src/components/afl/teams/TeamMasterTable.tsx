@@ -1,10 +1,15 @@
+// src/components/afl/teams/TeamMasterTable.tsx
+
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, Lock, Search, Sparkles } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+
 import { useAuth } from "@/lib/auth";
 import { MOCK_TEAMS, TeamRow, ROUND_LABELS } from "./mockTeams";
+
 import TeamInsightsPanel from "./TeamInsightsPanel";
 
 /* -------------------------------------------------------------------------- */
@@ -38,6 +43,10 @@ export const MODE_CONFIG: Record<
     hits: [1, 2, 3, 4, 5],
   },
 };
+
+/* -------------------------------------------------------------------------- */
+/*                         TEAM MODE HELPERS                                  */
+/* -------------------------------------------------------------------------- */
 
 function getModeSeries(team: TeamRow, mode: Mode): number[] {
   switch (mode) {
@@ -124,7 +133,6 @@ const TeamCardMobile = ({
         </div>
       </div>
 
-      {/* Rounds mini grid */}
       <div className="mt-3 overflow-x-auto">
         <div className="flex gap-2 pb-1">
           {series.map((v, i) => (
@@ -138,7 +146,6 @@ const TeamCardMobile = ({
         </div>
       </div>
 
-      {/* Action row */}
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[10px] text-neutral-400">
           Tap for detailed team insights.
@@ -157,7 +164,7 @@ const TeamCardMobile = ({
 };
 
 /* -------------------------------------------------------------------------- */
-/*                                MAIN TABLE COMPONENT                         */
+/*                                MAIN TABLE                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamMasterTable() {
@@ -185,7 +192,7 @@ export default function TeamMasterTable() {
     return list;
   }, [teams, search]);
 
-  /* -------------------------------- RENDER -------------------------------- */
+  /* ---------------------------------------------------------------------- */
 
   return (
     <>
@@ -252,13 +259,10 @@ export default function TeamMasterTable() {
               index={index}
               mode={selectedMode}
               onOpenInsights={() => setSelectedTeam(team)}
-              blurClass=""
             />
           ))}
         </div>
       </div>
-
-      {/* DESKTOP PANEL CAN GO HERE IF YOU WANT FULL TABLE… */}
 
       {/* CTA */}
       <div className="mt-16 flex flex-col items-center gap-3 text-center">
@@ -286,8 +290,6 @@ export default function TeamMasterTable() {
           <TeamInsightsPanel
             team={selectedTeam}
             mode={selectedMode}
-            modeSeries={getModeSeries(selectedTeam, selectedMode)}
-            modeSummary={computeSummary(getModeSeries(selectedTeam, selectedMode))}
             onClose={() => setSelectedTeam(null)}
           />,
           document.body
