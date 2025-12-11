@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                          STRICT iOS SHEET BEHAVIOUR                        */
+/*                        STRICT iOS-SHEET BEHAVIOUR                          */
 /* -------------------------------------------------------------------------- */
 
 export default function PlayerInsightsOverlay({
@@ -33,16 +33,14 @@ export default function PlayerInsightsOverlay({
     };
   }, []);
 
-  /* -------------------------------------------------------------------------- */
-  /*                                DRAG LOGIC                                  */
-  /* -------------------------------------------------------------------------- */
+  /* ---------------------------- DRAG HANDLERS ------------------------------ */
 
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const scrollable = scrollRef.current;
-    if (!scrollable) return;
+    const scrollBox = scrollRef.current;
+    if (!scrollBox) return;
 
-    // strict — must be at top
-    if (scrollable.scrollTop > 0) return;
+    // strict: can only drag down if at top
+    if (scrollBox.scrollTop > 0) return;
 
     draggingRef.current = true;
     startYRef.current = e.touches[0].clientY;
@@ -52,6 +50,7 @@ export default function PlayerInsightsOverlay({
     if (!draggingRef.current || !sheetRef.current) return;
 
     const dy = e.touches[0].clientY - startYRef.current;
+
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
       e.preventDefault();
@@ -60,15 +59,18 @@ export default function PlayerInsightsOverlay({
 
   const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
+
     draggingRef.current = false;
 
     const dy = e.changedTouches[0].clientY - startYRef.current;
 
+    // Close threshold
     if (dy > 120) {
       onClose();
       return;
     }
 
+    // Snap back
     sheetRef.current.style.transition = "transform 0.25s ease-out";
     sheetRef.current.style.transform = "translateY(0)";
     setTimeout(() => {
@@ -81,23 +83,26 @@ export default function PlayerInsightsOverlay({
       className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
-      {/* MOBILE SHEET WRAPPER */}
+      {/* MOBILE SHEET */}
       <div
         className="flex h-full w-full items-end justify-center md:hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div
           ref={sheetRef}
-          className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.6)] overscroll-contain"
+          className="w-full rounded-t-3xl border border-yellow-500/30 bg-gradient-to-b from-neutral-950 to-black px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)] overscroll-contain"
           style={{ height: "80vh", maxHeight: "80vh" }}
         >
-          {/* HANDLE (now full div, not button) */}
+          {/* DRAG HANDLE — FIXED HITBOX */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
-            className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-yellow-200/80"
-          />
+            className="mx-auto mt-1 mb-3 flex h-6 w-full max-w-[120px] items-center justify-center"
+            style={{ touchAction: "none" }}
+          >
+            <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
+          </div>
 
           {/* HEADER */}
           <div className="mb-4 flex items-start justify-between">
@@ -138,7 +143,7 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* FIXED SCROLL HEIGHT */}
+          {/* SCROLLABLE CONTENT */}
           <div
             ref={scrollRef}
             className="h-[calc(80vh-130px)] overflow-y-auto pb-3 overscroll-contain"
