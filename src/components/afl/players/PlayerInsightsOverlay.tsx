@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                        STRICT iOS-SHEET BEHAVIOUR                          */
+/*                          STRICT iOS SHEET BEHAVIOUR                        */
 /* -------------------------------------------------------------------------- */
 
 export default function PlayerInsightsOverlay({
@@ -26,20 +26,28 @@ export default function PlayerInsightsOverlay({
 
   /* ---------------------------- LOCK BODY SCROLL --------------------------- */
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
+    const prevHTML = document.documentElement.style.overflow;
+
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHTML;
     };
   }, []);
 
-  /* ---------------------------- DRAG HANDLERS ------------------------------ */
+  /* -------------------------------------------------------------------------- */
+  /*                                DRAG LOGIC                                  */
+  /* -------------------------------------------------------------------------- */
 
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const scrollBox = scrollRef.current;
-    if (!scrollBox) return;
+    const scrollable = scrollRef.current;
+    if (!scrollable) return;
 
-    if (scrollBox.scrollTop > 0) return;
+    // STRICT iOS BEHAVIOUR: only drag if at top
+    if (scrollable.scrollTop > 0) return;
 
     draggingRef.current = true;
     startYRef.current = e.touches[0].clientY;
@@ -47,8 +55,8 @@ export default function PlayerInsightsOverlay({
 
   const handleMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
-    const dy = e.touches[0].clientY - startYRef.current;
 
+    const dy = e.touches[0].clientY - startYRef.current;
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
       e.preventDefault();
@@ -57,9 +65,9 @@ export default function PlayerInsightsOverlay({
 
   const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
-
     draggingRef.current = false;
-    const dy = e.changedTouches[0].client.clientY - startYRef.current;
+
+    const dy = e.changedTouches[0].clientY - startYRef.current;
 
     if (dy > 120) {
       onClose();
@@ -85,25 +93,25 @@ export default function PlayerInsightsOverlay({
       >
         <div
           ref={sheetRef}
-          className="w-full rounded-t-3xl border border-yellow-500/30 bg-gradient-to-b from-neutral-950 to-black px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)] overscroll-contain"
-          style={{ height: "80vh", maxHeight: "80vh" }}
+          className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 pb-3 pt-2 shadow-[0_0_50px_rgba(250,204,21,0.6)] overscroll-contain"
+          style={{ height: "80vh", maxHeight: "80vh", touchAction: "none" }}
         >
-          {/* DRAG HANDLE — LARGE HITBOX */}
+          {/* DRAG HEADER — full width */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
-            className="mx-auto mt-1 mb-3 flex h-6 w-full max-w-[120px] items-center justify-center"
+            className="w-full pt-3 pb-4 flex items-center justify-center active:opacity-80"
             style={{ touchAction: "none" }}
           >
             <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
           </div>
 
-          {/* HEADER */}
+          {/* Header */}
           <div className="mb-4 flex items-start justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
-                Player insights
+                Player Insights
               </div>
               <div className="mt-1 text-sm font-semibold text-neutral-50">
                 {player.name}
@@ -116,12 +124,13 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300"
+              style={{ touchAction: "none" }}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* PILLS */}
+          {/* Lens pills */}
           <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
@@ -138,10 +147,11 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* SCROLL CONTENT */}
+          {/* Scrollable content */}
           <div
             ref={scrollRef}
-            className="h-[calc(80vh-130px)] overflow-y-auto pb-3 overscroll-contain"
+            className="h-[calc(80vh-140px)] overflow-y-auto pb-3 overscroll-contain"
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
@@ -163,7 +173,6 @@ export default function PlayerInsightsOverlay({
                 {player.name}
               </div>
             </div>
-
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900 p-1.5 text-neutral-300"
