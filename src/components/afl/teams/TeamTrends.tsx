@@ -5,61 +5,7 @@ import { MOCK_TEAMS } from "./mockTeams";
 import { TrendingUp, Shield, Activity, MoveVertical } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
-/*                               Helper types                                 */
-/* -------------------------------------------------------------------------- */
-
-type SparkPoint = { x: number; y: number; value: number };
-type SparkPathResult = { d: string; points: SparkPoint[] };
-
-/* -------------------------------------------------------------------------- */
-/*               Build smooth sparkline path with asymmetric padding          */
-/*    (kept here in case you reuse it elsewhere, but no longer used below)    */
-/* -------------------------------------------------------------------------- */
-
-function buildSmoothPathAndPoints(
-  values: number[],
-  width: number,
-  height: number,
-  padX: number,
-  padTop: number,
-  padBot: number
-): SparkPathResult {
-  if (!values?.length) return { d: "", points: [] };
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-
-  const innerW = width - padX * 2;
-  const innerH = height - padTop - padBot;
-  const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
-
-  const points = values.map((v, i) => {
-    const norm = (v - min) / range;
-    const x = padX + stepX * i;
-    const y = padTop + (1 - norm) * innerH;
-    return { x, y, value: v };
-  });
-
-  if (points.length === 1) {
-    const p = points[0];
-    return { d: `M ${p.x} ${p.y}`, points };
-  }
-
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i];
-    const p1 = points[i + 1];
-    const cx = (p0.x + p1.x) / 2;
-    const cy = (p0.y + p1.y) / 2;
-    d += ` Q ${cx} ${cy} ${p1.x} ${p1.y}`;
-  }
-
-  return { d, points };
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           Tooltip formatting helpers                       */
+/*                               Tooltip helpers                              */
 /* -------------------------------------------------------------------------- */
 
 function inferUnit(label: string): string {
@@ -95,8 +41,7 @@ function formatTooltipDelta(delta: number | null, unit: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                NEW SparklineLarge — Heatline bar version                   */
-/*        (same props, drop-in replacement, lighter & with tooltip)           */
+/*                    SparklineLarge — MOBILE OPTIMIZED                       */
 /* -------------------------------------------------------------------------- */
 
 function SparklineLarge({
@@ -108,11 +53,11 @@ function SparklineLarge({
   color: string;
   label: string;
 }) {
-  // Only show last 12 rounds to keep it clean
   const recent = useMemo(
     () => (values.length > 12 ? values.slice(-12) : values),
     [values]
   );
+
   const startIndex = values.length - recent.length;
 
   const [tooltip, setTooltip] = useState<{
@@ -131,57 +76,84 @@ function SparklineLarge({
 
   return (
     <div
-      className="relative h-[54px] w-full rounded-xl overflow-hidden 
-      bg-gradient-to-b from-neutral-800/40 via-neutral-900/90 to-black
-      border border-slate-400/20 shadow-[0_6px_14px_rgba(0,0,0,0.55)]"
-    >
-      {/* subtle glass highlight */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[40%] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),transparent_65%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[30%] bg-gradient-to-t from-black/70 via-black/0" />
+      className="
+        relative 
+        h-[54px] w-full 
+        rounded-xl 
+        overflow-hidden 
+        bg-gradient-to-b from-neutral-800/40 via-neutral-900/90 to-black
+        border border-slate-400/20 
+        shadow-[0_6px_14px_rgba(0,0,0,0.55)]
+        px-[6px]
 
-      {/* bars */}
-      <div className="relative z-10 flex h-full w-full items-end gap-[2px] px-[6px]">
+        @media(max-width:640px):h-[44px]
+        @media(max-width:640px):px-[4px]
+      "
+    >
+      {/* subtle highlight */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[40%] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),transparent_65%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[30%] bg-gradient-to-t from-black/80 via-black/0" />
+
+      <div
+        className="
+          relative z-10 flex h-full w-full items-end gap-[2px]
+
+          @media(max-width:640px):grid
+          @media(max-width:640px):grid-cols-6
+          @media(max-width:640px):grid-rows-2
+          @media(max-width:640px):gap-[3px]
+          @media(max-width:640px):items-end
+        "
+      >
         {recent.map((v, i) => {
           const norm = (v - min) / range;
           const height = 6 + norm * 34;
-
-          const globalIndex = startIndex + i;
-          const prev = globalIndex > 0 ? values[globalIndex - 1] : null;
+          const index = startIndex + i;
+          const prev = index > 0 ? values[index - 1] : null;
           const delta = prev != null ? v - prev : null;
 
           return (
             <div
               key={i}
-              className="flex flex-1 items-end justify-center"
+              className="
+                flex flex-1 items-end justify-center
+
+                @media(max-width:640px):pb-1
+                @media(max-width:640px):pt-1
+              "
               onMouseEnter={(e) => {
+                const mobile = window.innerWidth < 640;
+                const offsetY = mobile ? -32 : -12;
                 setTooltip({
                   x: e.clientX,
-                  y: e.clientY - 18,
+                  y: e.clientY + offsetY,
                   value: v,
                   delta,
-                  round: globalIndex + 1,
+                  round: index + 1,
                 });
               }}
               onMouseMove={(e) => {
+                const mobile = window.innerWidth < 640;
+                const offsetY = mobile ? -32 : -12;
                 setTooltip((t) =>
-                  t
-                    ? {
-                        ...t,
-                        x: e.clientX,
-                        y: e.clientY - 18,
-                      }
-                    : t
+                  t ? { ...t, x: e.clientX, y: e.clientY + offsetY } : t
                 );
               }}
               onMouseLeave={() => setTooltip(null)}
             >
               <div
-                className="w-[4px] rounded-full transition-transform duration-150 will-change-transform"
+                className="
+                  w-[4px] rounded-full
+                  transition-transform duration-150
+                  will-change-transform
+
+                  @media(max-width:640px):w-[7px]
+                  @media(max-width:640px):rounded-md
+                "
                 style={{
                   height: `${height}px`,
                   background: `linear-gradient(to top, ${color}22, ${color}88, ${color})`,
-                  opacity: 0.9,
-                  transform: "translateZ(0)",
+                  opacity: 0.95,
                 }}
               />
             </div>
@@ -189,26 +161,44 @@ function SparklineLarge({
         })}
       </div>
 
-      {/* fixed tooltip — not clipped by the card */}
+      {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-[9999] pointer-events-none rounded-md border border-white/10 
-          bg-black/90 px-2 py-1 text-[10px] text-neutral-200 backdrop-blur-sm"
+          className="
+            fixed z-[9999] pointer-events-none 
+            rounded-md border border-white/10 
+            bg-black/90 backdrop-blur-md
+            px-2 py-1 text-[10px] text-neutral-200
+            whitespace-nowrap
+
+            @media(max-width:640px):text-[12px]
+            @media(max-width:640px):px-3
+            @media(max-width:640px):py-2
+          "
           style={{
             left: tooltip.x,
             top: tooltip.y,
             transform: "translate(-50%, -100%)",
-            whiteSpace: "nowrap",
           }}
         >
-          <div className="text-[8px] uppercase tracking-wider text-neutral-400">
+          <div
+            className="
+              text-[8px] uppercase tracking-wider text-neutral-400
+              @media(max-width:640px):text-[10px]
+            "
+          >
             Round {tooltip.round}
           </div>
           <div className="font-semibold">
             {formatTooltipValue(tooltip.value, unit)}
           </div>
           {tooltip.delta !== null && (
-            <div className="text-[9px] text-neutral-400">
+            <div
+              className="
+                text-[9px] text-neutral-400
+                @media(max-width:640px):text-[11px]
+              "
+            >
               {formatTooltipDelta(tooltip.delta, unit)}
             </div>
           )}
@@ -219,7 +209,7 @@ function SparklineLarge({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                         Metric summary (5-round smoothing)                 */
+/*                         Metric summary logic                               */
 /* -------------------------------------------------------------------------- */
 
 type TrendDirection = "up" | "down" | "flat";
@@ -245,8 +235,7 @@ function computeMetricSummary(
   }
 
   if (values.length < 10) {
-    const current = average(values);
-    return { current, deltaPct: null, direction: "flat", isGood: null };
+    return { current: average(values), deltaPct: null, direction: "flat", isGood: null };
   }
 
   const last5 = values.slice(-5);
@@ -260,10 +249,7 @@ function computeMetricSummary(
   }
 
   let deltaPct = ((lastAvg - prevAvg) / prevAvg) * 100;
-
-  // Clamp volatility
-  if (deltaPct > 15) deltaPct = 15;
-  if (deltaPct < -15) deltaPct = -15;
+  deltaPct = Math.max(-15, Math.min(15, deltaPct));
 
   let direction: TrendDirection = "flat";
   if (deltaPct > 0.1) direction = "up";
@@ -275,12 +261,11 @@ function computeMetricSummary(
 }
 
 function formatNumber(value: number, isPercentMetric: boolean): string {
-  if (isPercentMetric) return `${value.toFixed(1)}%`;
-  return value.toFixed(1);
+  return isPercentMetric ? `${value.toFixed(1)}%` : value.toFixed(1);
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Trend block component                          */
+/*                               TrendBlock                                   */
 /* -------------------------------------------------------------------------- */
 
 type TrendSeries = {
@@ -304,25 +289,30 @@ function TrendBlock({
 }) {
   return (
     <div
-      className="group relative rounded-3xl border border-neutral-800/70 
-      bg-gradient-to-b from-neutral-900/85 via-black to-black/95 
-      p-4 md:p-5 shadow-[0_18px_48px_rgba(0,0,0,0.85)]"
-      style={{
-        boxShadow:
-          "0 18px 48px rgba(0,0,0,0.85), 0 0 22px rgba(15,23,42,0.6)",
-      }}
+      className="
+        group relative 
+        rounded-3xl border border-neutral-800/70 
+        bg-gradient-to-b from-neutral-900/85 via-black to-black/95 
+        p-4 md:p-5 
+
+        shadow-[0_18px_48px_rgba(0,0,0,0.85)]
+        @media(max-width:640px):p-3
+        @media(max-width:640px):rounded-2xl
+      "
     >
-      {/* Halo */}
       <div
-        className="pointer-events-none absolute -inset-px rounded-[26px] 
-        opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100"
+        className="
+          pointer-events-none absolute -inset-px 
+          rounded-[26px] blur-xl opacity-0 
+          transition-opacity duration-300 
+          group-hover:opacity-100
+        "
         style={{
           background: `radial-gradient(circle_at_top, ${accent}14, transparent 60%)`,
         }}
       />
 
       <div className="relative">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div
             className="h-4 w-[1.5px] rounded-full"
@@ -333,66 +323,73 @@ function TrendBlock({
           />
           <div className="flex items-center gap-2">
             {icon}
-            <h3 className="text-base font-semibold text-neutral-50 md:text-lg">
+            <h3 className="text-base md:text-lg font-semibold text-neutral-50">
               {title}
             </h3>
           </div>
         </div>
 
-        <p className="mt-1 max-w-xl text-[11px] text-neutral-300 leading-snug md:text-xs">
+        <p className="mt-1 max-w-xl text-[11px] md:text-xs text-neutral-300 leading-snug">
           {description}
         </p>
 
-        <div className="mt-4 border-t border-neutral-800/70 pt-4" />
+        <div
+          className="
+            mt-4 pt-3 
+            border-t border-neutral-800/70
 
-        {/* Metric grid */}
-        <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-5">
-          {series.map((s, index) => {
+            @media(max-width:640px):mt-3
+            @media(max-width:640px):pt-2
+          "
+        />
+
+        <div
+          className="
+            grid 
+            gap-4 
+            md:grid-cols-2 md:gap-x-6 md:gap-y-5 
+
+            @media(max-width:640px):gap-3
+          "
+        >
+          {series.map((s, idx) => {
             const summary = computeMetricSummary(s.values, s.goodDirection);
             const isPercent = s.label.includes("%");
             const isTrendLabel = s.label.toLowerCase() === "trend";
 
             let deltaLabel = "– 0.0%";
             let deltaClass = "text-neutral-400";
-            let arrow = "";
 
             if (summary.deltaPct !== null) {
-              const absPct = Math.abs(summary.deltaPct);
-              const formattedPct = `${absPct.toFixed(1)}%`;
-
-              if (absPct < 0.1) {
-                deltaLabel = "– 0.0%";
-                deltaClass = "text-neutral-400";
-              } else {
-                const isUp = summary.direction === "up";
+              const abs = Math.abs(summary.deltaPct);
+              if (abs >= 0.1) {
+                const arrow = summary.deltaPct > 0 ? "▲" : "▼";
                 const isGood = summary.isGood ?? false;
-                arrow = isUp ? "▲" : "▼";
-                deltaLabel = `${arrow} ${formattedPct}`;
+                deltaLabel = `${arrow} ${abs.toFixed(1)}%`;
                 deltaClass = isGood ? "text-emerald-400" : "text-rose-400";
               }
             }
-
-            const valueLabel = formatNumber(summary.current, isPercent);
 
             return (
               <div
                 key={s.label}
                 className={
-                  index % 2 === 1
+                  idx % 2 === 1
                     ? "space-y-2 md:border-l md:border-neutral-900/70 md:pl-4"
                     : "space-y-2 md:pr-4"
                 }
               >
-                {/* Label + numbers */}
                 <div className="flex items-baseline justify-between gap-3">
                   <div
-                    className={`text-[9px] md:text-[10px] uppercase tracking-[0.16em] ${
-                      isTrendLabel ? "text-neutral-400" : "text-neutral-500"
-                    }`}
+                    className={`
+                      text-[9px] md:text-[10px]
+                      uppercase tracking-[0.16em]
+                      ${isTrendLabel ? "text-neutral-400" : "text-neutral-500"}
+                    `}
                   >
                     {isTrendLabel && (
                       <span
-                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                        className="mr-1 inline-block h-1.5 w-1.5 rounded-full"
                         style={{
                           background: accent,
                           boxShadow: `0 0 8px ${accent}a0`,
@@ -402,9 +399,9 @@ function TrendBlock({
                     {s.label}
                   </div>
 
-                  <div className="flex items-center gap-2 text-[11px] font-mono tabular-nums whitespace-nowrap md:text-xs">
-                    <span className="font-semibold text-neutral-100">
-                      {valueLabel}
+                  <div className="flex items-center gap-2 text-[11px] md:text-xs font-mono tabular-nums whitespace-nowrap">
+                    <span className="text-neutral-100 font-semibold">
+                      {formatNumber(summary.current, isPercent)}
                     </span>
                     <span className={deltaClass} style={{ opacity: 0.85 }}>
                       {deltaLabel}
@@ -412,13 +409,8 @@ function TrendBlock({
                   </div>
                 </div>
 
-                {/* Sparkline wrapper — now bar heatline */}
-                <div className="mt-1 h-[54px] rounded-xl overflow-hidden">
-                  <SparklineLarge
-                    values={s.values}
-                    color={accent}
-                    label={s.label}
-                  />
+                <div className="mt-1 h-[54px] @media(max-width:640px):h-[44px] rounded-xl overflow-hidden">
+                  <SparklineLarge values={s.values} color={accent} label={s.label} />
                 </div>
               </div>
             );
@@ -430,41 +422,33 @@ function TrendBlock({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                       Mocked rolling data helpers (smoothed)               */
+/*                             Data generation                                */
 /* -------------------------------------------------------------------------- */
 
 function buildPressureSeries(length: number): number[] {
-  const values: number[] = [];
+  const out: number[] = [];
   let base = 55;
   for (let i = 0; i < length; i++) {
-    base =
-      base +
-      (Math.random() - 0.5) * 2 + // gentle random walk
-      Math.sin(i / 4); // soft oscillation
-    values.push(Math.round(base));
+    base = base + (Math.random() - 0.5) * 2 + Math.sin(i / 4);
+    out.push(Math.round(base));
   }
-  return values;
+  return out;
 }
 
-function buildPercentSeries(
-  length: number,
-  base: number,
-  swing: number
-): number[] {
-  const values: number[] = [];
-  let current = base;
+function buildPercentSeries(length: number, base: number, swing: number): number[] {
+  const out: number[] = [];
+  let v = base;
   for (let i = 0; i < length; i++) {
-    const drift = Math.sin(i / 6) * (swing * 0.3);
+    const drift = Math.sin(i / 6) * swing * 0.3;
     const noise = (Math.random() - 0.5) * swing * 0.35;
-    current = current + drift * 0.04 + noise * 0.15;
-    const v = Math.max(0, Math.min(100, current));
-    values.push(v);
+    v = v + drift * 0.04 + noise * 0.15;
+    out.push(Math.max(0, Math.min(100, v)));
   }
-  return values;
+  return out;
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               TeamTrends section                           */
+/*                               TeamTrends                                   */
 /* -------------------------------------------------------------------------- */
 
 export default function TeamTrends() {
@@ -475,32 +459,19 @@ export default function TeamTrends() {
   const attackPoints = useMemo(() => {
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
-      const roundScores = MOCK_TEAMS.map((t) => t.scores[r]);
-      arr.push(
-        Math.round(roundScores.reduce((a, b) => a + b, 0) / roundScores.length)
-      );
+      const scores = MOCK_TEAMS.map((t) => t.scores[r]);
+      arr.push(Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
     }
     return arr;
   }, [rounds]);
 
   const attackExpected = useMemo(
-    () =>
-      attackPoints.map((v, i) => {
-        const prev = attackPoints[i - 1] ?? v;
-        return (v + prev) / 2;
-      }),
+    () => attackPoints.map((v, i) => (v + (attackPoints[i - 1] ?? v)) / 2),
     [attackPoints]
   );
 
-  const attackF50 = useMemo(
-    () => buildPercentSeries(rounds, 56, 12),
-    [rounds]
-  );
-
-  const attackTrend = useMemo(
-    () => buildPercentSeries(rounds, 68, 10),
-    [rounds]
-  );
+  const attackF50 = useMemo(() => buildPercentSeries(rounds, 56, 12), [rounds]);
+  const attackTrend = useMemo(() => buildPercentSeries(rounds, 68, 10), [rounds]);
 
   /* ------------------------------ DEFENCE -------------------------------- */
 
@@ -508,27 +479,14 @@ export default function TeamTrends() {
     const arr: number[] = [];
     for (let r = 0; r < rounds; r++) {
       const conceded = MOCK_TEAMS.map((t) => t.scores[r] - t.margins[r]);
-      arr.push(
-        Math.round(conceded.reduce((a, b) => a + b, 0) / conceded.length)
-      );
+      arr.push(Math.round(conceded.reduce((a, b) => a + b, 0) / conceded.length));
     }
     return arr;
   }, [rounds]);
 
-  const pressureIndex = useMemo(
-    () => buildPressureSeries(rounds),
-    [rounds]
-  );
-
-  const interceptMarks = useMemo(
-    () => buildPercentSeries(rounds, 60, 14),
-    [rounds]
-  );
-
-  const defenceTrend = useMemo(
-    () => buildPercentSeries(rounds, 65, 11),
-    [rounds]
-  );
+  const pressureIndex = useMemo(() => buildPressureSeries(rounds), [rounds]);
+  const interceptMarks = useMemo(() => buildPercentSeries(rounds, 60, 14), [rounds]);
+  const defenceTrend = useMemo(() => buildPercentSeries(rounds, 65, 11), [rounds]);
 
   /* ------------------------------ MIDFIELD ------------------------------- */
 
@@ -538,9 +496,7 @@ export default function TeamTrends() {
       const contested = MOCK_TEAMS.map(
         (t) => t.clearanceDom[r] + t.margins[r] / 3
       );
-      arr.push(
-        Math.round(contested.reduce((a, b) => a + b, 0) / contested.length)
-      );
+      arr.push(Math.round(contested.reduce((a, b) => a + b, 0) / contested.length));
     }
     return arr;
   }, [rounds]);
@@ -565,11 +521,7 @@ export default function TeamTrends() {
   const ruckHitOuts = useMemo(
     () =>
       Array.from({ length: rounds }, (_, i) =>
-        Math.round(
-          40 +
-            Math.sin(i / 3) * 4 +
-            (Math.random() * 4 - 2)
-        )
+        Math.round(40 + Math.sin(i / 3) * 4 + (Math.random() * 4 - 2))
       ),
     [rounds]
   );
@@ -577,11 +529,7 @@ export default function TeamTrends() {
   const ruckHitOutsAdv = useMemo(
     () =>
       Array.from({ length: rounds }, (_, i) =>
-        Math.round(
-          12 +
-            Math.sin(i / 4) * 3 +
-            (Math.random() * 3 - 1.5)
-        )
+        Math.round(12 + Math.sin(i / 4) * 3 + (Math.random() * 3 - 1.5))
       ),
     [rounds]
   );
@@ -589,37 +537,52 @@ export default function TeamTrends() {
   const ruckClearances = useMemo(
     () =>
       Array.from({ length: rounds }, (_, i) =>
-        Math.round(
-          22 +
-            Math.sin(i / 3.5) * 3 +
-            (Math.random() * 3 - 1.5)
-        )
+        Math.round(22 + Math.sin(i / 3.5) * 3 + (Math.random() * 3 - 1.5))
       ),
     [rounds]
   );
 
-  const ruckTrend = useMemo(
-    () => buildPercentSeries(rounds, 60, 10),
-    [rounds]
-  );
+  const ruckTrend = useMemo(() => buildPercentSeries(rounds, 60, 10), [rounds]);
+
+  /* ---------------------------------------------------------------------- */
 
   return (
     <section className="mt-10">
-      {/* Whole glass section */}
-      <div className="relative overflow-hidden rounded-[32px] border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)] px-4 pb-7 pt-5 shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl md:px-7 md:pb-9 md:pt-7">
-        {/* Halo */}
+      <div
+        className="
+          relative overflow-hidden 
+          rounded-[32px] border border-yellow-500/30 
+          bg-[radial-gradient(circle_at_top,_rgba(12,12,13,0.85),_rgba(3,3,4,0.95)_60%,_black_90%)]
+          px-4 pb-7 pt-5 
+          shadow-[0_24px_72px_rgba(0,0,0,0.9)] backdrop-blur-2xl 
+          md:px-7 md:pb-9 md:pt-7
+
+          @media(max-width:640px):px-3
+          @media(max-width:640px):pt-4
+          @media(max-width:640px):pb-6
+        "
+      >
+        {/* Gold halo */}
         <div className="pointer-events-none absolute -inset-px rounded-[34px] bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.16),transparent_55%)] opacity-60" />
 
         <div className="relative">
           {/* Header pill */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)] px-3 py-1 shadow-[0_0_10px_rgba(250,204,21,0.3)]">
+          <div
+            className="
+              inline-flex items-center gap-2 
+              rounded-full border border-yellow-500/25 
+              bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),transparent_55%)]
+              px-3 py-1 
+              shadow-[0_0_10px_rgba(250,204,21,0.3)]
+            "
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.85)]" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100/90">
               Team Trends
             </span>
           </div>
 
-          <h2 className="mt-4 text-2xl font-semibold text-neutral-50 md:text-3xl">
+          <h2 className="mt-4 text-2xl md:text-3xl font-semibold text-neutral-50">
             League-wide evolution across all four key positions
           </h2>
 
@@ -631,9 +594,7 @@ export default function TeamTrends() {
             League averages • Last 23 rounds • Synthetic positional trend lenses
           </p>
 
-          {/* Positional cards grid */}
           <div className="mt-8 grid gap-8 md:grid-cols-2 lg:gap-10">
-            {/* Attack */}
             <TrendBlock
               title="Attack Trend"
               icon={<TrendingUp className="h-4 w-4 text-yellow-300" />}
@@ -647,7 +608,6 @@ export default function TeamTrends() {
               ]}
             />
 
-            {/* Defence */}
             <TrendBlock
               title="Defence Trend"
               icon={<Shield className="h-4 w-4 text-cyan-200" />}
@@ -661,7 +621,6 @@ export default function TeamTrends() {
               ]}
             />
 
-            {/* Midfield */}
             <TrendBlock
               title="Midfield Trend"
               icon={<Activity className="h-4 w-4 text-orange-300" />}
@@ -675,7 +634,6 @@ export default function TeamTrends() {
               ]}
             />
 
-            {/* Ruck */}
             <TrendBlock
               title="Ruck Trend"
               icon={<MoveVertical className="h-4 w-4 text-violet-200" />}
