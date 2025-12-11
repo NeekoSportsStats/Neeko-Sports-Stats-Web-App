@@ -47,9 +47,9 @@ function computePrediction(series: number[]) {
 function TinySparkline() {
   return (
     <svg
-      width="52"
-      height="24"
-      viewBox="0 0 52 24"
+      width="60"
+      height="26"
+      viewBox="0 0 60 26"
       className="text-yellow-300 opacity-80"
     >
       <polyline
@@ -58,7 +58,7 @@ function TinySparkline() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        points="2,18 10,8 18,14 26,6 34,10 42,4 50,12"
+        points="2,20 10,10 18,15 26,7 34,12 42,5 50,13 58,9"
       />
     </svg>
   );
@@ -144,7 +144,7 @@ function ConfidenceBadge({ value }: { value: number }) {
 }
 
 /* ---------------------------------------------------------
-   INDIVIDUAL ROW CARD (Team-style)
+   INDIVIDUAL ROW CARD (Team-style, A2 density)
 --------------------------------------------------------- */
 
 function AIInsightRow({
@@ -159,7 +159,7 @@ function AIInsightRow({
       className={cn(
         "relative overflow-hidden rounded-2xl border border-neutral-800/80",
         "bg-gradient-to-br from-black/95 via-neutral-950 to-black",
-        "px-5 py-5 md:px-6 md:py-6",
+        "px-4 py-4 md:px-5 md:py-5",
         "shadow-[0_0_40px_rgba(0,0,0,0.75)]"
       )}
     >
@@ -170,14 +170,13 @@ function AIInsightRow({
       <div
         className={cn(
           "relative",
-          blurred &&
-            "blur-md brightness-[0.5] select-none pointer-events-none"
+          blurred && "blur-md brightness-[0.5] select-none pointer-events-none"
         )}
       >
         {/* Top Row - Player + sparkline */}
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-neutral-50">
+          <div className="flex-1 min-w-0">
+            <p className="truncate text-sm font-semibold text-neutral-50">
               {row.name}{" "}
               <span className="text-xs font-normal text-neutral-400">
                 {row.team} • {row.position}
@@ -188,12 +187,12 @@ function AIInsightRow({
               Projection • L5 Expected Range
             </p>
 
-            <p className="mt-1 text-xl font-semibold text-neutral-50">
+            <p className="mt-1 text-lg font-semibold text-neutral-50 md:text-xl">
               {row.projection.toFixed(1)}{" "}
-              <span className="text-base font-normal text-neutral-300">
+              <span className="text-[13px] font-normal text-neutral-300 md:text-sm">
                 ± {row.range.toFixed(1)} fantasy
               </span>{" "}
-              <span className="text-[11px] text-neutral-400">
+              <span className="text-[10px] text-neutral-400 md:text-[11px]">
                 ({row.low.toFixed(0)}–{row.high.toFixed(0)} range)
               </span>
             </p>
@@ -206,12 +205,12 @@ function AIInsightRow({
         </div>
 
         {/* AI Summary */}
-        <p className="mt-4 pr-10 text-sm leading-relaxed text-neutral-200">
+        <p className="mt-3 text-[11px] leading-relaxed text-neutral-200 md:mt-4 md:text-sm md:pr-8">
           {row.aiText}
         </p>
 
         {/* Tags */}
-        <div className="mt-3.5 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-1.5 md:mt-3.5 md:gap-2">
           {row.tags.map((t, i) => (
             <span
               key={`${row.id}-tag-${i}`}
@@ -223,7 +222,7 @@ function AIInsightRow({
         </div>
 
         {/* Confidence */}
-        <div className="mt-4">
+        <div className="mt-3 md:mt-4">
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
               Confidence Index
@@ -327,6 +326,10 @@ export default function AIInsights() {
     },
   ];
 
+  const gatingBlurClass = !IS_PREMIUM
+    ? "blur-md brightness-[0.45] select-none pointer-events-none"
+    : "";
+
   return (
     <section
       id="ai-insights"
@@ -363,25 +366,49 @@ export default function AIInsights() {
         </p>
       </div>
 
-      {/* FREE ROWS (3 cards) */}
-      <div className="mt-6 space-y-4 md:grid md:grid-cols-3 md:gap-4 md:space-y-0">
+      {/* FREE ROWS */}
+      {/* Mobile: scroll-snap carousel (92% width) */}
+      <div className="mt-6 flex gap-4 overflow-x-auto pb-2 md:hidden snap-x snap-mandatory">
+        {freeRows.map((row) => (
+          <div
+            key={row.id}
+            className="snap-center shrink-0 basis-[92%]"
+          >
+            <AIInsightRow row={row} />
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: 3-column grid */}
+      <div className="mt-6 hidden md:grid md:grid-cols-3 md:gap-4">
         {freeRows.map((row) => (
           <AIInsightRow key={row.id} row={row} />
         ))}
       </div>
 
-      {/* PREMIUM GATED ROWS (heavy blur + gold shimmer) */}
+      {/* PREMIUM GATED ROWS */}
       <div className="relative mt-6">
-        {/* Blurred underlying cards */}
+        {/* Mobile premium carousel */}
+        <div className={cn("flex gap-4 overflow-x-auto pb-2 md:hidden snap-x snap-mandatory", gatingBlurClass)}>
+          {premiumRows.map((row) => (
+            <div
+              key={row.id}
+              className="snap-center shrink-0 basis-[92%]"
+            >
+              <AIInsightRow row={row} blurred={!!gatingBlurClass} />
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop premium grid */}
         <div
           className={cn(
-            "space-y-4 md:grid md:grid-cols-3 md:gap-4 md:space-y-0",
-            !IS_PREMIUM &&
-              "blur-md brightness-[0.45] select-none pointer-events-none"
+            "hidden md:grid md:grid-cols-3 md:gap-4",
+            gatingBlurClass
           )}
         >
           {premiumRows.map((row) => (
-            <AIInsightRow key={row.id} row={row} />
+            <AIInsightRow key={row.id} row={row} blurred={!!gatingBlurClass} />
           ))}
         </div>
 
@@ -399,8 +426,7 @@ export default function AIInsights() {
             <div
               className={cn(
                 "pointer-events-none absolute -inset-10",
-                "bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.28),transparent_55%),",
-                "radial-gradient(circle_at_bottom,_rgba(250,204,21,0.16),transparent_55%)]",
+                "bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.28),transparent_55%)]",
                 "opacity-70 mix-blend-screen animate-pulse"
               )}
             />
