@@ -1,52 +1,53 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                          PLAYER INSIGHTS OVERLAY                            */
+/*                         PLAYER INSIGHTS OVERLAY (FINAL)                    */
 /* -------------------------------------------------------------------------- */
 
-type PlayerInsightsOverlayProps = {
-  player: PlayerRow;
-  selectedStat: StatLens;
-  onClose: () => void;
-  onLensChange: (lens: StatLens) => void;
-};
-
-const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
+export default function PlayerInsightsOverlay({
   player,
   selectedStat,
   onClose,
   onLensChange,
-}) => {
+}: {
+  player: PlayerRow;
+  selectedStat: StatLens;
+  onClose: () => void;
+  onLensChange: (lens: StatLens) => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  /* MOBILE DRAG-TO-CLOSE REFS */
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
   const draggingRef = useRef(false);
   const startYRef = useRef(0);
 
-  /* ---------------------------- LOCK BODY SCROLL --------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /*                            SCROLL LOCK                                 */
+  /* ---------------------------------------------------------------------- */
   useEffect(() => {
     const prevBody = document.body.style.overflow;
-    const prevHtml = document.documentElement.style.overflow;
-
     document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
 
+    setMounted(true);
     return () => {
       document.body.style.overflow = prevBody;
-      document.documentElement.style.overflow = prevHtml;
     };
   }, []);
 
-  /* ---------------------------- TOUCH HANDLERS (MOBILE) -------------------- */
+  /* ---------------------------------------------------------------------- */
+  /*                      MOBILE DRAG HANDLERS                               */
+  /* ---------------------------------------------------------------------- */
 
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const scrollable = scrollRef.current;
     if (!scrollable) return;
 
-    // Strict iOS-style: only allow drag when at top of scroll
+    // Only allow drag when scrolled to top (iOS strict behaviour)
     if (scrollable.scrollTop > 0) return;
 
     draggingRef.current = true;
@@ -57,6 +58,7 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
     if (!draggingRef.current || !sheetRef.current) return;
 
     const dy = e.touches[0].clientY - startYRef.current;
+
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
       e.preventDefault();
@@ -65,40 +67,54 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
 
   const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
-    draggingRef.current = false;
 
+    draggingRef.current = false;
     const dy = e.changedTouches[0].clientY - startYRef.current;
 
-    // Threshold to close
     if (dy > 120) {
       onClose();
       return;
     }
 
-    // Snap back
     sheetRef.current.style.transition = "transform 0.25s ease-out";
     sheetRef.current.style.transform = "translateY(0)";
-    window.setTimeout(() => {
+
+    setTimeout(() => {
       if (sheetRef.current) sheetRef.current.style.transition = "";
     }, 250);
   };
 
+  if (!mounted) return null;
+
+  /* ---------------------------------------------------------------------- */
+  /*                                RENDER                                  */
+  /* ---------------------------------------------------------------------- */
+
   return (
     <div
-      className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md"
+      className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
-      {/* DESKTOP RIGHT SIDEBAR ------------------------------------------------ */}
+      {/* ------------------------------------------------------------------ */}
+      {/*                         DESKTOP PANEL (RESTORED)                   */}
+      {/* ------------------------------------------------------------------ */}
+
       <div
-        className="hidden h-full w-full items-stretch justify-end md:flex"
+        className="
+          hidden md:block fixed right-0 top-0 h-full w-[480px] z-[200]
+          bg-gradient-to-b from-neutral-950 via-black to-black
+          border-l border-yellow-500/30
+          shadow-[0_0_60px_rgba(250,204,21,0.5)]
+        "
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="h-full w-[480px] max-w-full border-l border-yellow-500/30 bg-gradient-to-b from-neutral-950 via-black to-black px-5 py-4 shadow-[0_0_60px_rgba(250,204,21,0.7)] animate-[slideInRight_0.22s_ease-out]">
+        <div className="flex flex-col h-full overflow-hidden">
+
           {/* Header */}
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="px-5 py-4 flex items-start justify-between border-b border-neutral-800/40">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
-                Player insights
+                Player Insights
               </div>
               <div className="mt-1 text-sm font-semibold text-neutral-50">
                 {player.name}
@@ -107,8 +123,8 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
                 {player.team} • {player.role}
               </div>
             </div>
+
             <button
-              type="button"
               onClick={onClose}
               className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
             >
@@ -116,17 +132,16 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
             </button>
           </div>
 
-          {/* Stat lens pills */}
-          <div className="mb-4 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px] text-neutral-200">
+          {/* Stat Lens Pills */}
+          <div className="px-5 py-3 flex items-center gap-2 border-b border-neutral-800/40 bg-black/40 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
                 key={lens}
-                type="button"
                 onClick={() => onLensChange(lens)}
                 className={`rounded-full px-3 py-1.5 ${
                   selectedStat === lens
                     ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                    : "bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800"
+                    : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800"
                 }`}
               >
                 {lens}
@@ -134,39 +149,47 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
             ))}
           </div>
 
-          {/* Scrollable content */}
-          <div className="h-[calc(100%-120px)] overflow-y-auto pr-1">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
         </div>
       </div>
 
-      {/* MOBILE BOTTOM SHEET -------------------------------------------------- */}
+      {/* ------------------------------------------------------------------ */}
+      {/*                      MOBILE BOTTOM SHEET (UNCHANGED)               */}
+      {/* ------------------------------------------------------------------ */}
+
       <div
         className="flex h-full w-full items-end justify-center md:hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div
           ref={sheetRef}
-          className="w-full rounded-t-3xl border border-yellow-500/25 bg-gradient-to-b from-neutral-950 to-black px-4 pb-3 pt-2 shadow-[0_0_50px_rgba(250,204,21,0.6)] overscroll-contain"
-          style={{ height: "80vh", maxHeight: "80vh" }}
+          className="
+            w-full rounded-t-3xl border border-yellow-500/30
+            bg-gradient-to-b from-neutral-950/98 to-black
+            px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]
+            overscroll-contain
+          "
+          style={{ height: "80vh", maxHeight: "80vh", touchAction: "none" }}
         >
-          {/* Drag area (full width, easier to grab) */}
+          {/* Drag handle */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
-            className="w-full pt-2 pb-3 flex items-center justify-center active:opacity-80"
+            className="w-full pt-3 pb-4 flex items-center justify-center"
             style={{ touchAction: "none" }}
           >
             <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
           </div>
 
           {/* Header */}
-          <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="mb-4 flex items-start justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
-                Player insights
+              <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
+                Player Insights
               </div>
               <div className="mt-1 text-sm font-semibold text-neutral-50">
                 {player.name}
@@ -175,26 +198,25 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
                 {player.team} • {player.role}
               </div>
             </div>
+
             <button
-              type="button"
               onClick={onClose}
-              className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
+              className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Lens pills */}
-          <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700/80 bg-black/80 px-2 py-1 text-[11px] text-neutral-200">
+          {/* Stat Pills */}
+          <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
                 key={lens}
-                type="button"
                 onClick={() => onLensChange(lens)}
                 className={`rounded-full px-3 py-1.5 ${
                   selectedStat === lens
                     ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                    : "bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800"
+                    : "bg-neutral-900/80 text-neutral-300"
                 }`}
               >
                 {lens}
@@ -202,10 +224,10 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
             ))}
           </div>
 
-          {/* Scrollable content */}
+          {/* Scrollable Content */}
           <div
             ref={scrollRef}
-            className="h-[calc(80vh-140px)] overflow-y-auto pb-3 overscroll-contain"
+            className="h-[calc(80vh-130px)] overflow-y-auto pb-3 overscroll-contain"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
@@ -214,6 +236,4 @@ const PlayerInsightsOverlay: React.FC<PlayerInsightsOverlayProps> = ({
       </div>
     </div>
   );
-};
-
-export default PlayerInsightsOverlay;
+}
