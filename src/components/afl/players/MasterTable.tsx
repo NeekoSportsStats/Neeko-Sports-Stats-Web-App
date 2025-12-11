@@ -2,17 +2,13 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import {
-  ChevronRight,
-  ChevronDown,
-  Lock,
-  Search,
-  Sparkles,
-} from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import PlayerInsightsOverlay from "./PlayerInsightsOverlay";
+import { STAT_CONFIG } from "./playerStatConfig";
 
 /* -------------------------------------------------------------------------- */
 /*                               TYPES                                         */
@@ -32,10 +28,10 @@ export type PlayerRow = {
 };
 
 /* -------------------------------------------------------------------------- */
-/*                          ROUND LABELS (exported)                           */
+/*                          ROUND LABELS (SHARED)                              */
 /* -------------------------------------------------------------------------- */
 
-export const ROUND_LABELS = [
+export const ROUND_LABELS: string[] = [
   "OR",
   "R1",
   "R2",
@@ -61,12 +57,6 @@ export const ROUND_LABELS = [
   "R22",
   "R23",
 ];
-
-/* -------------------------------------------------------------------------- */
-/*                      STAT CONFIG (separate file)                           */
-/* -------------------------------------------------------------------------- */
-
-import { STAT_CONFIG } from "./playerStatConfig";
 
 /* -------------------------------------------------------------------------- */
 /*                                  MOCK DATA                                 */
@@ -117,7 +107,7 @@ function buildMockPlayers(): PlayerRow[] {
   return list;
 }
 
-const MOCK_PLAYERS = buildMockPlayers();
+const MOCK_PLAYERS: PlayerRow[] = buildMockPlayers();
 
 /* -------------------------------------------------------------------------- */
 /*                            HELPER LOGIC                                     */
@@ -431,7 +421,7 @@ export default function MasterTable() {
                     {/* ZONE 3: Sticky right summary + hit-rates + CTA */}
                     <th
                       className="sticky right-0 z-30 border-l border-neutral-800 bg-neutral-950/95 px-4 py-3 text-right"
-                      style={{ minWidth: 280 }}
+                      style={{ minWidth: 400 }}
                     >
                       <span className="text-[9px] tracking-[0.18em] text-neutral-400">
                         SUMMARY &amp; HIT-RATE
@@ -445,8 +435,8 @@ export default function MasterTable() {
                     const hits = computeHitRates(player, selectedStat);
                     const rounds = getRounds(player, selectedStat);
 
-                    const rowPad = compactMode ? "py-2" : "py-3";
                     const isBlurred = !isPremium && index >= 20;
+                    const rowPad = compactMode ? "py-1.5" : "py-3";
 
                     return (
                       <tr
@@ -494,60 +484,77 @@ export default function MasterTable() {
                         {/* ZONE 3: Sticky right summary + hit-rates + CTA */}
                         <td
                           className="sticky right-0 z-10 border-l border-neutral-800 bg-black/95 px-4 align-middle"
-                          style={{ minWidth: 280 }}
+                          style={{ minWidth: 400 }}
                         >
-                          <div className="flex flex-col items-end gap-1">
-                            {/* Summary row */}
-                            <div className="flex gap-3 text-[10px] text-neutral-400">
-                              <span>MIN</span>
-                              <span>MAX</span>
-                              <span>AVG</span>
-                              <span>TOTAL</span>
-                              <span>GMS</span>
-                            </div>
-                            <div className="flex gap-3 text-[11px]">
-                              <span className="text-neutral-100">
-                                {summary.min}
-                              </span>
-                              <span className="text-neutral-100">
-                                {summary.max}
-                              </span>
-                              <span className="text-yellow-200">
-                                {summary.avg.toFixed(1)}{" "}
-                                {statConfig.valueUnitShort}
-                              </span>
-                              <span className="text-neutral-100">
-                                {summary.total}
-                              </span>
-                              <span className="text-neutral-100">
-                                {summary.games}
-                              </span>
+                          <div
+                            className={`flex flex-col items-end gap-2 ${
+                              compactMode ? "text-[10px]" : "text-[11px]"
+                            }`}
+                          >
+                            {/* SUMMARY BLOCK */}
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
+                                Summary
+                              </div>
+                              <div className="flex gap-4 text-[9px] text-neutral-400">
+                                <span>MIN</span>
+                                <span>MAX</span>
+                                <span>AVG</span>
+                                <span>TOTAL</span>
+                                <span>GMS</span>
+                              </div>
+                              <div className="flex gap-4">
+                                <span className="text-neutral-100">
+                                  {summary.min}
+                                </span>
+                                <span className="text-neutral-100">
+                                  {summary.max}
+                                </span>
+                                <span className="text-yellow-200">
+                                  {summary.avg.toFixed(1)}{" "}
+                                  {statConfig.valueUnitShort}
+                                </span>
+                                <span className="text-neutral-100">
+                                  {summary.total}
+                                </span>
+                                <span className="text-neutral-100">
+                                  {summary.games}
+                                </span>
+                              </div>
                             </div>
 
-                            {/* Hit-rate row */}
-                            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
-                              {statConfig.thresholds.map((t, i) => {
-                                const hit = hits[i] ?? 0;
-                                return (
-                                  <div
-                                    key={t}
-                                    className="flex flex-col items-center"
-                                  >
-                                    <span className="text-[9px] text-neutral-500">
-                                      {t}+
-                                    </span>
-                                    <span
-                                      className={`text-[11px] font-semibold ${getHitRateColorClasses(
-                                        hit
-                                      )}`}
+                            {/* HIT-RATE BLOCK */}
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="text-[9px] uppercase tracking-[0.16em] text-neutral-500">
+                                Hit-rates
+                              </div>
+                              <div className="flex flex-wrap items-center justify-end gap-3">
+                                {statConfig.thresholds.map((t, i) => {
+                                  const hit = hits[i] ?? 0;
+                                  return (
+                                    <div
+                                      key={t}
+                                      className="flex flex-col items-center"
                                     >
-                                      {hit}%
-                                    </span>
-                                  </div>
-                                );
-                              })}
+                                      <span className="text-[9px] text-neutral-500">
+                                        {t}+
+                                      </span>
+                                      <span
+                                        className={`text-[11px] font-semibold ${getHitRateColorClasses(
+                                          hit
+                                        )}`}
+                                      >
+                                        {hit}%
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
 
-                              <button className="ml-2 rounded-full bg-yellow-400/90 px-3 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
+                            {/* CTA */}
+                            <div className="mt-1">
+                              <button className="rounded-full bg-yellow-400/90 px-4 py-1 text-[10px] font-semibold text-black shadow-[0_0_16px_rgba(250,204,21,0.7)] hover:bg-yellow-300">
                                 View
                               </button>
                             </div>
