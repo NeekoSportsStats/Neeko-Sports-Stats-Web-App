@@ -1,5 +1,5 @@
 // src/components/afl/teams/TeamInsightsPanel.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { X, Sparkles, BarChart3 } from "lucide-react";
 import type { TeamRow } from "./mockTeams";
 import { ROUND_LABELS } from "./mockTeams";
@@ -26,7 +26,7 @@ type TeamInsightsPanelProps = {
 };
 
 /* -------------------------------------------------------------------------- */
-/*                              LOCAL MODE CONFIG                             */
+/*                              MODE CONFIG                                    */
 /* -------------------------------------------------------------------------- */
 
 const MODE_CONFIG: Record<
@@ -73,7 +73,25 @@ const computeHitRate = (series: number[], thresholds: number[]) =>
   );
 
 /* -------------------------------------------------------------------------- */
-/*                             BOTTOM SHEET PANEL                             */
+/*                               SCROLL LOCK FIX                               */
+/* -------------------------------------------------------------------------- */
+
+const lockScroll = () => {
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  document.body.style.position = "fixed";
+  document.body.style.width = "100%";
+};
+
+const unlockScroll = () => {
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  document.body.style.position = "";
+  document.body.style.width = "";
+};
+
+/* -------------------------------------------------------------------------- */
+/*                           TEAM INSIGHTS PANEL                               */
 /* -------------------------------------------------------------------------- */
 
 const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
@@ -85,24 +103,64 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
-  // Lock background scroll + animate in
+  // Scroll-lock + animate in
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    // small delay so transition runs
-    const t = window.setTimeout(() => setIsVisible(true), 10);
-
+    lockScroll();
+    const t = setTimeout(() => setIsVisible(true), 10);
     return () => {
-      window.clearTimeout(t);
-      document.body.style.overflow = prevOverflow;
+      clearTimeout(t);
+      unlockScroll();
     };
   }, []);
 
   const handleClose = () => {
     setIsVisible(false);
-    // wait for animation to finish
-    window.setTimeout(onClose, 220);
+    setTimeout(onClose, 220);
   };
+
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  /* ---------------------------------------------------------------------- */
+  /*                           DRAG-TO-CLOSE LOGIC                           */
+  /* ---------------------------------------------------------------------- */
+
+  const [dragStartY, setDragStartY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    setDragStartY(e.touches[0].clientY);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !sheetRef.current) return;
+
+    const currentY = e.touches[0].clientY;
+    const delta = currentY - dragStartY;
+
+    if (delta > 0) {
+      sheetRef.current.style.transform = `translateY(${delta}px)`;
+    }
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!isDragging || !sheetRef.current) return;
+
+    setIsDragging(false);
+
+    const endY = e.changedTouches[0].clientY;
+    const delta = endY - dragStartY;
+
+    if (delta > 80) {
+      handleClose();
+    } else {
+      sheetRef.current.style.transform = "translateY(0)";
+    }
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /*                           LOCAL CALCULATIONS                            */
+  /* ---------------------------------------------------------------------- */
 
   const modeConfig = MODE_CONFIG[mode];
   const hitRates = computeHitRate(modeSeries, modeConfig.thresholds);
@@ -113,13 +171,9 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
   const delta = lastValue - prevValue;
   const deltaSign = delta > 0 ? "+" : delta < 0 ? "−" : "";
   const deltaClass =
-    delta > 0
-      ? "text-lime-300"
-      : delta < 0
-      ? "text-red-400"
-      : "text-neutral-300";
+    delta > 0 ? "text-lime-300" : delta < 0 ? "text-red-400" : "text-neutral-300";
 
-  // choose up to last 5 rounds for small spark row / chips
+  // recent rounds preview
   const recentRounds = modeSeries.slice(-5);
   const recentLabels = ROUND_LABELS.slice(
     Math.max(0, ROUND_LABELS.length - recentRounds.length)
@@ -127,8 +181,13 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
 
   const mainThresholdIndex =
     modeConfig.thresholds.length >= 3 ? 2 : modeConfig.thresholds.length - 1;
+
   const mainThreshold = modeConfig.thresholds[mainThresholdIndex];
   const mainHit = hitRates[mainThresholdIndex];
+
+  /* ---------------------------------------------------------------------- */
+  /*                                   JSX                                   */
+  /* ---------------------------------------------------------------------- */
 
   return (
     <div
@@ -138,47 +197,60 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
       aria-modal="true"
       role="dialog"
     >
-      {/* Backdrop */}
+      {/* BACKDROP */}
       <button
         type="button"
-        aria-label="Close team insights"
+        onClick={handleClose}
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}
-        onClick={handleClose}
       />
 
-      {/* Bottom sheet */}
+      {/* SHEET */}
       <div
-        className={`relative w-full max-w-xl transform rounded-t-3xl border border-yellow-500/30 bg-gradient-to-b from-black/95 via-neutral-950/95 to-black shadow-[0_-30px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)] transition-transform duration-220 ease-out sm:rounded-3xl sm:border-yellow-500/40 sm:shadow-[0_24px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)] ${
-          isVisible ? "translate-y-0" : "translate-y-full"
-        }`}
+        ref={sheetRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className={`relative w-full max-w-xl transform rounded-t-3xl border border-yellow-500/30
+          bg-gradient-to-b from-black/95 via-neutral-950/95 to-black
+          shadow-[0_-30px_120px_rgba(0,0,0,0.9),0_0_40px_rgba(250,204,21,0.18)]
+          transition-transform duration-200 ease-out sm:rounded-3xl sm:border-yellow-500/40
+          ${isVisible ? "translate-y-0" : "translate-y-full"}`}
         style={{
           maxHeight: "88vh",
+          touchAction: "none",
         }}
       >
-        {/* Drag handle */}
+        {/* Drag handle & Close */}
         <div className="flex items-center justify-between px-4 pt-3 pb-1 sm:px-5 sm:pt-4">
           <div className="flex-1">
             <div className="mx-auto h-1 w-10 rounded-full bg-neutral-700/80 sm:hidden" />
           </div>
           <button
             type="button"
-            className="ml-auto rounded-full p-1.5 text-neutral-400 hover:bg-neutral-800/80 hover:text-neutral-100"
             onClick={handleClose}
+            className="ml-auto rounded-full p-1.5 text-neutral-400 hover:bg-neutral-800/80 hover:text-neutral-100"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="relative z-10 flex flex-col gap-4 px-4 pb-5 pt-1 sm:px-6 sm:pb-6">
-          {/* Gold side glow strip */}
+        {/* SCROLLABLE CONTENT */}
+        <div
+          className="relative z-10 flex flex-col gap-4 px-4 pb-5 pt-1 sm:px-6 sm:pb-6 overflow-y-auto"
+          style={{
+            maxHeight: "calc(88vh - 40px)",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {/* Gold strip */}
           <div className="pointer-events-none absolute inset-y-6 left-0 w-[2px] rounded-r-full bg-gradient-to-b from-yellow-400 via-amber-300 to-yellow-500 opacity-70 sm:inset-y-7" />
 
-          {/* Header: team + mode */}
+          {/* HEADER */}
           <div className="flex items-start gap-3">
             <div
-              className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-yellow-500/50 bg-black/80 shadow-[0_0_18px_rgba(250,204,21,0.45)] flex items-center justify-center"
+              className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-yellow-500/50 bg-black/80 flex items-center justify-center"
               style={{
                 boxShadow: `0 0 18px ${team.colours.primary}55`,
               }}
@@ -192,8 +264,8 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
               />
             </div>
 
-            <div className="flex flex-1 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col flex-1 gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[13px] font-semibold text-neutral-50">
                   {team.name}
                 </span>
@@ -201,66 +273,67 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
                   {team.code} • {modeConfig.label}
                 </span>
               </div>
+
               <p className="text-[11px] text-neutral-400">
                 {modeConfig.subtitle}. Quick view of{" "}
-                <span className="font-medium text-neutral-100">
-                  recent trend, consistency &amp; hit-rates
-                </span>{" "}
-                for this club.
+                <span className="text-neutral-100">consistency, trends & hit-rates.</span>
               </p>
             </div>
           </div>
 
-          {/* Key stats row */}
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-black/80 px-3 py-3 text-[11px] sm:grid-cols-4 sm:px-4 sm:py-3.5">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+          {/* KEY METRICS */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-2xl border border-neutral-800 bg-black/80 px-3 py-3 text-[11px] sm:px-4 sm:py-3.5">
+            <div>
+              <span className="text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
                 Avg this season
               </span>
-              <span className="text-sm font-semibold text-yellow-200">
+              <div className="text-sm font-semibold text-yellow-200">
                 {modeSummary.average.toFixed(1)}{" "}
                 <span className="text-[11px] text-neutral-400">
                   {modeConfig.unit}
                 </span>
-              </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+
+            <div>
+              <span className="text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
                 High watermark
               </span>
-              <span className="text-sm font-semibold text-neutral-100">
+              <div className="text-sm font-semibold text-neutral-100">
                 {modeSummary.max}{" "}
                 <span className="text-[11px] text-neutral-400">
                   {modeConfig.unit}
                 </span>
-              </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+
+            <div>
+              <span className="text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
                 Last round
               </span>
-              <span className="text-sm font-semibold text-neutral-100">
+              <div className="text-sm font-semibold text-neutral-100">
                 {lastValue}{" "}
                 <span className="text-[11px] text-neutral-400">
                   {modeConfig.unit}
                 </span>
-              </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+
+            <div>
+              <span className="text-[10px] text-neutral-500 uppercase tracking-[0.16em]">
                 vs prev
               </span>
-              <span className={`text-sm font-semibold ${deltaClass}`}>
+              <div className={`text-sm font-semibold ${deltaClass}`}>
                 {deltaSign}
                 {Math.abs(delta).toFixed(1)}{" "}
                 <span className="text-[11px] text-neutral-400">
                   {modeConfig.unit}
                 </span>
-              </span>
+              </div>
             </div>
           </div>
 
-          {/* Recent rounds mini grid */}
+          {/* RECENT ROUNDS */}
           <div className="flex flex-col gap-2 rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-950/95 via-black to-black/95 px-3 py-3 sm:px-4 sm:py-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -275,23 +348,23 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
 
             <div className="mt-1 grid grid-cols-5 gap-1.5 text-center text-[10px]">
-              {recentRounds.map((value, i) => (
+              {recentRounds.map((v, i) => (
                 <div
-                  key={`${recentLabels[i]}-${i}`}
-                  className="flex flex-col items-center gap-0.5 rounded-xl border border-neutral-800/80 bg-black/70 px-1.5 py-1.5"
+                  key={i}
+                  className="flex flex-col items-center gap-0.5 rounded-xl border border-neutral-800 bg-black/70 px-1.5 py-1.5"
                 >
                   <span className="text-[9px] uppercase tracking-[0.14em] text-neutral-500">
                     {recentLabels[i]}
                   </span>
-                  <span className="text-[11px] text-neutral-50">{value}</span>
+                  <span className="text-[11px] text-neutral-50">{v}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Hit-rate lanes */}
+          {/* HIT-RATE LADDER */}
           <div className="flex flex-col gap-2 rounded-2xl border border-yellow-500/30 bg-[radial-gradient(circle_at_top,_rgba(250,204,21,0.18),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),_#020617)] px-3 py-3 sm:px-4 sm:py-3.5">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
                 <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-100/90">
@@ -305,7 +378,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
 
             <div className="mt-2 flex flex-col gap-1.5 text-[11px]">
               {modeConfig.thresholds.map((t, i) => {
-                const rate = hitRates[i] ?? 0;
+                const rate = hitRates[i];
                 const isPrimary = t === mainThreshold;
                 return (
                   <div
@@ -316,11 +389,9 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
                         : "border-neutral-800 bg-black/70"
                     }`}
                   >
-                    <div className="flex w-20 items-center gap-1.5">
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-                        {t}+
-                      </span>
-                    </div>
+                    <span className="w-20 text-[10px] text-neutral-400 uppercase tracking-[0.16em]">
+                      {t}+
+                    </span>
 
                     <div className="relative flex-1 overflow-hidden rounded-full bg-neutral-900/90">
                       <div
@@ -329,11 +400,7 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
                       />
                     </div>
 
-                    <span
-                      className={`w-12 text-right text-[11px] font-semibold ${rateClass(
-                        rate
-                      )}`}
-                    >
+                    <span className={`w-12 text-right font-semibold ${rateClass(rate)}`}>
                       {rate}%
                     </span>
                   </div>
@@ -342,18 +409,12 @@ const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({
             </div>
           </div>
 
-          {/* Footer helper text */}
-          <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
+          {/* FOOTER */}
+          <p className="mt-1 text-[10px] text-neutral-500 leading-relaxed">
             These are{" "}
-            <span className="text-neutral-300">
-              structural consistency signals
-            </span>{" "}
-            only – tap other clubs in the table to compare profiles. Full Neeko+
-            will later add{" "}
-            <span className="text-neutral-300">
-              AI matchup overlays &amp; usage trends
-            </span>{" "}
-            on top of this base grid.
+            <span className="text-neutral-300">consistency indicators</span> only.
+            Upcoming updates will add{" "}
+            <span className="text-neutral-300">AI matchup overlays & usage trends</span>.
           </p>
         </div>
       </div>
