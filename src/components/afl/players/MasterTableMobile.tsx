@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Search, Lock, ChevronRight, ArrowRight, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Search, Lock, ChevronRight, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -62,9 +63,7 @@ export default function MasterTableMobile({
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  // NEW (minimal): modal state ONLY for CTA
-  const [showModal, setShowModal] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const filtered = isPremium
     ? players.filter((p) =>
@@ -143,7 +142,11 @@ export default function MasterTableMobile({
               selectedStat,
               statCfg.thresholds[1]
             );
-            const ceiling = hitRate(p, selectedStat, statCfg.thresholds[3]);
+            const ceiling = hitRate(
+              p,
+              selectedStat,
+              statCfg.thresholds[3]
+            );
 
             const blurred = !isPremium && idx >= 8;
 
@@ -220,97 +223,74 @@ export default function MasterTableMobile({
             </div>
           )}
 
-          {/* PAYWALL CTA (PATCHED to match AIInsights behaviour + modal) */}
+          {/* PAYWALL CTA */}
           {!isPremium && (
             <div className="px-4 py-6">
-              {/* CTA row (same style language as AIInsights) */}
-              <button
-                type="button"
-                onClick={() => setShowModal(true)}
-                className="group relative w-full rounded-3xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 via-yellow-500/0 to-transparent px-6 py-5 text-left transition hover:brightness-110"
-              >
-                <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
-                  Neeko+ Player Suite
-                </div>
-                <div className="mt-1 text-sm font-semibold text-yellow-100">
-                  Unlock full player insights & trends
-                </div>
-                <p className="mt-1 text-xs text-neutral-300">
-                  Access the full list, search, deeper trend tools and premium
-                  insights.
+              <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/5 px-6 py-6 text-center">
+                <p className="text-sm text-neutral-200">
+                  Unlock full player insights with Neeko+
                 </p>
-
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/50 bg-black/60 shadow-[0_0_14px_rgba(250,204,21,0.6)] transition-transform group-hover:translate-x-0.5">
-                  <ArrowRight className="h-4 w-4 text-yellow-300" />
-                </div>
-              </button>
+                <Button
+                  onClick={() => setShowUpgrade(true)}
+                  className="mt-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
+                >
+                  Get Neeko+
+                </Button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* CTA MODAL (copied behaviour from AIInsights: local showModal state) */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
-          <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-6 py-6 shadow-[0_0_80px_rgba(0,0,0,1)]">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/70 bg-black/70 text-neutral-300 transition hover:border-neutral-500 hover:text-white"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-500/5 to-transparent px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
-                Neeko+ Upgrade
-              </span>
-            </div>
-
-            <h3 className="mt-3 text-xl font-semibold text-neutral-50">
-              Unlock full player analysis
-            </h3>
-
-            <p className="mt-2 text-xs text-neutral-300">
-              Neeko+ unlocks the full player list, premium trend tools, and
-              deeper insights across the season.
-            </p>
-
-            <ul className="mt-4 space-y-2 text-xs text-neutral-200">
-              <li className="flex gap-2">
-                <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
-                <span>Full player list (no blur) + show more.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
-                <span>Premium search and deeper trend tools.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
-                <span>Advanced insights and forecasting features.</span>
-              </li>
-            </ul>
-
-            <div className="mt-6 flex flex-col gap-3">
-              <Button
-                asChild
-                className="rounded-2xl border border-yellow-400/70 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-300 px-4 py-2.5 text-sm font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.85)] hover:brightness-110"
-              >
-                <a href="/neeko-plus">
-                  Upgrade to Neeko+ <ArrowRight className="ml-2 inline h-4 w-4" />
-                </a>
-              </Button>
-
+      {/* ================= SCREEN LEVEL CTA MODAL ================= */}
+      {showUpgrade &&
+        createPortal(
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+            <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-6 py-6 shadow-[0_0_80px_rgba(0,0,0,1)]">
               <button
-                onClick={() => setShowModal(false)}
-                className="rounded-2xl border border-neutral-700 bg-black/70 px-4 py-2.5 text-sm font-medium text-neutral-200 transition hover:border-neutral-500 hover:text-white"
+                onClick={() => setShowUpgrade(false)}
+                className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/70 bg-black/70 text-neutral-300"
               >
-                Maybe later
+                <X className="h-3.5 w-3.5" />
               </button>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-yellow-300" />
+                <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
+                  Neeko+ Upgrade
+                </span>
+              </div>
+
+              <h3 className="mt-3 text-xl font-semibold text-neutral-50">
+                Unlock full player analysis
+              </h3>
+
+              <p className="mt-2 text-xs text-neutral-300">
+                Get full access to player trends, consistency tools and premium
+                insights across the season.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3">
+                <Button
+                  asChild
+                  className="rounded-2xl bg-yellow-400 text-black hover:bg-yellow-300"
+                >
+                  <a href="/neeko-plus">
+                    Upgrade to Neeko+ <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+
+                <button
+                  onClick={() => setShowUpgrade(false)}
+                  className="rounded-2xl border border-neutral-700 bg-black/70 px-4 py-2.5 text-sm text-neutral-200"
+                >
+                  Maybe later
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
