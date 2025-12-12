@@ -8,16 +8,16 @@ import { PlayerRow, StatLens } from "./MasterTable";
 /* HELPERS                                                                    */
 /* -------------------------------------------------------------------------- */
 
+function cx(...parts: Array<string | false | undefined | null>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 function hitColour(pct: number) {
   if (pct < 10) return "bg-red-600";
   if (pct < 30) return "bg-orange-500";
   if (pct < 50) return "bg-yellow-400";
   if (pct < 80) return "bg-lime-400";
   return "bg-green-500";
-}
-
-function cx(...parts: Array<string | false | undefined | null>) {
-  return parts.filter(Boolean).join(" ");
 }
 
 function getRounds(player: PlayerRow, lens: StatLens) {
@@ -65,7 +65,10 @@ export default function MasterTableMobile({
   onSelectPlayer,
 }: {
   players: PlayerRow[];
-  statCfg: any;
+  statCfg: {
+    thresholds: readonly number[];
+    valueUnitShort: string;
+  };
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
   compactMode: boolean;
@@ -77,10 +80,25 @@ export default function MasterTableMobile({
 }) {
   return (
     <div className="mt-6">
-      {/* CONTROLS */}
+      {/* ================= HEADER ================= */}
       <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
-        {/* Lens */}
-        <div className="flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
+        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
+            Master Table
+          </span>
+        </div>
+
+        <h3 className="mt-3 text-lg font-semibold text-neutral-50">
+          Full-season player trends
+        </h3>
+
+        <p className="mt-1 text-xs text-neutral-400">
+          Season-wide output and hit-rate consistency.
+        </p>
+
+        {/* Lens selector */}
+        <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
           {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
             <button
               key={s}
@@ -97,7 +115,7 @@ export default function MasterTableMobile({
           ))}
         </div>
 
-        {/* Compact */}
+        {/* Compact toggle */}
         <div className="mt-3 flex items-center justify-between rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
           <span className="text-[11px] text-neutral-200">
             Compact leaderboard
@@ -128,7 +146,7 @@ export default function MasterTableMobile({
         </div>
       </div>
 
-      {/* LIST */}
+      {/* ================= PLAYER LIST ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         <div className="max-h-[520px] overflow-y-auto divide-y divide-neutral-800/80">
           {players.map((p, idx) => {
@@ -147,7 +165,7 @@ export default function MasterTableMobile({
                     : "active:bg-neutral-900/40"
                 )}
               >
-                {/* HEADER */}
+                {/* Player header */}
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[14px] font-semibold text-neutral-50">
@@ -171,9 +189,9 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* HIT RATES */}
+                {/* Hit rates */}
                 <div className="mt-4 grid grid-cols-5 gap-3">
-                  {statCfg.thresholds.map((t: number, i: number) => (
+                  {statCfg.thresholds.map((t, i) => (
                     <div key={t}>
                       <div className="text-[9px] text-neutral-500">{t}+</div>
                       <div className="mt-1 h-1.5 rounded bg-neutral-800">
