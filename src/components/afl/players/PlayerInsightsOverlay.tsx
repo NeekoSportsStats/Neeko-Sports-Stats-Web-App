@@ -4,7 +4,7 @@ import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                         PLAYER INSIGHTS OVERLAY (FINAL)                    */
+/*                         PLAYER INSIGHTS OVERLAY (PATCHED)                  */
 /* -------------------------------------------------------------------------- */
 
 export default function PlayerInsightsOverlay({
@@ -32,8 +32,8 @@ export default function PlayerInsightsOverlay({
   useEffect(() => {
     const prevBody = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     setMounted(true);
+
     return () => {
       document.body.style.overflow = prevBody;
     };
@@ -44,11 +44,8 @@ export default function PlayerInsightsOverlay({
   /* ---------------------------------------------------------------------- */
 
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const scrollable = scrollRef.current;
-    if (!scrollable) return;
-
-    // Only allow drag when scrolled to top (iOS strict behaviour)
-    if (scrollable.scrollTop > 0) return;
+    if (!scrollRef.current) return;
+    if (scrollRef.current.scrollTop > 0) return;
 
     draggingRef.current = true;
     startYRef.current = e.touches[0].clientY;
@@ -58,7 +55,6 @@ export default function PlayerInsightsOverlay({
     if (!draggingRef.current || !sheetRef.current) return;
 
     const dy = e.touches[0].clientY - startYRef.current;
-
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
       e.preventDefault();
@@ -95,10 +91,7 @@ export default function PlayerInsightsOverlay({
       className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-md"
       onClick={onClose}
     >
-      {/* ------------------------------------------------------------------ */}
-      {/*                         DESKTOP PANEL (RESTORED)                   */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* ================= DESKTOP PANEL (UNCHANGED) ================= */}
       <div
         className="
           hidden md:block fixed right-0 top-0 h-full w-[480px] z-[200]
@@ -109,8 +102,6 @@ export default function PlayerInsightsOverlay({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col h-full overflow-hidden">
-
-          {/* Header */}
           <div className="px-5 py-4 flex items-start justify-between border-b border-neutral-800/40">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
@@ -132,7 +123,6 @@ export default function PlayerInsightsOverlay({
             </button>
           </div>
 
-          {/* Stat Lens Pills */}
           <div className="px-5 py-3 flex items-center gap-2 border-b border-neutral-800/40 bg-black/40 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
@@ -149,17 +139,13 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/*                      MOBILE BOTTOM SHEET (UNCHANGED)               */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* ================= MOBILE BOTTOM SHEET (PATCHED) ================= */}
       <div
         className="flex h-full w-full items-end justify-center md:hidden"
         onClick={(e) => e.stopPropagation()}
@@ -169,8 +155,9 @@ export default function PlayerInsightsOverlay({
           className="
             w-full rounded-t-3xl border border-yellow-500/30
             bg-gradient-to-b from-neutral-950/98 to-black
-            px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]
+            shadow-[0_0_50px_rgba(250,204,21,0.7)]
             overscroll-contain
+            flex flex-col
           "
           style={{ height: "80vh", maxHeight: "80vh", touchAction: "none" }}
         >
@@ -179,14 +166,14 @@ export default function PlayerInsightsOverlay({
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
-            className="w-full pt-3 pb-4 flex items-center justify-center"
+            className="pt-3 pb-4 flex items-center justify-center"
             style={{ touchAction: "none" }}
           >
             <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
           </div>
 
           {/* Header */}
-          <div className="mb-4 flex items-start justify-between">
+          <div className="px-4 mb-3 flex items-start justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
                 Player Insights
@@ -207,15 +194,15 @@ export default function PlayerInsightsOverlay({
             </button>
           </div>
 
-          {/* Stat Pills */}
-          <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
+          {/* Stat Pills (tightened for mobile) */}
+          <div className="mx-4 mb-3 flex items-center gap-1.5 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[10.5px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
               <button
                 key={lens}
                 onClick={() => onLensChange(lens)}
-                className={`rounded-full px-3 py-1.5 ${
+                className={`rounded-full px-2.5 py-1 ${
                   selectedStat === lens
-                    ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
+                    ? "bg-yellow-400 text-black shadow-[0_0_14px_rgba(250,204,21,0.9)]"
                     : "bg-neutral-900/80 text-neutral-300"
                 }`}
               >
@@ -224,10 +211,14 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* Scrollable Content */}
+          {/* Scrollable Content — SAFE AREA FIX */}
           <div
             ref={scrollRef}
-            className="h-[calc(80vh-130px)] overflow-y-auto pb-3 overscroll-contain"
+            className="
+              flex-1 overflow-y-auto px-4
+              pb-[max(6rem,env(safe-area-inset-bottom))]
+              overscroll-contain
+            "
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
