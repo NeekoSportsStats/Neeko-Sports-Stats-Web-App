@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { createPortal } from "react-dom";
-import { Search, Lock, ChevronRight, X, ArrowRight } from "lucide-react";
+import { Search, Lock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -12,33 +11,22 @@ function cx(...parts: Array<string | false | undefined | null>) {
   return parts.filter(Boolean).join(" ");
 }
 
-function pctGradient(pct: number) {
-  if (pct < 30)
-    return "from-red-500/60 via-orange-500/60 to-amber-500/70";
-  if (pct < 60)
-    return "from-amber-500/60 via-yellow-400/70 to-yellow-300/70";
-  if (pct < 85)
-    return "from-yellow-400/80 via-yellow-300 to-yellow-200";
-  return "from-yellow-300 via-lime-300 to-emerald-400";
-}
-
 function getRounds(player: PlayerRow, lens: StatLens) {
   if (lens === "Fantasy") return player.roundsFantasy;
   if (lens === "Disposals") return player.roundsDisposals;
   return player.roundsGoals;
 }
 
-function hitRate(player: PlayerRow, lens: StatLens, threshold: number) {
-  const v = getRounds(player, lens);
-  const games = v.length || 1;
-  return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
-}
+/* -------------------------------------------------------------------------- */
+/* CONSTANTS                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const PAGE_SIZE = 10;
+const COLS = 6;
 
 /* -------------------------------------------------------------------------- */
 /* MOBILE MASTER TABLE                                                        */
 /* -------------------------------------------------------------------------- */
-
-const PAGE_SIZE = 10;
 
 export default function MasterTableMobile({
   players,
@@ -63,7 +51,6 @@ export default function MasterTableMobile({
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const filtered = isPremium
     ? players.filter((p) =>
@@ -89,7 +76,7 @@ export default function MasterTableMobile({
         </h3>
 
         <p className="mt-1 text-xs text-neutral-400">
-          Season-wide output and consistency.
+          Round-by-round production.
         </p>
 
         {/* Lens selector */}
@@ -137,16 +124,24 @@ export default function MasterTableMobile({
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         <div className="divide-y divide-neutral-800/80">
           {visiblePlayers.map((p, idx) => {
-            const consistency = hitRate(
-              p,
-              selectedStat,
-              statCfg.thresholds[1]
-            );
-            const ceiling = hitRate(
-              p,
-              selectedStat,
-              statCfg.thresholds[3]
-            );
+            const rounds = getRounds(p, selectedStat);
+
+            const sorted = [...rounds].sort((a, b) => a - b);
+            const lowCut = sorted[Math.floor(sorted.length * 0.2)];
+            const highCut = sorted[Math.floor(sorted.length * 0.8)];
+
+            const labeled = rounds.map((value, i) => ({
+              label: statCfg.thresholds ? i : i, // label not shown, kept stable
+              value,
+              isLow: value <= lowCut,
+              isHigh: value >= highCut,
+              isRecent: i >= rounds.length - 5,
+            }));
+
+            const rows: typeof labeled[] = [];
+            for (let i = 0; i < labeled.length; i += COLS) {
+              rows.push(labeled.slice(i, i + COLS));
+            }
 
             const blurred = !isPremium && idx >= 8;
 
@@ -161,6 +156,7 @@ export default function MasterTableMobile({
                     : "active:bg-neutral-900/40"
                 )}
               >
+                {/* Header */}
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="text-[14px] font-semibold text-neutral-50">
@@ -170,42 +166,31 @@ export default function MasterTableMobile({
                       {p.team} • {p.role}
                     </div>
                   </div>
-
                   <ChevronRight className="h-4 w-4 text-yellow-300 mt-1" />
                 </div>
 
-                {/* Consistency */}
-                <div className="mt-4">
-                  <div className="flex justify-between text-[11px] text-neutral-400">
-                    <span>Consistency</span>
-                    <span>{consistency}%</span>
-                  </div>
-                  <div className="mt-1 h-2 rounded-full bg-neutral-800">
-                    <div
-                      className={cx(
-                        "h-2 rounded-full bg-gradient-to-r",
-                        pctGradient(consistency)
-                      )}
-                      style={{ width: `${consistency}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Ceiling */}
-                <div className="mt-3">
-                  <div className="flex justify-between text-[11px] text-neutral-400">
-                    <span>Ceiling</span>
-                    <span>{ceiling}%</span>
-                  </div>
-                  <div className="mt-1 h-2 rounded-full bg-neutral-800">
-                    <div
-                      className={cx(
-                        "h-2 rounded-full bg-gradient-to-r",
-                        pctGradient(ceiling)
-                      )}
-                      style={{ width: `${ceiling}%` }}
-                    />
-                  </div>
+                {/* ROUND GRID */}
+                <div className="mt-4 space-y-2">
+                  {rows.map((row, rIdx) => (
+                    <div key={rIdx} className="grid grid-cols-6 gap-2 text-center">
+                      {row.map((cell, cIdx) => (
+                        <div
+                          key={cIdx}
+                          className={cx(
+                            "text-[12px] tabular-nums",
+                            cell.isHigh && "text-yellow-300",
+                            cell.isLow && "text-neutral-500",
+                            cell.isRecent && "font-semibold",
+                            !cell.isHigh &&
+                              !cell.isLow &&
+                              "text-neutral-200"
+                          )}
+                        >
+                          {cell.value}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </button>
             );
@@ -223,7 +208,7 @@ export default function MasterTableMobile({
             </div>
           )}
 
-          {/* PAYWALL CTA */}
+          {/* PAYWALL CTA (unchanged, modal handled elsewhere) */}
           {!isPremium && (
             <div className="px-4 py-6">
               <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/5 px-6 py-6 text-center">
@@ -231,66 +216,16 @@ export default function MasterTableMobile({
                   Unlock full player insights with Neeko+
                 </p>
                 <Button
-                  onClick={() => setShowUpgrade(true)}
+                  asChild
                   className="mt-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
                 >
-                  Get Neeko+
+                  <a href="/neeko-plus">Get Neeko+</a>
                 </Button>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* ================= SCREEN LEVEL CTA MODAL ================= */}
-      {showUpgrade &&
-        createPortal(
-          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
-            <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-6 py-6 shadow-[0_0_80px_rgba(0,0,0,1)]">
-              <button
-                onClick={() => setShowUpgrade(false)}
-                className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/70 bg-black/70 text-neutral-300"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-yellow-300" />
-                <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
-                  Neeko+ Upgrade
-                </span>
-              </div>
-
-              <h3 className="mt-3 text-xl font-semibold text-neutral-50">
-                Unlock full player analysis
-              </h3>
-
-              <p className="mt-2 text-xs text-neutral-300">
-                Get full access to player trends, consistency tools and premium
-                insights across the season.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-3">
-                <Button
-                  asChild
-                  className="rounded-2xl bg-yellow-400 text-black hover:bg-yellow-300"
-                >
-                  <a href="/neeko-plus">
-                    Upgrade to Neeko+ <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-
-                <button
-                  onClick={() => setShowUpgrade(false)}
-                  className="rounded-2xl border border-neutral-700 bg-black/70 px-4 py-2.5 text-sm text-neutral-200"
-                >
-                  Maybe later
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
     </div>
   );
 }
