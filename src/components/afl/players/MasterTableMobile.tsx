@@ -1,5 +1,7 @@
+// src/components/afl/players/MasterTableMobile.tsx
+
 import React, { useState } from "react";
-import { Search, Lock, ChevronRight, X } from "lucide-react";
+import { Search, Lock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -17,24 +19,26 @@ function getRounds(player: PlayerRow, lens: StatLens) {
   return player.roundsGoals;
 }
 
-function average(arr: number[]) {
-  if (!arr.length) return 0;
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
+function hitRate(player: PlayerRow, lens: StatLens, threshold: number) {
+  const v = getRounds(player, lens);
+  const games = v.length || 1;
+  return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
 }
 
-function hitRate(player: PlayerRow, lens: StatLens, threshold: number) {
-  const rounds = getRounds(player, lens);
-  const games = rounds.length || 1;
-  return Math.round(
-    (rounds.filter((v) => v >= threshold).length / games) * 100
-  );
+function avg(arr: number[]) {
+  return arr.reduce((a, b) => a + b, 0) / Math.max(arr.length, 1);
 }
+
+/* -------------------------------------------------------------------------- */
+/* CONSTANTS                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const PAGE_SIZE = 10;
+const ROUNDS_VISIBLE = 6;
 
 /* -------------------------------------------------------------------------- */
 /* MOBILE MASTER TABLE                                                        */
 /* -------------------------------------------------------------------------- */
-
-const PAGE_SIZE = 8;
 
 export default function MasterTableMobile({
   players,
@@ -59,7 +63,6 @@ export default function MasterTableMobile({
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [showPaywall, setShowPaywall] = useState(false);
 
   const filtered = isPremium
     ? players.filter((p) =>
@@ -71,7 +74,8 @@ export default function MasterTableMobile({
 
   return (
     <div className="mt-6">
-      {/* ================= HEADER ================= */}
+
+      {/* ================= HEADER (UNCHANGED) ================= */}
       <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
@@ -88,7 +92,6 @@ export default function MasterTableMobile({
           Round-by-round production.
         </p>
 
-        {/* Lens selector */}
         <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
           {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
             <button
@@ -106,7 +109,6 @@ export default function MasterTableMobile({
           ))}
         </div>
 
-        {/* Search */}
         <div className="mt-3">
           {isPremium ? (
             <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
@@ -132,25 +134,25 @@ export default function MasterTableMobile({
       {/* ================= PLAYER LIST ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         <div className="divide-y divide-neutral-800/80">
+
           {visiblePlayers.map((p, idx) => {
             const rounds = getRounds(p, selectedStat);
-            const avg = average(rounds);
-            const hit80 = hitRate(p, selectedStat, statCfg.thresholds[1]);
-            const hit90 = hitRate(p, selectedStat, statCfg.thresholds[2]);
-            const hit100 = hitRate(p, selectedStat, statCfg.thresholds[3]);
+            const avgScore = avg(rounds);
+
+            const hr80 = hitRate(p, selectedStat, 80);
+            const hr90 = hitRate(p, selectedStat, 90);
+            const hr100 = hitRate(p, selectedStat, 100);
 
             const blurred = !isPremium && idx >= 8;
 
             return (
               <button
                 key={p.id}
-                onClick={() =>
-                  blurred ? setShowPaywall(true) : onSelectPlayer(p)
-                }
+                onClick={() => !blurred && onSelectPlayer(p)}
                 className={cx(
                   "w-full text-left px-4 py-4",
                   blurred
-                    ? "blur-[3px] brightness-[0.6]"
+                    ? "blur-[3px] brightness-[0.6] pointer-events-none"
                     : "active:bg-neutral-900/40"
                 )}
               >
@@ -168,39 +170,45 @@ export default function MasterTableMobile({
                 </div>
 
                 {/* ROUND CAROUSEL */}
-                <div className="mt-4 overflow-x-auto">
-                  <div className="flex gap-4 min-w-max pr-4">
-                    {rounds.map((v, i) => (
+                <div className="mt-4 overflow-x-auto snap-x snap-mandatory">
+                  <div
+                    className="grid auto-cols-[48px] grid-flow-col gap-2"
+                    style={{ scrollSnapType: "x mandatory" }}
+                  >
+                    {rounds.map((r, i) => (
                       <div
                         key={i}
-                        className={cx(
-                          "w-12 text-center text-sm",
-                          v >= statCfg.thresholds[2]
-                            ? "text-yellow-300 font-semibold"
-                            : "text-neutral-400"
-                        )}
+                        className="snap-start text-center text-sm font-medium"
                       >
-                        {v}
+                        <div
+                          className={cx(
+                            r >= statCfg.thresholds[1]
+                              ? "text-yellow-300"
+                              : "text-neutral-400"
+                          )}
+                        >
+                          {r}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* SUMMARY */}
-                <div className="mt-4 grid grid-cols-2 gap-y-2 text-[11px] text-neutral-400">
-                  <div>AVG</div>
-                  <div className="text-right text-neutral-200 font-medium">
-                    {avg.toFixed(1)}
-                  </div>
+                <div className="mt-3 grid grid-cols-2 gap-y-1 text-[11px]">
+                  <span className="text-neutral-400">AVG</span>
+                  <span className="text-right text-neutral-200">
+                    {avgScore.toFixed(1)}
+                  </span>
 
-                  <div>80+</div>
-                  <div className="text-right">{hit80}%</div>
+                  <span className="text-neutral-400">80+</span>
+                  <span className="text-right text-neutral-200">{hr80}%</span>
 
-                  <div>90+</div>
-                  <div className="text-right">{hit90}%</div>
+                  <span className="text-neutral-400">90+</span>
+                  <span className="text-right text-neutral-200">{hr90}%</span>
 
-                  <div>100+</div>
-                  <div className="text-right">{hit100}%</div>
+                  <span className="text-neutral-400">100+</span>
+                  <span className="text-right text-neutral-200">{hr100}%</span>
                 </div>
               </button>
             );
@@ -219,38 +227,6 @@ export default function MasterTableMobile({
           )}
         </div>
       </div>
-
-      {/* ================= PAYWALL MODAL ================= */}
-      {showPaywall && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
-          <div className="relative w-full max-w-sm rounded-3xl border border-yellow-500/40 bg-black px-6 py-6 text-center">
-            <button
-              onClick={() => setShowPaywall(false)}
-              className="absolute right-4 top-4 text-neutral-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <p className="text-sm text-neutral-200">
-              Unlock full player insights with Neeko+
-            </p>
-
-            <Button
-              asChild
-              className="mt-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
-            >
-              <a href="/neeko-plus">Upgrade to Neeko+</a>
-            </Button>
-
-            <button
-              onClick={() => setShowPaywall(false)}
-              className="mt-3 block w-full text-xs text-neutral-400"
-            >
-              Maybe later
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
