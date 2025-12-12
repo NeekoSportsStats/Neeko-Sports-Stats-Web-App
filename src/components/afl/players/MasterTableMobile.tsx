@@ -1,7 +1,7 @@
 // src/components/afl/players/MasterTableMobile.tsx
 
 import React, { useMemo } from "react";
-import { Search, Lock, ChevronRight, X } from "lucide-react";
+import { Search, Lock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlayerRow, StatLens } from "./MasterTable";
 
@@ -13,14 +13,6 @@ function cx(...parts: Array<string | false | undefined | null>) {
   return parts.filter(Boolean).join(" ");
 }
 
-function hitColour(pct: number) {
-  if (pct < 20) return "bg-red-500";
-  if (pct < 40) return "bg-orange-500";
-  if (pct < 60) return "bg-yellow-400";
-  if (pct < 80) return "bg-lime-400";
-  return "bg-green-500";
-}
-
 function getRounds(player: PlayerRow, lens: StatLens) {
   if (lens === "Fantasy") return player.roundsFantasy;
   if (lens === "Disposals") return player.roundsDisposals;
@@ -29,18 +21,16 @@ function getRounds(player: PlayerRow, lens: StatLens) {
 
 function computeSummary(player: PlayerRow, lens: StatLens) {
   const v = getRounds(player, lens);
+  const total = v.reduce((a, b) => a + b, 0);
   const min = Math.min(...v);
   const max = Math.max(...v);
-  const total = v.reduce((a, b) => a + b, 0);
-  const games = v.length;
-  const avg = total / games;
-  return { min, max, total, games, avg };
+  const avg = total / v.length;
+  return { total, min, max, avg, games: v.length };
 }
 
-function computeHitRate(player: PlayerRow, lens: StatLens, threshold: number) {
+function computeRate(player: PlayerRow, lens: StatLens, threshold: number) {
   const v = getRounds(player, lens);
-  const games = v.length || 1;
-  return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
+  return Math.round((v.filter((x) => x >= threshold).length / v.length) * 100);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -64,21 +54,28 @@ export default function MasterTableMobile({
   setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
-  /* ---------------- SORT + FILTER ---------------- */
+  /* ---------------------------------------------------------------------- */
+  /* SORT + FILTER                                                          */
+  /* ---------------------------------------------------------------------- */
 
   const processedPlayers = useMemo(() => {
-    const filtered = isPremium && query.trim()
-      ? players.filter((p) =>
-          p.name.toLowerCase().includes(query.toLowerCase())
-        )
-      : players;
+    let list = [...players];
 
-    return [...filtered].sort((a, b) => {
-      const ta = computeSummary(a, selectedStat).total;
-      const tb = computeSummary(b, selectedStat).total;
+    // Search (premium only)
+    if (isPremium && query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter((p) =>
+        `${p.name} ${p.team} ${p.role}`.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort by TOTAL (descending)
+    return list.sort((a, b) => {
+      const ta = getRounds(a, selectedStat).reduce((x, y) => x + y, 0);
+      const tb = getRounds(b, selectedStat).reduce((x, y) => x + y, 0);
       return tb - ta;
     });
-  }, [players, selectedStat, query, isPremium]);
+  }, [players, selectedStat, isPremium, query]);
 
   return (
     <div className="mt-6">
@@ -108,7 +105,7 @@ export default function MasterTableMobile({
               className={cx(
                 "rounded-full px-3 py-1.5 transition",
                 selectedStat === s
-                  ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.6)]"
+                  ? "bg-yellow-400 text-black"
                   : "bg-neutral-900 text-neutral-300"
               )}
             >
@@ -128,11 +125,6 @@ export default function MasterTableMobile({
                 placeholder="Search players…"
                 className="w-full bg-transparent text-[12px] text-neutral-200 placeholder:text-neutral-500 outline-none"
               />
-              {query && (
-                <button onClick={() => setQuery("")}>
-                  <X className="h-4 w-4 text-neutral-400" />
-                </button>
-              )}
             </div>
           ) : (
             <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/60 px-3 py-2">
@@ -150,16 +142,14 @@ export default function MasterTableMobile({
         <div className="max-h-[560px] overflow-y-auto divide-y divide-neutral-800/80">
           {processedPlayers.map((p, idx) => {
             const s = computeSummary(p, selectedStat);
-            const consistency = computeHitRate(
-              p,
-              selectedStat,
-              selectedStat === "Goals" ? 2 : selectedStat === "Disposals" ? 20 : 70
-            );
-            const ceiling = computeHitRate(
-              p,
-              selectedStat,
-              selectedStat === "Goals" ? 5 : selectedStat === "Disposals" ? 30 : 100
-            );
+            const consistency =
+              selectedStat === "Goals"
+                ? computeRate(p, selectedStat, 2)
+                : computeRate(p, selectedStat, 70);
+            const ceiling =
+              selectedStat === "Goals"
+                ? computeRate(p, selectedStat, 5)
+                : computeRate(p, selectedStat, 100);
 
             const blurred = !isPremium && idx >= 20;
 
@@ -168,7 +158,7 @@ export default function MasterTableMobile({
                 key={p.id}
                 onClick={() => !blurred && onSelectPlayer(p)}
                 className={cx(
-                  "w-full text-left px-4 py-3",
+                  "w-full text-left px-4 py-4",
                   blurred
                     ? "blur-[3px] brightness-[0.6] pointer-events-none"
                     : "active:bg-neutral-900/40"
@@ -198,27 +188,27 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Slim hit bars */}
-                <div className="mt-3 space-y-2">
+                {/* Bars */}
+                <div className="mt-4 space-y-3">
                   <div>
-                    <div className="text-[10px] text-neutral-500">
+                    <div className="mb-1 text-[11px] text-neutral-400">
                       Consistency
                     </div>
-                    <div className="h-1 rounded bg-neutral-800">
+                    <div className="h-2 rounded-full bg-neutral-800">
                       <div
-                        className={cx("h-1 rounded", hitColour(consistency))}
+                        className="h-2 rounded-full bg-emerald-400"
                         style={{ width: `${consistency}%` }}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[10px] text-neutral-500">
+                    <div className="mb-1 text-[11px] text-neutral-400">
                       Ceiling
                     </div>
-                    <div className="h-1 rounded bg-neutral-800">
+                    <div className="h-2 rounded-full bg-neutral-800">
                       <div
-                        className={cx("h-1 rounded", hitColour(ceiling))}
+                        className="h-2 rounded-full bg-lime-400"
                         style={{ width: `${ceiling}%` }}
                       />
                     </div>
@@ -228,15 +218,19 @@ export default function MasterTableMobile({
             );
           })}
 
+          {/* CTA */}
           {!isPremium && (
-            <div className="px-4 py-5 bg-black/80">
-              <div className="rounded-3xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-4 text-center">
+            <div className="px-4 py-6 bg-black/85">
+              <div className="rounded-3xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-5 text-center">
                 <p className="text-sm text-neutral-200">
-                  Unlock the full player list with Neeko+
+                  Unlock the full player list and filters with Neeko+
                 </p>
                 <div className="mt-4 flex justify-center">
-                  <Button className="rounded-full bg-yellow-400 text-black hover:bg-yellow-300">
-                    Get Neeko+
+                  <Button
+                    asChild
+                    className="rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-8"
+                  >
+                    <a href="/neeko-plus">Get Neeko+</a>
                   </Button>
                 </div>
               </div>
