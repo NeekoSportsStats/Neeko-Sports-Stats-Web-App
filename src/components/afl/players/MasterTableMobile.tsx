@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
 import { Search, Lock, ChevronRight } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -12,27 +11,23 @@ function cx(...parts: Array<string | false | undefined | null>) {
   return parts.filter(Boolean).join(" ");
 }
 
+function pctGradient(pct: number) {
+  if (pct < 30)
+    return "from-red-500/60 via-orange-500/60 to-amber-500/70";
+  if (pct < 60)
+    return "from-amber-500/60 via-yellow-400/70 to-yellow-300/70";
+  if (pct < 85)
+    return "from-yellow-400/80 via-yellow-300 to-yellow-200";
+  return "from-yellow-300 via-lime-300 to-emerald-400";
+}
+
 function getRounds(player: PlayerRow, lens: StatLens) {
   if (lens === "Fantasy") return player.roundsFantasy;
   if (lens === "Disposals") return player.roundsDisposals;
   return player.roundsGoals;
 }
 
-function computeSummary(player: PlayerRow, lens: StatLens) {
-  const v = getRounds(player, lens);
-  const min = Math.min(...v);
-  const max = Math.max(...v);
-  const total = v.reduce((a, b) => a + b, 0);
-  const games = v.length;
-  const avg = total / games;
-  return { min, max, total, games, avg };
-}
-
-function computeHitRate(
-  player: PlayerRow,
-  lens: StatLens,
-  threshold: number
-) {
+function hitRate(player: PlayerRow, lens: StatLens, threshold: number) {
   const v = getRounds(player, lens);
   const games = v.length || 1;
   return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
@@ -42,13 +37,13 @@ function computeHitRate(
 /* MOBILE MASTER TABLE                                                        */
 /* -------------------------------------------------------------------------- */
 
+const PAGE_SIZE = 10;
+
 export default function MasterTableMobile({
   players,
   statCfg,
   selectedStat,
   setSelectedStat,
-  compactMode,
-  setCompactMode,
   isPremium,
   query,
   setQuery,
@@ -61,13 +56,21 @@ export default function MasterTableMobile({
   };
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
-  compactMode: boolean;
-  setCompactMode: (v: boolean) => void;
   isPremium: boolean;
   query: string;
   setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const filtered = isPremium
+    ? players.filter((p) =>
+        p.name.toLowerCase().includes(query.toLowerCase())
+      )
+    : players;
+
+  const visiblePlayers = filtered.slice(0, visibleCount);
+
   return (
     <div className="mt-6">
       {/* ================= HEADER ================= */}
@@ -96,21 +99,13 @@ export default function MasterTableMobile({
               className={cx(
                 "rounded-full px-3 py-1.5",
                 selectedStat === s
-                  ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.6)]"
+                  ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
                   : "bg-neutral-900 text-neutral-300"
               )}
             >
               {s}
             </button>
           ))}
-        </div>
-
-        {/* Compact toggle */}
-        <div className="mt-3 flex items-center justify-between rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
-          <span className="text-[11px] text-neutral-200">
-            Compact leaderboard
-          </span>
-          <Switch checked={compactMode} onCheckedChange={setCompactMode} />
         </div>
 
         {/* Search */}
@@ -138,12 +133,20 @@ export default function MasterTableMobile({
 
       {/* ================= PLAYER LIST ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        <div className="max-h-[520px] overflow-y-auto divide-y divide-neutral-800/80">
-          {players.map((p, idx) => {
-            const s = computeSummary(p, selectedStat);
-            const consistency = computeHitRate(p, selectedStat, statCfg.thresholds[1]);
-            const ceiling = computeHitRate(p, selectedStat, statCfg.thresholds[3]);
-            const blurred = !isPremium && idx >= 20;
+        <div className="divide-y divide-neutral-800/80">
+          {visiblePlayers.map((p, idx) => {
+            const consistency = hitRate(
+              p,
+              selectedStat,
+              statCfg.thresholds[1]
+            );
+            const ceiling = hitRate(
+              p,
+              selectedStat,
+              statCfg.thresholds[3]
+            );
+
+            const blurred = !isPremium && idx >= 8;
 
             return (
               <button
@@ -156,8 +159,7 @@ export default function MasterTableMobile({
                     : "active:bg-neutral-900/40"
                 )}
               >
-                {/* Header */}
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between">
                   <div>
                     <div className="text-[14px] font-semibold text-neutral-50">
                       {p.name}
@@ -167,27 +169,21 @@ export default function MasterTableMobile({
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="text-[12px] font-semibold text-yellow-200">
-                      AVG {s.avg.toFixed(1)} {statCfg.valueUnitShort}
-                    </div>
-                    <div className="text-[10px] text-neutral-400">
-                      {s.min}–{s.max} • {s.games} gms
-                    </div>
-                  </div>
-
                   <ChevronRight className="h-4 w-4 text-yellow-300 mt-1" />
                 </div>
 
                 {/* Consistency */}
                 <div className="mt-4">
-                  <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                  <div className="flex justify-between text-[11px] text-neutral-400">
                     <span>Consistency</span>
-                    <span className="text-yellow-200">{consistency}%</span>
+                    <span>{consistency}%</span>
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-neutral-800">
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500"
+                      className={cx(
+                        "h-2 rounded-full bg-gradient-to-r",
+                        pctGradient(consistency)
+                      )}
                       style={{ width: `${consistency}%` }}
                     />
                   </div>
@@ -195,13 +191,16 @@ export default function MasterTableMobile({
 
                 {/* Ceiling */}
                 <div className="mt-3">
-                  <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                  <div className="flex justify-between text-[11px] text-neutral-400">
                     <span>Ceiling</span>
-                    <span className="text-yellow-200">{ceiling}%</span>
+                    <span>{ceiling}%</span>
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-neutral-800">
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500"
+                      className={cx(
+                        "h-2 rounded-full bg-gradient-to-r",
+                        pctGradient(ceiling)
+                      )}
                       style={{ width: `${ceiling}%` }}
                     />
                   </div>
@@ -210,20 +209,31 @@ export default function MasterTableMobile({
             );
           })}
 
+          {/* SHOW MORE */}
+          {visibleCount < filtered.length && (
+            <div className="px-4 py-5 text-center">
+              <Button
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="rounded-full bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+              >
+                Show more players
+              </Button>
+            </div>
+          )}
+
+          {/* PAYWALL CTA */}
           {!isPremium && (
-            <div className="px-4 py-6 bg-black/80">
-              <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/5 px-5 py-5 text-center">
+            <div className="px-4 py-6">
+              <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/5 px-6 py-6 text-center">
                 <p className="text-sm text-neutral-200">
-                  Unlock the full player list with Neeko+
+                  Unlock full player insights with Neeko+
                 </p>
-                <div className="mt-4 flex justify-center">
-                  <Button
-                    asChild
-                    className="rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
-                  >
-                    <a href="/neeko-plus">Get Neeko+</a>
-                  </Button>
-                </div>
+                <Button
+                  asChild
+                  className="mt-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
+                >
+                  <a href="/neeko-plus">Get Neeko+</a>
+                </Button>
               </div>
             </div>
           )}
