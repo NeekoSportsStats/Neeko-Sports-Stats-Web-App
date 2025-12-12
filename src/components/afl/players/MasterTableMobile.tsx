@@ -1,5 +1,7 @@
+// src/components/afl/players/MasterTableMobile.tsx
+
 import React, { useMemo } from "react";
-import { Search, Lock, ChevronRight } from "lucide-react";
+import { Search, Lock, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlayerRow, StatLens } from "./MasterTable";
 
@@ -12,10 +14,11 @@ function cx(...parts: Array<string | false | undefined | null>) {
 }
 
 function hitColour(pct: number) {
-  if (pct < 30) return "bg-red-500";
-  if (pct < 50) return "bg-yellow-400";
+  if (pct < 20) return "bg-red-500";
+  if (pct < 40) return "bg-orange-500";
+  if (pct < 60) return "bg-yellow-400";
   if (pct < 80) return "bg-lime-400";
-  return "bg-emerald-500";
+  return "bg-green-500";
 }
 
 function getRounds(player: PlayerRow, lens: StatLens) {
@@ -34,25 +37,18 @@ function computeSummary(player: PlayerRow, lens: StatLens) {
   return { min, max, total, games, avg };
 }
 
-function computeHitRates(
-  player: PlayerRow,
-  lens: StatLens,
-  thresholds: readonly number[]
-) {
+function computeHitRate(player: PlayerRow, lens: StatLens, threshold: number) {
   const v = getRounds(player, lens);
   const games = v.length || 1;
-  return thresholds.map(
-    (t) => Math.round((v.filter((x) => x >= t).length / games) * 100)
-  );
+  return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
 }
 
 /* -------------------------------------------------------------------------- */
-/* MOBILE COMPONENT (PATCHED)                                                  */
+/* MOBILE COMPONENT                                                           */
 /* -------------------------------------------------------------------------- */
 
 export default function MasterTableMobile({
   players,
-  statCfg,
   selectedStat,
   setSelectedStat,
   isPremium,
@@ -61,10 +57,6 @@ export default function MasterTableMobile({
   onSelectPlayer,
 }: {
   players: PlayerRow[];
-  statCfg: {
-    thresholds: readonly number[];
-    valueUnitShort: string;
-  };
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
   isPremium: boolean;
@@ -72,33 +64,21 @@ export default function MasterTableMobile({
   setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
-  /* ---------------------------------------------------------------------- */
-  /* SORT + FILTER (PREMIUM SEARCH)                                          */
-  /* ---------------------------------------------------------------------- */
+  /* ---------------- SORT + FILTER ---------------- */
 
-  const filteredPlayers = useMemo(() => {
-    let list = [...players];
+  const processedPlayers = useMemo(() => {
+    const filtered = isPremium && query.trim()
+      ? players.filter((p) =>
+          p.name.toLowerCase().includes(query.toLowerCase())
+        )
+      : players;
 
-    // Sort by total DESC (season strength)
-    list.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const ta = computeSummary(a, selectedStat).total;
       const tb = computeSummary(b, selectedStat).total;
       return tb - ta;
     });
-
-    // Premium-only search
-    if (isPremium && query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.team.toLowerCase().includes(q) ||
-          p.role.toLowerCase().includes(q)
-      );
-    }
-
-    return list;
-  }, [players, selectedStat, isPremium, query]);
+  }, [players, selectedStat, query, isPremium]);
 
   return (
     <div className="mt-6">
@@ -128,7 +108,7 @@ export default function MasterTableMobile({
               className={cx(
                 "rounded-full px-3 py-1.5 transition",
                 selectedStat === s
-                  ? "bg-yellow-400 text-black"
+                  ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.6)]"
                   : "bg-neutral-900 text-neutral-300"
               )}
             >
@@ -148,9 +128,14 @@ export default function MasterTableMobile({
                 placeholder="Search players…"
                 className="w-full bg-transparent text-[12px] text-neutral-200 placeholder:text-neutral-500 outline-none"
               />
+              {query && (
+                <button onClick={() => setQuery("")}>
+                  <X className="h-4 w-4 text-neutral-400" />
+                </button>
+              )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/50 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/60 px-3 py-2">
               <Lock className="h-4 w-4 text-neutral-500" />
               <span className="text-[12px] text-neutral-500">
                 Search is Neeko+ only
@@ -162,10 +147,20 @@ export default function MasterTableMobile({
 
       {/* ================= PLAYER LIST ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        <div className="divide-y divide-neutral-800/60">
-          {filteredPlayers.map((p, idx) => {
+        <div className="max-h-[560px] overflow-y-auto divide-y divide-neutral-800/80">
+          {processedPlayers.map((p, idx) => {
             const s = computeSummary(p, selectedStat);
-            const hits = computeHitRates(p, selectedStat, statCfg.thresholds);
+            const consistency = computeHitRate(
+              p,
+              selectedStat,
+              selectedStat === "Goals" ? 2 : selectedStat === "Disposals" ? 20 : 70
+            );
+            const ceiling = computeHitRate(
+              p,
+              selectedStat,
+              selectedStat === "Goals" ? 5 : selectedStat === "Disposals" ? 30 : 100
+            );
+
             const blurred = !isPremium && idx >= 20;
 
             return (
@@ -179,7 +174,7 @@ export default function MasterTableMobile({
                     : "active:bg-neutral-900/40"
                 )}
               >
-                {/* Player header */}
+                {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[14px] font-semibold text-neutral-50">
@@ -193,7 +188,7 @@ export default function MasterTableMobile({
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <div className="text-[12px] font-semibold text-yellow-200">
-                        AVG {s.avg.toFixed(1)} {statCfg.valueUnitShort}
+                        AVG {s.avg.toFixed(1)}
                       </div>
                       <div className="text-[10px] text-neutral-400">
                         {s.min}–{s.max} • {s.games} gms
@@ -203,35 +198,28 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Consistency + Ceiling (mobile-optimised) */}
+                {/* Slim hit bars */}
                 <div className="mt-3 space-y-2">
-                  {/* Consistency */}
                   <div>
-                    <div className="text-[10px] text-neutral-400">
-                      Consistency ({statCfg.thresholds[1]}+)
+                    <div className="text-[10px] text-neutral-500">
+                      Consistency
                     </div>
-                    <div className="mt-1 h-1.5 rounded bg-neutral-800">
+                    <div className="h-1 rounded bg-neutral-800">
                       <div
-                        className={cx("h-1.5 rounded", hitColour(hits[1]))}
-                        style={{ width: `${hits[1]}%` }}
+                        className={cx("h-1 rounded", hitColour(consistency))}
+                        style={{ width: `${consistency}%` }}
                       />
                     </div>
                   </div>
 
-                  {/* Ceiling */}
                   <div>
-                    <div className="text-[10px] text-neutral-400">
-                      Ceiling ({statCfg.thresholds.at(-1)}+)
+                    <div className="text-[10px] text-neutral-500">
+                      Ceiling
                     </div>
-                    <div className="mt-1 h-1.5 rounded bg-neutral-800">
+                    <div className="h-1 rounded bg-neutral-800">
                       <div
-                        className={cx(
-                          "h-1.5 rounded",
-                          hitColour(hits[hits.length - 1])
-                        )}
-                        style={{
-                          width: `${hits[hits.length - 1]}%`,
-                        }}
+                        className={cx("h-1 rounded", hitColour(ceiling))}
+                        style={{ width: `${ceiling}%` }}
                       />
                     </div>
                   </div>
@@ -240,10 +228,9 @@ export default function MasterTableMobile({
             );
           })}
 
-          {/* PAYWALL CTA */}
           {!isPremium && (
-            <div className="px-4 py-6 bg-black/90">
-              <div className="rounded-3xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-5 text-center">
+            <div className="px-4 py-5 bg-black/80">
+              <div className="rounded-3xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-4 text-center">
                 <p className="text-sm text-neutral-200">
                   Unlock the full player list with Neeko+
                 </p>
