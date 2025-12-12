@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, Lock, ChevronRight } from "lucide-react";
+import { Search, Lock, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -17,16 +17,24 @@ function getRounds(player: PlayerRow, lens: StatLens) {
   return player.roundsGoals;
 }
 
-/* -------------------------------------------------------------------------- */
-/* CONSTANTS                                                                  */
-/* -------------------------------------------------------------------------- */
+function average(arr: number[]) {
+  if (!arr.length) return 0;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
 
-const PAGE_SIZE = 10;
-const COLS = 6;
+function hitRate(player: PlayerRow, lens: StatLens, threshold: number) {
+  const rounds = getRounds(player, lens);
+  const games = rounds.length || 1;
+  return Math.round(
+    (rounds.filter((v) => v >= threshold).length / games) * 100
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* MOBILE MASTER TABLE                                                        */
 /* -------------------------------------------------------------------------- */
+
+const PAGE_SIZE = 8;
 
 export default function MasterTableMobile({
   players,
@@ -51,6 +59,7 @@ export default function MasterTableMobile({
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const filtered = isPremium
     ? players.filter((p) =>
@@ -125,34 +134,23 @@ export default function MasterTableMobile({
         <div className="divide-y divide-neutral-800/80">
           {visiblePlayers.map((p, idx) => {
             const rounds = getRounds(p, selectedStat);
-
-            const sorted = [...rounds].sort((a, b) => a - b);
-            const lowCut = sorted[Math.floor(sorted.length * 0.2)];
-            const highCut = sorted[Math.floor(sorted.length * 0.8)];
-
-            const labeled = rounds.map((value, i) => ({
-              label: statCfg.thresholds ? i : i, // label not shown, kept stable
-              value,
-              isLow: value <= lowCut,
-              isHigh: value >= highCut,
-              isRecent: i >= rounds.length - 5,
-            }));
-
-            const rows: typeof labeled[] = [];
-            for (let i = 0; i < labeled.length; i += COLS) {
-              rows.push(labeled.slice(i, i + COLS));
-            }
+            const avg = average(rounds);
+            const hit80 = hitRate(p, selectedStat, statCfg.thresholds[1]);
+            const hit90 = hitRate(p, selectedStat, statCfg.thresholds[2]);
+            const hit100 = hitRate(p, selectedStat, statCfg.thresholds[3]);
 
             const blurred = !isPremium && idx >= 8;
 
             return (
               <button
                 key={p.id}
-                onClick={() => !blurred && onSelectPlayer(p)}
+                onClick={() =>
+                  blurred ? setShowPaywall(true) : onSelectPlayer(p)
+                }
                 className={cx(
                   "w-full text-left px-4 py-4",
                   blurred
-                    ? "blur-[3px] brightness-[0.6] pointer-events-none"
+                    ? "blur-[3px] brightness-[0.6]"
                     : "active:bg-neutral-900/40"
                 )}
               >
@@ -169,28 +167,40 @@ export default function MasterTableMobile({
                   <ChevronRight className="h-4 w-4 text-yellow-300 mt-1" />
                 </div>
 
-                {/* ROUND GRID */}
-                <div className="mt-4 space-y-2">
-                  {rows.map((row, rIdx) => (
-                    <div key={rIdx} className="grid grid-cols-6 gap-2 text-center">
-                      {row.map((cell, cIdx) => (
-                        <div
-                          key={cIdx}
-                          className={cx(
-                            "text-[12px] tabular-nums",
-                            cell.isHigh && "text-yellow-300",
-                            cell.isLow && "text-neutral-500",
-                            cell.isRecent && "font-semibold",
-                            !cell.isHigh &&
-                              !cell.isLow &&
-                              "text-neutral-200"
-                          )}
-                        >
-                          {cell.value}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                {/* ROUND CAROUSEL */}
+                <div className="mt-4 overflow-x-auto">
+                  <div className="flex gap-4 min-w-max pr-4">
+                    {rounds.map((v, i) => (
+                      <div
+                        key={i}
+                        className={cx(
+                          "w-12 text-center text-sm",
+                          v >= statCfg.thresholds[2]
+                            ? "text-yellow-300 font-semibold"
+                            : "text-neutral-400"
+                        )}
+                      >
+                        {v}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SUMMARY */}
+                <div className="mt-4 grid grid-cols-2 gap-y-2 text-[11px] text-neutral-400">
+                  <div>AVG</div>
+                  <div className="text-right text-neutral-200 font-medium">
+                    {avg.toFixed(1)}
+                  </div>
+
+                  <div>80+</div>
+                  <div className="text-right">{hit80}%</div>
+
+                  <div>90+</div>
+                  <div className="text-right">{hit90}%</div>
+
+                  <div>100+</div>
+                  <div className="text-right">{hit100}%</div>
                 </div>
               </button>
             );
@@ -207,25 +217,40 @@ export default function MasterTableMobile({
               </Button>
             </div>
           )}
-
-          {/* PAYWALL CTA (unchanged, modal handled elsewhere) */}
-          {!isPremium && (
-            <div className="px-4 py-6">
-              <div className="rounded-3xl border border-yellow-500/30 bg-yellow-500/5 px-6 py-6 text-center">
-                <p className="text-sm text-neutral-200">
-                  Unlock full player insights with Neeko+
-                </p>
-                <Button
-                  asChild
-                  className="mt-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
-                >
-                  <a href="/neeko-plus">Get Neeko+</a>
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* ================= PAYWALL MODAL ================= */}
+      {showPaywall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+          <div className="relative w-full max-w-sm rounded-3xl border border-yellow-500/40 bg-black px-6 py-6 text-center">
+            <button
+              onClick={() => setShowPaywall(false)}
+              className="absolute right-4 top-4 text-neutral-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <p className="text-sm text-neutral-200">
+              Unlock full player insights with Neeko+
+            </p>
+
+            <Button
+              asChild
+              className="mt-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-300 px-6"
+            >
+              <a href="/neeko-plus">Upgrade to Neeko+</a>
+            </Button>
+
+            <button
+              onClick={() => setShowPaywall(false)}
+              className="mt-3 block w-full text-xs text-neutral-400"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
