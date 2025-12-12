@@ -1,17 +1,23 @@
-// src/components/afl/players/MasterTableMobile.tsx
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import type { PlayerRow, StatLens } from "./MasterTable";
 
-import React, { useState } from "react";
-import { Search, Lock, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { PlayerRow, StatLens } from "./MasterTable";
+/* -------------------------------------------------------------------------- */
+/* CONFIG                                                                     */
+/* -------------------------------------------------------------------------- */
+
+const ROUND_LABELS = [
+  "OR",
+  "R1","R2","R3","R4","R5","R6","R7","R8","R9","R10","R11",
+  "R12","R13","R14","R15","R16","R17","R18","R19","R20","R21","R22","R23",
+];
+
+const VISIBLE_ROUNDS = 6;
+const CELL_WIDTH = 44; // px
 
 /* -------------------------------------------------------------------------- */
 /* HELPERS                                                                    */
 /* -------------------------------------------------------------------------- */
-
-function cx(...parts: Array<string | false | undefined | null>) {
-  return parts.filter(Boolean).join(" ");
-}
 
 function getRounds(player: PlayerRow, lens: StatLens) {
   if (lens === "Fantasy") return player.roundsFantasy;
@@ -19,12 +25,9 @@ function getRounds(player: PlayerRow, lens: StatLens) {
   return player.roundsGoals;
 }
 
-/* -------------------------------------------------------------------------- */
-/* CONSTANTS                                                                  */
-/* -------------------------------------------------------------------------- */
-
-const PAGE_SIZE = 10;
-const ROUNDS_VISIBLE = 6;
+function cx(...parts: Array<string | false | undefined | null>) {
+  return parts.filter(Boolean).join(" ");
+}
 
 /* -------------------------------------------------------------------------- */
 /* MOBILE MASTER TABLE                                                        */
@@ -33,160 +36,138 @@ const ROUNDS_VISIBLE = 6;
 export default function MasterTableMobile({
   players,
   selectedStat,
-  setSelectedStat,
-  isPremium,
-  query,
-  setQuery,
   onSelectPlayer,
 }: {
   players: PlayerRow[];
   selectedStat: StatLens;
-  setSelectedStat: (s: StatLens) => void;
-  isPremium: boolean;
-  query: string;
-  setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef<HTMLDivElement[]>([]);
+  const [windowStart, setWindowStart] = useState(0);
 
-  const filtered = isPremium
-    ? players.filter((p) =>
-        p.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : players;
+  /* ---------------------------------------------------------------------- */
+  /* SYNC SCROLL                                                             */
+  /* ---------------------------------------------------------------------- */
 
-  const visiblePlayers = filtered.slice(0, visibleCount);
+  const onScroll = () => {
+    if (!scrollRef.current) return;
+
+    const scrollLeft = scrollRef.current.scrollLeft;
+    const index = Math.round(scrollLeft / CELL_WIDTH);
+
+    setWindowStart(index);
+
+    rowRefs.current.forEach((row) => {
+      if (row && row !== scrollRef.current) {
+        row.scrollLeft = scrollLeft;
+      }
+    });
+  };
+
+  const windowEnd = Math.min(
+    windowStart + VISIBLE_ROUNDS - 1,
+    ROUND_LABELS.length - 1
+  );
+
+  /* ---------------------------------------------------------------------- */
+  /* RENDER                                                                  */
+  /* ---------------------------------------------------------------------- */
 
   return (
     <div className="mt-6">
 
       {/* ================= HEADER ================= */}
       <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
-        <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-          <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
-            Master Table
-          </span>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
+          Master Table
         </div>
 
-        <h3 className="mt-3 text-lg font-semibold text-neutral-50">
-          Full-season player tape
+        <h3 className="mt-2 text-lg font-semibold text-neutral-50">
+          Full-season player scores
         </h3>
 
-        <p className="mt-1 text-xs text-neutral-400">
-          Opening Round → Round 23
-        </p>
-
-        {/* Lens selector */}
-        <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
-          {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => setSelectedStat(s)}
-              className={cx(
-                "rounded-full px-3 py-1.5",
-                selectedStat === s
-                  ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
-                  : "bg-neutral-900 text-neutral-300"
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="mt-3">
-          {isPremium ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
-              <Search className="h-4 w-4 text-neutral-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search players…"
-                className="w-full bg-transparent text-[12px] text-neutral-200 placeholder:text-neutral-500 outline-none"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/60 px-3 py-2">
-              <Lock className="h-4 w-4 text-neutral-500" />
-              <span className="text-[12px] text-neutral-500">
-                Search is Neeko+ only
-              </span>
-            </div>
-          )}
+        <div className="mt-3 flex items-center justify-between text-[11px] text-neutral-400">
+          <span>Player</span>
+          <span>
+            Rounds {ROUND_LABELS[windowStart]}–{ROUND_LABELS[windowEnd]}
+          </span>
+          <span>Insights</span>
         </div>
       </div>
 
-      {/* ================= PLAYER LIST ================= */}
+      {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        <div className="divide-y divide-neutral-800/80">
 
-          {visiblePlayers.map((p, idx) => {
+        {/* ---------- ROUND LABEL STRIP (SYNCED) ---------- */}
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="sticky top-0 z-20 flex overflow-x-auto border-b border-neutral-800 bg-black/95"
+          style={{ scrollbarWidth: "none" }}
+        >
+          <div className="flex ml-[150px]">
+            {ROUND_LABELS.map((r) => (
+              <div
+                key={r}
+                className="flex items-center justify-center text-[10px] text-neutral-500"
+                style={{ width: CELL_WIDTH, minWidth: CELL_WIDTH }}
+              >
+                {r}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ---------- PLAYER ROWS ---------- */}
+        <div className="divide-y divide-neutral-800">
+          {players.map((p, idx) => {
             const rounds = getRounds(p, selectedStat);
-            const blurred = !isPremium && idx >= 8;
 
             return (
               <div
                 key={p.id}
-                className={cx(
-                  "px-4 py-4",
-                  blurred && "blur-[3px] brightness-[0.6] pointer-events-none"
-                )}
+                className="flex items-center px-3 py-3"
               >
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-[14px] font-semibold text-neutral-50">
-                      {p.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      {p.team} · {p.role}
-                    </div>
+                {/* LEFT: PLAYER */}
+                <div className="w-[140px] pr-2">
+                  <div className="text-[13px] font-semibold text-neutral-50 leading-tight">
+                    {p.name}
                   </div>
-
-                  <button
-                    onClick={() => !blurred && onSelectPlayer(p)}
-                    className="flex items-center gap-1 rounded-full border border-neutral-700 px-2.5 py-1 text-[11px] text-neutral-200 hover:border-yellow-400 hover:text-yellow-300"
-                  >
-                    Insights
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* ROUND CAROUSEL */}
-                <div className="mt-4 overflow-x-auto">
-                  <div
-                    className="grid auto-cols-[48px] grid-flow-col gap-2"
-                    style={{
-                      scrollSnapType: "x mandatory",
-                    }}
-                  >
-                    {rounds.map((r, i) => (
-                      <div
-                        key={i}
-                        className="snap-start text-center text-sm font-medium text-neutral-200"
-                      >
-                        {r}
-                      </div>
-                    ))}
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                    {p.team} • {p.role}
                   </div>
                 </div>
+
+                {/* MIDDLE: ROUNDS CAROUSEL */}
+                <div
+                  ref={(el) => {
+                    if (el) rowRefs.current[idx] = el;
+                  }}
+                  className="flex overflow-x-auto"
+                  style={{ scrollbarWidth: "none" }}
+                >
+                  {rounds.map((v, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-center text-[11px] text-neutral-200 tabular-nums"
+                      style={{ width: CELL_WIDTH, minWidth: CELL_WIDTH }}
+                    >
+                      {v}
+                    </div>
+                  ))}
+                </div>
+
+                {/* RIGHT: INSIGHTS */}
+                <button
+                  onClick={() => onSelectPlayer(p)}
+                  className="ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 hover:bg-neutral-800"
+                >
+                  <ChevronRight className="h-4 w-4 text-yellow-300" />
+                </button>
               </div>
             );
           })}
-
-          {/* SHOW MORE */}
-          {visibleCount < filtered.length && (
-            <div className="px-4 py-5 text-center">
-              <Button
-                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                className="rounded-full bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
-              >
-                Show more players
-              </Button>
-            </div>
-          )}
         </div>
       </div>
     </div>
