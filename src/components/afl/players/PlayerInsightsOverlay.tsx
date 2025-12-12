@@ -55,19 +55,19 @@ export default function InsightsContent({
     { label: "100+", value: 0.75 },
   ];
 
-  const visibleRates = showFullLadder ? hitRates : hitRates.slice(1, 3);
+  const visibleRates = showFullLadder ? hitRates : hitRates.slice(1, 4);
 
   /* ---------------------------------------------------------------------- */
   /*                                RENDER                                  */
   /* ---------------------------------------------------------------------- */
 
   return (
-    <div className="space-y-5 pb-12">
+    <div className="space-y-6 pb-16">
 
       {/* ------------------------------------------------------------------ */}
       {/* PLAYER PROFILE                                                      */}
       {/* ------------------------------------------------------------------ */}
-      <div className="rounded-xl border border-yellow-500/20 bg-black/60 px-4 py-3">
+      <div className="rounded-xl border border-yellow-500/25 bg-black/60 px-4 py-3">
         <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/70 mb-2">
           Player Profile
         </div>
@@ -84,23 +84,23 @@ export default function InsightsContent({
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* AI SUMMARY (CALLOUT)                                                 */}
+      {/* AI SUMMARY — PROMOTED                                               */}
       {/* ------------------------------------------------------------------ */}
-      <div className="rounded-xl border border-neutral-800 bg-gradient-to-b from-neutral-900 to-black px-4 py-4">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400 mb-1">
+      <div className="rounded-xl border border-yellow-500/20 bg-gradient-to-b from-neutral-900 to-black px-4 py-4 shadow-[0_0_25px_rgba(250,204,21,0.12)]">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/70 mb-1">
           AI Performance Summary
         </div>
-        <p className="text-sm text-neutral-200 leading-relaxed">
+        <p className="text-sm text-neutral-100 leading-relaxed">
           This player shows{" "}
           <span className="text-yellow-300 font-medium">high volatility</span>{" "}
           with a{" "}
-          <span className="text-yellow-300 font-medium">stable floor</span>{" "}
-          and periodic ceiling performances.
+          <span className="text-neutral-100 font-medium">stable scoring floor</span>{" "}
+          and periodic ceiling performances — best suited to aggressive matchups.
         </p>
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* RECENT FORM – MICRO BAR STRIP                                       */}
+      {/* RECENT FORM – CALM MICRO BARS                                       */}
       {/* ------------------------------------------------------------------ */}
       <div className="rounded-xl border border-neutral-800 bg-black/50 px-4 py-4">
         <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400 mb-2">
@@ -110,9 +110,9 @@ export default function InsightsContent({
           {last8.map((v, i) => (
             <div
               key={i}
-              className="flex-1 rounded-sm bg-gradient-to-t from-emerald-400 via-yellow-400 to-orange-400"
+              className="flex-1 rounded-sm bg-gradient-to-t from-yellow-500/70 to-yellow-300"
               style={{
-                height: `${Math.max(15, (v / max) * 100)}%`,
+                height: `${Math.max(18, (v / max) * 100)}%`,
                 opacity: 0.9,
               }}
             />
@@ -146,43 +146,47 @@ export default function InsightsContent({
           <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
             Volatility
           </div>
-          <div className="mt-1 text-emerald-300">{volatilityLabel}</div>
+          <div className="mt-1 text-neutral-200">{volatilityLabel}</div>
         </div>
 
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
             Total
           </div>
-          <div className="mt-1 text-neutral-200">{scores.reduce((a, b) => a + b, 0)}</div>
+          <div className="mt-1 text-neutral-200">
+            {scores.reduce((a, b) => a + b, 0)}
+          </div>
         </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* HIT RATE LADDER (COLLAPSIBLE)                                       */}
+      {/* HIT RATE LADDER — FINAL                                             */}
       {/* ------------------------------------------------------------------ */}
-      <div className="rounded-xl border border-neutral-800 bg-black/60 px-4 py-4">
+      <div className="rounded-xl border border-neutral-800 bg-black/60 px-4 py-4 pb-6">
         <div className="flex items-center justify-between mb-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
             Hit Rate Ladder
           </div>
           <button
             onClick={() => setShowFullLadder((v) => !v)}
-            className="text-[11px] text-yellow-300"
+            className="text-[11px] text-yellow-300 hover:underline"
           >
-            {showFullLadder ? "Collapse" : "Expand"}
+            {showFullLadder ? "Show less" : "Show more"}
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {visibleRates.map((r) => (
             <div key={r.label}>
               <div className="flex justify-between text-[11px] text-neutral-300 mb-1">
                 <span>{r.label}</span>
-                <span>{Math.round(r.value * 100)}%</span>
+                <span className="text-neutral-100 font-medium">
+                  {Math.round(r.value * 100)}%
+                </span>
               </div>
               <div className="h-2 rounded-full bg-neutral-800 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400"
+                  className="h-full rounded-full bg-gradient-to-r from-yellow-300 to-yellow-500"
                   style={{ width: `${r.value * 100}%` }}
                 />
               </div>
