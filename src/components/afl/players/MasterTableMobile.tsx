@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Search, Lock, ChevronRight, X } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { Search, Lock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -17,15 +17,17 @@ function getRounds(player: PlayerRow, lens: StatLens) {
   return player.roundsGoals;
 }
 
+const ROUND_LABELS = [
+  "OR","R1","R2","R3","R4","R5","R6","R7","R8","R9","R10","R11",
+  "R12","R13","R14","R15","R16","R17","R18","R19","R20","R21","R22","R23"
+];
+
 /* -------------------------------------------------------------------------- */
 /* MOBILE MASTER TABLE                                                        */
 /* -------------------------------------------------------------------------- */
 
-const PAGE_SIZE = 10;
-
 export default function MasterTableMobile({
   players,
-  statCfg,
   selectedStat,
   setSelectedStat,
   isPremium,
@@ -34,10 +36,6 @@ export default function MasterTableMobile({
   onSelectPlayer,
 }: {
   players: PlayerRow[];
-  statCfg: {
-    thresholds: readonly number[];
-    valueUnitShort: string;
-  };
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
   isPremium: boolean;
@@ -45,28 +43,29 @@ export default function MasterTableMobile({
   setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  /* ---------------- FLOATING CTA STATE ---------------- */
-
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [showCTA, setShowCTA] = useState(false);
-  const [pulseCTA, setPulseCTA] = useState(true);
+
+  /* ---------------------------------------------------------------------- */
+  /* CTA VISIBILITY (ONCE BLUR IS SEEN)                                      */
+  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    const onScroll = () => {
-      if (window.scrollY > 350) setShowCTA(true);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (!isPremium) {
+      setTimeout(() => setShowCTA(true), 600);
+    }
+  }, [isPremium]);
 
-  useEffect(() => {
-    if (!showCTA) return;
-    const t = setTimeout(() => setPulseCTA(false), 1600);
-    return () => clearTimeout(t);
-  }, [showCTA]);
+  const ctaText =
+    selectedStat === "Goals"
+      ? "Unlock full goal trends"
+      : selectedStat === "Disposals"
+      ? "Unlock full disposal trends"
+      : "Unlock full fantasy trends";
 
-  /* ---------------- FILTERING ---------------- */
+  /* ---------------------------------------------------------------------- */
+  /* FILTERED PLAYERS                                                        */
+  /* ---------------------------------------------------------------------- */
 
   const filtered = isPremium
     ? players.filter((p) =>
@@ -74,34 +73,22 @@ export default function MasterTableMobile({
       )
     : players;
 
-  const visiblePlayers = filtered.slice(0, visibleCount);
+  /* ---------------------------------------------------------------------- */
+  /* SHARED SCROLL HANDLER                                                   */
+  /* ---------------------------------------------------------------------- */
 
-  /* ---------------- CTA COPY ---------------- */
-
-  const ctaCopy: Record<StatLens, { title: string; body: string }> = {
-    Fantasy: {
-      title: "Unlock full fantasy intelligence",
-      body:
-        "Round-by-round scores, hit rates, volatility and AI projections.",
-    },
-    Disposals: {
-      title: "Unlock disposal trends",
-      body:
-        "Usage consistency, role stability and possession ceilings.",
-    },
-    Goals: {
-      title: "Unlock goal scoring insights",
-      body:
-        "Forward roles, scoring volatility and matchup signals.",
-    },
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
   };
 
   /* ---------------------------------------------------------------------- */
-  /* RENDER                                                                 */
+  /* RENDER                                                                  */
   /* ---------------------------------------------------------------------- */
 
   return (
-    <div className="relative mt-6">
+    <div className="mt-6 relative">
+
       {/* ================= HEADER ================= */}
       <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
@@ -112,16 +99,12 @@ export default function MasterTableMobile({
         </div>
 
         <h3 className="mt-3 text-lg font-semibold text-neutral-50">
-          Full-season player scores
+          Full-season player trends
         </h3>
 
-        <p className="mt-1 text-xs text-neutral-400">
-          Round-by-round production.
-        </p>
-
-        {/* Lens selector */}
-        <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
-          {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
+        {/* Lens */}
+        <div className="mt-4 flex gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
+          {(["Fantasy","Disposals","Goals"] as StatLens[]).map((s) => (
             <button
               key={s}
               onClick={() => setSelectedStat(s)}
@@ -146,7 +129,7 @@ export default function MasterTableMobile({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search players…"
-                className="w-full bg-transparent text-[12px] text-neutral-200 placeholder:text-neutral-500 outline-none"
+                className="w-full bg-transparent text-[12px] text-neutral-200 outline-none"
               />
             </div>
           ) : (
@@ -160,108 +143,90 @@ export default function MasterTableMobile({
         </div>
       </div>
 
-      {/* ================= PLAYER LIST ================= */}
-      <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        {visiblePlayers.map((p, idx) => {
+      {/* ================= ROUND HEADER ================= */}
+      <div className="sticky top-0 z-20 bg-black/95 border-b border-neutral-800">
+        <div
+          ref={scrollRef}
+          className="flex gap-4 px-4 py-2 overflow-x-auto no-scrollbar"
+        >
+          {ROUND_LABELS.map((r) => (
+            <div
+              key={r}
+              className="min-w-[44px] text-center text-[10px] uppercase tracking-[0.14em] text-neutral-400"
+            >
+              {r}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ================= PLAYER ROWS ================= */}
+      <div className="divide-y divide-neutral-800">
+        {filtered.map((p, idx) => {
           const rounds = getRounds(p, selectedStat);
           const blurred = !isPremium && idx >= 8;
 
           return (
-            <button
+            <div
               key={p.id}
-              onClick={() => !blurred && onSelectPlayer(p)}
               className={cx(
-                "w-full text-left px-4 py-4 border-b border-neutral-800",
-                blurred
-                  ? "relative overflow-hidden"
-                  : "active:bg-neutral-900/40"
+                "relative px-4 py-4",
+                blurred && "pointer-events-none"
               )}
             >
-              {/* Fake data blur */}
-              {blurred && (
-                <div className="absolute inset-0 backdrop-blur-xl bg-black/70" />
-              )}
-
-              <div className={cx(blurred && "blur-sm brightness-[0.7]")}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[14px] font-semibold text-neutral-50">
-                      {p.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      {p.team} • {p.role}
-                    </div>
+              {/* Player header */}
+              <div className="flex justify-between items-center mb-2">
+                <div>
+                  <div className="text-[14px] font-semibold text-neutral-50">
+                    {p.name}
                   </div>
-                  <ChevronRight className="h-4 w-4 text-yellow-300" />
-                </div>
-
-                {/* Rounds carousel */}
-                <div className="mt-3 overflow-x-auto">
-                  <div className="flex gap-4 min-w-max">
-                    {rounds.map((v, i) => (
-                      <div
-                        key={i}
-                        className="w-10 text-center text-[13px] text-neutral-200"
-                      >
-                        {v}
-                      </div>
-                    ))}
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                    {p.team} • {p.role}
                   </div>
                 </div>
+
+                <button
+                  onClick={() => onSelectPlayer(p)}
+                  disabled={blurred}
+                  className="text-[11px] text-yellow-300 flex items-center gap-1"
+                >
+                  Insights <ChevronRight className="h-3 w-3" />
+                </button>
               </div>
-            </button>
+
+              {/* Rounds carousel */}
+              <div
+                onScroll={onScroll}
+                className="flex gap-4 overflow-x-auto no-scrollbar"
+              >
+                {rounds.map((v, i) => (
+                  <div
+                    key={i}
+                    className="min-w-[44px] text-center text-[12px] text-neutral-200 tabular-nums"
+                  >
+                    {blurred ? Math.floor(Math.random() * 100) : v}
+                  </div>
+                ))}
+              </div>
+
+              {/* Blur overlay */}
+              {blurred && (
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-[6px]" />
+              )}
+            </div>
           );
         })}
-
-        {visibleCount < filtered.length && (
-          <div className="px-4 py-5 text-center">
-            <Button
-              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="rounded-full bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
-            >
-              Show more players
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* ================= FLOATING CTA ================= */}
       {!isPremium && showCTA && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-[260px]">
-          <div
-            className={cx(
-              "relative rounded-3xl border bg-gradient-to-br from-yellow-500/25 via-black to-black px-4 py-4 backdrop-blur-xl",
-              pulseCTA
-                ? "border-yellow-400/70 shadow-[0_0_45px_rgba(250,204,21,0.95)] animate-pulse"
-                : "border-yellow-400/40 shadow-[0_0_30px_rgba(250,204,21,0.6)]"
-            )}
+        <div className="fixed bottom-6 left-4 right-4 z-50 animate-[pulse_1.4s_ease-out_1]">
+          <Button
+            asChild
+            className="w-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-300 text-black shadow-[0_0_30px_rgba(250,204,21,0.8)]"
           >
-            <button
-              onClick={() => setShowCTA(false)}
-              className="absolute right-3 top-3 text-neutral-400 hover:text-white"
-            >
-              <X size={14} />
-            </button>
-
-            <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-300">
-              Neeko+
-            </div>
-
-            <div className="mt-1 text-sm font-semibold text-neutral-50">
-              {ctaCopy[selectedStat].title}
-            </div>
-
-            <p className="mt-1 text-xs text-neutral-300 leading-relaxed">
-              {ctaCopy[selectedStat].body}
-            </p>
-
-            <a
-              href="/neeko-plus"
-              className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-yellow-400 px-4 py-2 text-sm font-semibold text-black shadow-[0_0_25px_rgba(250,204,21,0.85)] hover:bg-yellow-300 transition"
-            >
-              Get Neeko+
-            </a>
-          </div>
+            <a href="/neeko-plus">{ctaText}</a>
+          </Button>
         </div>
       )}
     </div>
