@@ -19,16 +19,6 @@ function getRounds(player: PlayerRow, lens: StatLens) {
   return player.roundsGoals;
 }
 
-function hitRate(player: PlayerRow, lens: StatLens, threshold: number) {
-  const v = getRounds(player, lens);
-  const games = v.length || 1;
-  return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
-}
-
-function avg(arr: number[]) {
-  return arr.reduce((a, b) => a + b, 0) / Math.max(arr.length, 1);
-}
-
 /* -------------------------------------------------------------------------- */
 /* CONSTANTS                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -42,7 +32,6 @@ const ROUNDS_VISIBLE = 6;
 
 export default function MasterTableMobile({
   players,
-  statCfg,
   selectedStat,
   setSelectedStat,
   isPremium,
@@ -51,10 +40,6 @@ export default function MasterTableMobile({
   onSelectPlayer,
 }: {
   players: PlayerRow[];
-  statCfg: {
-    thresholds: readonly number[];
-    valueUnitShort: string;
-  };
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
   isPremium: boolean;
@@ -75,7 +60,7 @@ export default function MasterTableMobile({
   return (
     <div className="mt-6">
 
-      {/* ================= HEADER (UNCHANGED) ================= */}
+      {/* ================= HEADER ================= */}
       <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
@@ -85,13 +70,14 @@ export default function MasterTableMobile({
         </div>
 
         <h3 className="mt-3 text-lg font-semibold text-neutral-50">
-          Full-season player trends
+          Full-season player tape
         </h3>
 
         <p className="mt-1 text-xs text-neutral-400">
-          Round-by-round production.
+          Opening Round → Round 23
         </p>
 
+        {/* Lens selector */}
         <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
           {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
             <button
@@ -109,6 +95,7 @@ export default function MasterTableMobile({
           ))}
         </div>
 
+        {/* Search */}
         <div className="mt-3">
           {isPremium ? (
             <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
@@ -137,23 +124,14 @@ export default function MasterTableMobile({
 
           {visiblePlayers.map((p, idx) => {
             const rounds = getRounds(p, selectedStat);
-            const avgScore = avg(rounds);
-
-            const hr80 = hitRate(p, selectedStat, 80);
-            const hr90 = hitRate(p, selectedStat, 90);
-            const hr100 = hitRate(p, selectedStat, 100);
-
             const blurred = !isPremium && idx >= 8;
 
             return (
-              <button
+              <div
                 key={p.id}
-                onClick={() => !blurred && onSelectPlayer(p)}
                 className={cx(
-                  "w-full text-left px-4 py-4",
-                  blurred
-                    ? "blur-[3px] brightness-[0.6] pointer-events-none"
-                    : "active:bg-neutral-900/40"
+                  "px-4 py-4",
+                  blurred && "blur-[3px] brightness-[0.6] pointer-events-none"
                 )}
               >
                 {/* Header */}
@@ -163,54 +141,38 @@ export default function MasterTableMobile({
                       {p.name}
                     </div>
                     <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                      {p.team} • {p.role}
+                      {p.team} · {p.role}
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-yellow-300 mt-1" />
+
+                  <button
+                    onClick={() => !blurred && onSelectPlayer(p)}
+                    className="flex items-center gap-1 rounded-full border border-neutral-700 px-2.5 py-1 text-[11px] text-neutral-200 hover:border-yellow-400 hover:text-yellow-300"
+                  >
+                    Insights
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
                 </div>
 
                 {/* ROUND CAROUSEL */}
-                <div className="mt-4 overflow-x-auto snap-x snap-mandatory">
+                <div className="mt-4 overflow-x-auto">
                   <div
                     className="grid auto-cols-[48px] grid-flow-col gap-2"
-                    style={{ scrollSnapType: "x mandatory" }}
+                    style={{
+                      scrollSnapType: "x mandatory",
+                    }}
                   >
                     {rounds.map((r, i) => (
                       <div
                         key={i}
-                        className="snap-start text-center text-sm font-medium"
+                        className="snap-start text-center text-sm font-medium text-neutral-200"
                       >
-                        <div
-                          className={cx(
-                            r >= statCfg.thresholds[1]
-                              ? "text-yellow-300"
-                              : "text-neutral-400"
-                          )}
-                        >
-                          {r}
-                        </div>
+                        {r}
                       </div>
                     ))}
                   </div>
                 </div>
-
-                {/* SUMMARY */}
-                <div className="mt-3 grid grid-cols-2 gap-y-1 text-[11px]">
-                  <span className="text-neutral-400">AVG</span>
-                  <span className="text-right text-neutral-200">
-                    {avgScore.toFixed(1)}
-                  </span>
-
-                  <span className="text-neutral-400">80+</span>
-                  <span className="text-right text-neutral-200">{hr80}%</span>
-
-                  <span className="text-neutral-400">90+</span>
-                  <span className="text-right text-neutral-200">{hr90}%</span>
-
-                  <span className="text-neutral-400">100+</span>
-                  <span className="text-right text-neutral-200">{hr100}%</span>
-                </div>
-              </button>
+              </div>
             );
           })}
 
