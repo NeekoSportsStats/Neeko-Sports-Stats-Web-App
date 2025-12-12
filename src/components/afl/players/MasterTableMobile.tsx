@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Search, Lock, ChevronRight } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { PlayerRow, StatLens } from "./MasterTable";
 
@@ -13,10 +12,8 @@ function cx(...parts: Array<string | false | undefined | null>) {
 }
 
 function hitColour(pct: number) {
-  if (pct < 10) return "bg-red-600";
-  if (pct < 30) return "bg-orange-500";
-  if (pct < 50) return "bg-yellow-400";
-  if (pct < 80) return "bg-lime-400";
+  if (pct < 30) return "bg-red-500";
+  if (pct < 60) return "bg-yellow-400";
   return "bg-green-500";
 }
 
@@ -36,16 +33,10 @@ function computeSummary(player: PlayerRow, lens: StatLens) {
   return { min, max, total, games, avg };
 }
 
-function computeHitRates(
-  player: PlayerRow,
-  lens: StatLens,
-  thresholds: readonly number[]
-) {
+function computeHitRate(player: PlayerRow, lens: StatLens, threshold: number) {
   const v = getRounds(player, lens);
   const games = v.length || 1;
-  return thresholds.map(
-    (t) => Math.round((v.filter((x) => x >= t).length / games) * 100)
-  );
+  return Math.round((v.filter((x) => x >= threshold).length / games) * 100);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -57,8 +48,6 @@ export default function MasterTableMobile({
   statCfg,
   selectedStat,
   setSelectedStat,
-  compactMode,
-  setCompactMode,
   isPremium,
   query,
   setQuery,
@@ -71,13 +60,38 @@ export default function MasterTableMobile({
   };
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
-  compactMode: boolean;
-  setCompactMode: (v: boolean) => void;
   isPremium: boolean;
   query: string;
   setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
+  /* ------------------------------------------------------------------------ */
+  /* FILTER + SORT (mobile-specific)                                           */
+  /* ------------------------------------------------------------------------ */
+
+  const filteredPlayers = useMemo(() => {
+    let list = players;
+
+    if (isPremium && query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter((p) =>
+        `${p.name} ${p.team} ${p.role}`.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort by TOTAL (desc)
+    return [...list].sort((a, b) => {
+      const ta = getRounds(a, selectedStat).reduce((x, y) => x + y, 0);
+      const tb = getRounds(b, selectedStat).reduce((x, y) => x + y, 0);
+      return tb - ta;
+    });
+  }, [players, selectedStat, query, isPremium]);
+
+  // Define mobile floor + ceiling thresholds
+  const floorThreshold = statCfg.thresholds[1]; // e.g. 70+
+  const ceilingThreshold =
+    statCfg.thresholds[statCfg.thresholds.length - 1]; // e.g. 100+
+
   return (
     <div className="mt-6">
       {/* ================= HEADER ================= */}
@@ -94,11 +108,11 @@ export default function MasterTableMobile({
         </h3>
 
         <p className="mt-1 text-xs text-neutral-400">
-          Season-wide output and hit-rate consistency.
+          Season-wide output and consistency.
         </p>
 
         {/* Lens selector */}
-        <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
+        <div className="mt-4 inline-flex gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
           {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
             <button
               key={s}
@@ -113,14 +127,6 @@ export default function MasterTableMobile({
               {s}
             </button>
           ))}
-        </div>
-
-        {/* Compact toggle */}
-        <div className="mt-3 flex items-center justify-between rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
-          <span className="text-[11px] text-neutral-200">
-            Compact leaderboard
-          </span>
-          <Switch checked={compactMode} onCheckedChange={setCompactMode} />
         </div>
 
         {/* Search */}
@@ -148,11 +154,21 @@ export default function MasterTableMobile({
 
       {/* ================= PLAYER LIST ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        <div className="max-h-[520px] overflow-y-auto divide-y divide-neutral-800/80">
-          {players.map((p, idx) => {
+        <div className="divide-y divide-neutral-800/80">
+          {filteredPlayers.map((p, idx) => {
             const s = computeSummary(p, selectedStat);
-            const hits = computeHitRates(p, selectedStat, statCfg.thresholds);
             const blurred = !isPremium && idx >= 20;
+
+            const floorPct = computeHitRate(
+              p,
+              selectedStat,
+              floorThreshold
+            );
+            const ceilingPct = computeHitRate(
+              p,
+              selectedStat,
+              ceilingThreshold
+            );
 
             return (
               <button
@@ -165,7 +181,7 @@ export default function MasterTableMobile({
                     : "active:bg-neutral-900/40"
                 )}
               >
-                {/* Player header */}
+                {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[14px] font-semibold text-neutral-50">
@@ -189,19 +205,43 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Hit rates */}
-                <div className="mt-4 grid grid-cols-5 gap-3">
-                  {statCfg.thresholds.map((t, i) => (
-                    <div key={t}>
-                      <div className="text-[9px] text-neutral-500">{t}+</div>
-                      <div className="mt-1 h-1.5 rounded bg-neutral-800">
-                        <div
-                          className={cx("h-1.5 rounded", hitColour(hits[i]))}
-                          style={{ width: `${hits[i]}%` }}
-                        />
-                      </div>
+                {/* Mobile signal bars */}
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[9px] text-neutral-500">
+                      {floorThreshold}+ consistency
                     </div>
-                  ))}
+                    <div className="mt-1 h-1.5 rounded bg-neutral-800">
+                      <div
+                        className={cx(
+                          "h-1.5 rounded",
+                          hitColour(floorPct)
+                        )}
+                        style={{ width: `${floorPct}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[10px] text-neutral-300">
+                      {floorPct}%
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[9px] text-neutral-500">
+                      {ceilingThreshold}+ ceiling
+                    </div>
+                    <div className="mt-1 h-1.5 rounded bg-neutral-800">
+                      <div
+                        className={cx(
+                          "h-1.5 rounded",
+                          hitColour(ceilingPct)
+                        )}
+                        style={{ width: `${ceilingPct}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[10px] text-neutral-300">
+                      {ceilingPct}%
+                    </div>
+                  </div>
                 </div>
               </button>
             );
