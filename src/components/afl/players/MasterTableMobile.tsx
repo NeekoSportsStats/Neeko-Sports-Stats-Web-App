@@ -1,29 +1,26 @@
-import React, { useRef, useState, useEffect } from "react";
-import { Search, Lock, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useRef, useState } from "react";
+import { Lock, ChevronRight } from "lucide-react";
 import { PlayerRow, StatLens } from "./MasterTable";
+
+/* -------------------------------------------------------------------------- */
+/* CONFIG                                                                     */
+/* -------------------------------------------------------------------------- */
+
+const ROUNDS_VISIBLE = 6;
+const CELL_WIDTH = 48;
 
 /* -------------------------------------------------------------------------- */
 /* HELPERS                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function cx(...parts: Array<string | false | undefined | null>) {
-  return parts.filter(Boolean).join(" ");
-}
-
 function getRounds(player: PlayerRow, lens: StatLens) {
-  if (lens === "Fantasy") return player.roundsFantasy;
   if (lens === "Disposals") return player.roundsDisposals;
-  return player.roundsGoals;
+  if (lens === "Goals") return player.roundsGoals;
+  return player.roundsFantasy;
 }
-
-const ROUND_LABELS = [
-  "OR","R1","R2","R3","R4","R5","R6","R7","R8","R9","R10","R11",
-  "R12","R13","R14","R15","R16","R17","R18","R19","R20","R21","R22","R23"
-];
 
 /* -------------------------------------------------------------------------- */
-/* MOBILE MASTER TABLE                                                        */
+/* MAIN COMPONENT                                                             */
 /* -------------------------------------------------------------------------- */
 
 export default function MasterTableMobile({
@@ -31,66 +28,61 @@ export default function MasterTableMobile({
   selectedStat,
   setSelectedStat,
   isPremium,
-  query,
-  setQuery,
   onSelectPlayer,
 }: {
   players: PlayerRow[];
   selectedStat: StatLens;
   setSelectedStat: (s: StatLens) => void;
   isPremium: boolean;
-  query: string;
-  setQuery: (v: string) => void;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showCTA, setShowCTA] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [pulseCTA, setPulseCTA] = useState(true);
 
   /* ---------------------------------------------------------------------- */
-  /* CTA VISIBILITY (ONCE BLUR IS SEEN)                                      */
+  /* SYNC HEADER SCROLL                                                      */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    if (!isPremium) {
-      setTimeout(() => setShowCTA(true), 600);
-    }
-  }, [isPremium]);
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const sync = () => {
+      if (headerRef.current) {
+        headerRef.current.scrollLeft = el.scrollLeft;
+      }
+    };
+
+    el.addEventListener("scroll", sync);
+    return () => el.removeEventListener("scroll", sync);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setPulseCTA(false), 1600);
+    return () => clearTimeout(t);
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* CTA TEXT                                                                */
+  /* ---------------------------------------------------------------------- */
 
   const ctaText =
     selectedStat === "Goals"
-      ? "Unlock full goal trends"
+      ? "Unlock full goal scoring trends"
       : selectedStat === "Disposals"
       ? "Unlock full disposal trends"
       : "Unlock full fantasy trends";
-
-  /* ---------------------------------------------------------------------- */
-  /* FILTERED PLAYERS                                                        */
-  /* ---------------------------------------------------------------------- */
-
-  const filtered = isPremium
-    ? players.filter((p) =>
-        p.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : players;
-
-  /* ---------------------------------------------------------------------- */
-  /* SHARED SCROLL HANDLER                                                   */
-  /* ---------------------------------------------------------------------- */
-
-  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
-  };
 
   /* ---------------------------------------------------------------------- */
   /* RENDER                                                                  */
   /* ---------------------------------------------------------------------- */
 
   return (
-    <div className="mt-6 relative">
+    <div className="relative mt-6">
 
       {/* ================= HEADER ================= */}
-      <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
+      <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
           <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
@@ -102,131 +94,131 @@ export default function MasterTableMobile({
           Full-season player trends
         </h3>
 
-        {/* Lens */}
-        <div className="mt-4 flex gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
-          {(["Fantasy","Disposals","Goals"] as StatLens[]).map((s) => (
+        <p className="mt-1 text-xs text-neutral-400">
+          Round-by-round production.
+        </p>
+
+        {/* Filters */}
+        <div className="mt-4 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
+          {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
             <button
               key={s}
               onClick={() => setSelectedStat(s)}
-              className={cx(
-                "rounded-full px-3 py-1.5",
+              className={
                 selectedStat === s
-                  ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
-                  : "bg-neutral-900 text-neutral-300"
-              )}
+                  ? "rounded-full bg-yellow-400 px-3 py-1.5 text-black shadow-[0_0_14px_rgba(250,204,21,0.6)]"
+                  : "rounded-full bg-neutral-900 px-3 py-1.5 text-neutral-300"
+              }
             >
               {s}
             </button>
           ))}
         </div>
-
-        {/* Search */}
-        <div className="mt-3">
-          {isPremium ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
-              <Search className="h-4 w-4 text-neutral-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search players…"
-                className="w-full bg-transparent text-[12px] text-neutral-200 outline-none"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/60 px-3 py-2">
-              <Lock className="h-4 w-4 text-neutral-500" />
-              <span className="text-[12px] text-neutral-500">
-                Search is Neeko+ only
-              </span>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ================= ROUND HEADER ================= */}
-      <div className="sticky top-0 z-20 bg-black/95 border-b border-neutral-800">
-        <div
-          ref={scrollRef}
-          className="flex gap-4 px-4 py-2 overflow-x-auto no-scrollbar"
-        >
-          {ROUND_LABELS.map((r) => (
+      <div className="mt-4 rounded-t-3xl border border-neutral-800 bg-black/90 px-4 pt-3">
+        <div className="flex text-[10px] uppercase tracking-wider text-neutral-500">
+          <div className="w-[120px]">Player</div>
+
+          <div
+            ref={headerRef}
+            className="flex-1 overflow-hidden"
+          >
             <div
-              key={r}
-              className="min-w-[44px] text-center text-[10px] uppercase tracking-[0.14em] text-neutral-400"
+              className="flex"
+              style={{ width: CELL_WIDTH * 23 }}
             >
-              {r}
+              {Array.from({ length: 23 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="text-center"
+                  style={{ width: CELL_WIDTH }}
+                >
+                  {i === 0 ? "OR" : `R${i}`}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="w-[64px] text-right">Insights</div>
         </div>
       </div>
 
-      {/* ================= PLAYER ROWS ================= */}
-      <div className="divide-y divide-neutral-800">
-        {filtered.map((p, idx) => {
-          const rounds = getRounds(p, selectedStat);
-          const blurred = !isPremium && idx >= 8;
+      {/* ================= TABLE BODY ================= */}
+      <div className="rounded-b-3xl border border-neutral-800 bg-black/90 overflow-hidden">
+        <div
+          ref={scrollRef}
+          className="overflow-x-auto overscroll-x-contain"
+        >
+          <div style={{ minWidth: 120 + CELL_WIDTH * 23 + 64 }}>
+            {players.map((p, idx) => {
+              const rounds = getRounds(p, selectedStat);
+              const locked = !isPremium && idx >= 8;
 
-          return (
-            <div
-              key={p.id}
-              className={cx(
-                "relative px-4 py-4",
-                blurred && "pointer-events-none"
-              )}
-            >
-              {/* Player header */}
-              <div className="flex justify-between items-center mb-2">
-                <div>
-                  <div className="text-[14px] font-semibold text-neutral-50">
-                    {p.name}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                    {p.team} • {p.role}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onSelectPlayer(p)}
-                  disabled={blurred}
-                  className="text-[11px] text-yellow-300 flex items-center gap-1"
+              return (
+                <div
+                  key={p.id}
+                  className="relative flex items-center border-t border-neutral-800 px-4 py-3"
                 >
-                  Insights <ChevronRight className="h-3 w-3" />
-                </button>
-              </div>
-
-              {/* Rounds carousel */}
-              <div
-                onScroll={onScroll}
-                className="flex gap-4 overflow-x-auto no-scrollbar"
-              >
-                {rounds.map((v, i) => (
-                  <div
-                    key={i}
-                    className="min-w-[44px] text-center text-[12px] text-neutral-200 tabular-nums"
-                  >
-                    {blurred ? Math.floor(Math.random() * 100) : v}
+                  {/* Player */}
+                  <div className="w-[120px]">
+                    <div className="text-sm font-semibold text-neutral-50">
+                      {p.name}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+                      {p.team} • {p.role}
+                    </div>
                   </div>
-                ))}
-              </div>
 
-              {/* Blur overlay */}
-              {blurred && (
-                <div className="absolute inset-0 bg-black/50 backdrop-blur-[6px]" />
-              )}
-            </div>
-          );
-        })}
+                  {/* Rounds */}
+                  <div className="flex-1 flex">
+                    {rounds.map((v, i) => (
+                      <div
+                        key={i}
+                        className="text-center text-sm text-neutral-200"
+                        style={{ width: CELL_WIDTH }}
+                      >
+                        {v}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Insights */}
+                  <button
+                    onClick={() => !locked && onSelectPlayer(p)}
+                    className="w-[64px] text-right text-yellow-300 text-sm"
+                  >
+                    Insights <ChevronRight className="inline h-4 w-4" />
+                  </button>
+
+                  {/* LOCK OVERLAY */}
+                  {locked && (
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-2xl flex items-center justify-center">
+                      <Lock className="h-5 w-5 text-yellow-300" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ================= FLOATING CTA ================= */}
-      {!isPremium && showCTA && (
-        <div className="fixed bottom-6 left-4 right-4 z-50 animate-[pulse_1.4s_ease-out_1]">
-          <Button
-            asChild
-            className="w-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-300 text-black shadow-[0_0_30px_rgba(250,204,21,0.8)]"
+      {!isPremium && (
+        <div className="fixed bottom-20 left-4 right-4 z-50">
+          <a
+            href="/neeko-plus"
+            className={`
+              flex items-center justify-center rounded-full
+              bg-yellow-400 text-black font-semibold py-3
+              shadow-[0_0_28px_rgba(250,204,21,0.8)]
+              ${pulseCTA ? "animate-pulse" : ""}
+            `}
           >
-            <a href="/neeko-plus">{ctaText}</a>
-          </Button>
+            {ctaText}
+          </a>
         </div>
       )}
     </div>
