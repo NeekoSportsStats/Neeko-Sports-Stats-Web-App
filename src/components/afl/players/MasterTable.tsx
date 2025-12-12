@@ -31,30 +31,8 @@ export type PlayerRow = {
 /* -------------------------------------------------------------------------- */
 
 export const ROUND_LABELS = [
-  "OR",
-  "R1",
-  "R2",
-  "R3",
-  "R4",
-  "R5",
-  "R6",
-  "R7",
-  "R8",
-  "R9",
-  "R10",
-  "R11",
-  "R12",
-  "R13",
-  "R14",
-  "R15",
-  "R16",
-  "R17",
-  "R18",
-  "R19",
-  "R20",
-  "R21",
-  "R22",
-  "R23",
+  "OR","R1","R2","R3","R4","R5","R6","R7","R8","R9","R10","R11",
+  "R12","R13","R14","R15","R16","R17","R18","R19","R20","R21","R22","R23",
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -90,8 +68,8 @@ function buildMockPlayers(): PlayerRow[] {
       id: i,
       rank: i,
       name: `Player ${i}`,
-      team: ["CARL", "ESS", "COLL", "RICH", "GEEL", "NMFC"][i % 6],
-      role: ["MID", "RUC", "FWD", "DEF"][i % 4],
+      team: ["CARL","ESS","COLL","RICH","GEEL","NMFC"][i % 6],
+      role: ["MID","RUC","FWD","DEF"][i % 4],
       roundsFantasy: f,
       roundsDisposals: d,
       roundsGoals: g,
@@ -131,11 +109,7 @@ function computeHitRates(player: PlayerRow, lens: StatLens) {
   );
 }
 
-/**
- * Hit-rate colour: red (<10%) -> orange -> yellow -> lime -> green (100%)
- * We colour the BAR fill only (text stays neutral).
- */
-function hitFillClass(pct: number) {
+function hitFill(pct: number) {
   if (pct < 10) return "bg-red-600";
   if (pct < 30) return "bg-orange-500";
   if (pct < 50) return "bg-yellow-400";
@@ -162,56 +136,10 @@ export default function MasterTable() {
 
   return (
     <>
-      {/* HEADER */}
-      <div className="rounded-3xl border border-neutral-800 bg-black/90 px-5 py-4 shadow-xl">
-        <div className="flex flex-col gap-6 md:flex-row md:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-              <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
-                Master Table
-              </span>
-            </div>
-            <h3 className="mt-3 text-xl font-semibold text-neutral-50">
-              Full-season player trends
-            </h3>
-            <p className="mt-2 max-w-lg text-xs text-neutral-400">
-              Round-by-round production with season-wide hit-rate distributions.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 md:items-end">
-            <div className="flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
-              {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedStat(s)}
-                  className={`rounded-full px-3 py-1.5 ${
-                    selectedStat === s
-                      ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.8)]"
-                      : "bg-neutral-900 text-neutral-300"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            {/* Desktop compact toggle (unchanged placement) */}
-            <div className="hidden md:flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-3 py-1.5">
-              <Switch checked={compactMode} onCheckedChange={setCompactMode} />
-              <span className="text-[11px] text-neutral-200">
-                Compact leaderboard
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* DESKTOP TABLE */}
+      {/* ================= DESKTOP ONLY ================= */}
       <div className="mt-8 hidden md:block">
         <div className="overflow-hidden rounded-3xl border border-neutral-800 bg-black/90 shadow-xl">
-          <div className="relative max-h-[520px] overflow-y-auto">
+          <div className="relative max-h-[640px] overflow-y-auto">
             <div className="overflow-x-auto">
               <table className="min-w-full text-[11px]">
                 <thead className="sticky top-0 z-20 bg-neutral-950/95 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
@@ -248,7 +176,9 @@ export default function MasterTable() {
                             ? "blur-[3px] brightness-[0.6] pointer-events-none"
                             : "cursor-pointer"
                         }`}
-                        onClick={() => (!blurred ? setSelectedPlayer(p) : null)}
+                        onClick={() =>
+                          !blurred ? setSelectedPlayer(p) : null
+                        }
                       >
                         {/* LEFT */}
                         <td className="sticky left-0 z-10 bg-black/95 px-4 py-2">
@@ -278,92 +208,51 @@ export default function MasterTable() {
                             </td>
                           ))}
 
-                        {/* RIGHT KPI STRIP */}
+                        {/* RIGHT */}
                         <td className="sticky right-0 z-10 bg-black/95 px-4 py-2">
-                          {/* NORMAL MODE (shows range+games) */}
-                          {!compactMode ? (
-                            <div className="flex flex-col gap-1 text-right">
-                              <div className="text-[12px] font-semibold text-yellow-200">
-                                AVG {s.avg.toFixed(1)} {statCfg.valueUnitShort}
-                              </div>
+                          <div className="flex flex-col gap-1 text-right">
+                            <div className="text-[12px] font-semibold text-yellow-200">
+                              AVG {s.avg.toFixed(1)}{" "}
+                              {statCfg.valueUnitShort}
+                            </div>
+
+                            {!compactMode && (
                               <div className="text-[10px] text-neutral-400">
                                 {s.min}–{s.max} • {s.games} gms
                               </div>
+                            )}
 
-                              {/* HIT RATE STRIP (colour-coded) */}
-                              <div className="mt-1 flex flex-wrap justify-end gap-x-4 gap-y-1">
-                                {statCfg.thresholds.map((t, i) => (
-                                  <div key={t} className="flex items-center gap-1">
-                                    <span className="text-[9px] text-neutral-500">
-                                      {t}+
-                                    </span>
-                                    <div className="h-1.5 w-10 rounded bg-neutral-800">
-                                      <div
-                                        className={`h-1.5 rounded ${hitFillClass(
-                                          hits[i]
-                                        )}`}
-                                        style={{ width: `${hits[i]}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-[9px] text-neutral-300">
-                                      {hits[i]}%
-                                    </span>
+                            <div className="mt-1 flex flex-wrap justify-end gap-x-4 gap-y-1">
+                              {statCfg.thresholds.map((t, i) => (
+                                <div key={t} className="flex items-center gap-1">
+                                  <span className="text-[9px] text-neutral-500">
+                                    {t}+
+                                  </span>
+                                  <div className="h-1.5 w-10 rounded bg-neutral-800">
+                                    <div
+                                      className={`h-1.5 rounded ${hitFill(
+                                        hits[i]
+                                      )}`}
+                                      style={{ width: `${hits[i]}%` }}
+                                    />
                                   </div>
-                                ))}
-                              </div>
-
-                              <div className="mt-1 flex justify-end">
-                                <ChevronRight className="h-4 w-4 text-yellow-300" />
-                              </div>
+                                  <span className="text-[9px] text-neutral-300">
+                                    {hits[i]}%
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                          ) : (
-                            /* COMPACT MODE (leaderboard): AVG + hit-rate strip only */
-                            <div className="flex flex-col items-end justify-center gap-2 text-right">
-                              <div className="text-[12px] font-semibold text-yellow-200">
-                                AVG {s.avg.toFixed(1)} {statCfg.valueUnitShort}
-                              </div>
 
-                              {/* In compact, we deliberately remove min/max/total/games to keep it fast */}
-                              <div className="flex flex-wrap justify-end gap-x-5 gap-y-2">
-                                {statCfg.thresholds.map((t, i) => (
-                                  <div key={t} className="flex items-center gap-1.5">
-                                    <span className="text-[9px] text-neutral-500">
-                                      {t}+
-                                    </span>
-                                    {/* Slightly wider bars in compact for scanability */}
-                                    <div className="h-2 w-14 rounded bg-neutral-800">
-                                      <div
-                                        className={`h-2 rounded ${hitFillClass(
-                                          hits[i]
-                                        )}`}
-                                        style={{ width: `${hits[i]}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-[9px] text-neutral-300">
-                                      {hits[i]}%
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-
-                              <div className="flex justify-end">
-                                <ChevronRight className="h-4 w-4 text-yellow-300" />
-                              </div>
+                            <div className="mt-1 flex justify-end">
+                              <ChevronRight className="h-4 w-4 text-yellow-300" />
                             </div>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-
-              {/* Optional small note for compact mode (kept subtle) */}
-              {compactMode && (
-                <div className="border-t border-neutral-800 bg-black/80 px-4 py-2 text-[10px] text-neutral-500">
-                  Compact mode focuses on hit-rate distributions & averages. Click a player for full breakdown.
-                </div>
-              )}
             </div>
           </div>
         </div>
