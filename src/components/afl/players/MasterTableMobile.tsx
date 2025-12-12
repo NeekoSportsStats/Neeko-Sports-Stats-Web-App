@@ -17,59 +17,56 @@ function getRounds(player: PlayerRow, lens: StatLens) {
   return player.roundsGoals;
 }
 
-function roundLabels() {
-  // Opening Round + R1..R23
-  return ["OR", ...Array.from({ length: 23 }, (_, i) => `R${i + 1}`)];
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
 }
 
-// Deterministic pseudo-random (so fake numbers don't “shuffle” on re-render)
-function seededInt(seed: number) {
-  let t = seed + 0x6d2b79f5;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) % 1000;
-}
-
-function fakeScore(playerId: string | number, idx: number, lens: StatLens) {
-  const base =
-    lens === "Goals" ? 0 : lens === "Disposals" ? 10 : 35; // rough baselines
-  const spread =
-    lens === "Goals" ? 5 : lens === "Disposals" ? 20 : 70;
-
-  const n = seededInt(Number(String(playerId).split("").reduce((a, c) => a + c.charCodeAt(0), 0)) + idx * 97);
-  const v = base + (n % spread);
-  return lens === "Goals" ? Math.max(0, Math.round(v / 10)) : v;
-}
-
-function statCTA(selectedStat: StatLens) {
-  if (selectedStat === "Goals") {
-    return {
-      title: "Unlock full goals trends",
-      body: "See every round (OR–R23), matchup context and full player insights.",
-    };
+function roundLabels(count: number) {
+  // Expect OR + R1..R23 (24). If your data length differs, this still adapts safely.
+  const labels: string[] = [];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) labels.push("OR");
+    else labels.push(`R${i}`);
   }
-  if (selectedStat === "Disposals") {
-    return {
-      title: "Unlock full disposals trends",
-      body: "Compare round-by-round output across the full player list (OR–R23).",
-    };
-  }
-  return {
-    title: "Unlock full fantasy trends",
-    body: "See every round (OR–R23), hit-rate ladders and premium insights.",
-  };
+  return labels;
 }
+
+function statNoun(lens: StatLens) {
+  if (lens === "Fantasy") return "fantasy";
+  if (lens === "Disposals") return "disposal";
+  return "goal";
+}
+
+function statPlural(lens: StatLens) {
+  if (lens === "Fantasy") return "fantasy";
+  if (lens === "Disposals") return "disposals";
+  return "goals";
+}
+
+function genFakeSeries(seed: number, len: number) {
+  // deterministic-ish fake numbers (so it feels “real”, but still fake)
+  const out: number[] = [];
+  let x = (seed * 9301 + 49297) % 233280;
+  for (let i = 0; i < len; i++) {
+    x = (x * 9301 + 49297) % 233280;
+    const r = x / 233280;
+    // fantasy-like distribution (50–130). Works fine visually for disposals/goals too.
+    out.push(Math.round(50 + r * 80));
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* CONSTANTS                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const PAGE_SIZE = 12; // show more button increments
+const FREE_BLUR_START_INDEX = 8; // blur rows from index 8 onwards for free users
+const CTA_SHOW_AFTER_INDEX = 6; // show CTA once user has scrolled into list a bit
 
 /* -------------------------------------------------------------------------- */
 /* MOBILE MASTER TABLE                                                        */
 /* -------------------------------------------------------------------------- */
-
-const PAGE_SIZE = 12;
-
-// Layout constants (tuned for “~6 rounds visible” on mobile)
-const PLAYER_COL_W = 148; // px
-const INSIGHT_COL_W = 92; // px
-const CELL_W = 46; // px (6 cells ~ 276px)
 
 export default function MasterTableMobile({
   players,
@@ -95,45 +92,123 @@ export default function MasterTableMobile({
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // CTA modal + “pulse once”
-  const [showCtaModal, setShowCtaModal] = useState(false);
-  const [ctaPulse, setCtaPulse] = useState(!isPremium);
+  // Upgrade modal + CTA pop
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+  const [ctaPulse, setCtaPulse] = useState(false);
 
-  useEffect(() => {
-    // whenever user changes lens, do a gentle single pulse again (optional feel-good)
-    if (!isPremium) setCtaPulse(true);
-  }, [selectedStat, isPremium]);
+  // Shared horizontal scroll refs (KEEP THIS — this is what makes sync feel “perfect”)
+  const headerScrollRef = useRef<HTMLDivElement | null>(null);
+  const bodyScrollRef = useRef<HTMLDivElement | null>(null);
+  const isSyncingRef = useRef(false);
 
-  const labels = useMemo(() => roundLabels(), []);
-  const fullFiltered = useMemo(() => {
+  // Marker for when to show sticky CTA (so it doesn’t bounce / reflow)
+  const ctaMarkerRef = useRef<HTMLDivElement | null>(null);
+
+  const filtered = useMemo(() => {
     if (!isPremium) return players;
     const q = query.trim().toLowerCase();
     if (!q) return players;
     return players.filter((p) => p.name.toLowerCase().includes(q));
   }, [players, isPremium, query]);
 
-  const visiblePlayers = fullFiltered.slice(0, visibleCount);
+  const visiblePlayers = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  );
 
-  // Single shared horizontal scroll container ref (for potential future syncing / snapping)
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Determine rounds count (use first row as canonical; fall back to 24)
+  const roundsCount = useMemo(() => {
+    const base = filtered[0] ? getRounds(filtered[0], selectedStat) : [];
+    return base?.length ? base.length : 24;
+  }, [filtered, selectedStat]);
 
-  const ctaCopy = statCTA(selectedStat);
+  const labels = useMemo(() => roundLabels(roundsCount), [roundsCount]);
+
+  /* ---------------------------------------------------------------------- */
+  /* SCROLL SYNC (DON'T CHANGE THE FEEL)                                    */
+  /* ---------------------------------------------------------------------- */
+
+  useEffect(() => {
+    const headerEl = headerScrollRef.current;
+    const bodyEl = bodyScrollRef.current;
+    if (!headerEl || !bodyEl) return;
+
+    const onHeader = () => {
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
+      bodyEl.scrollLeft = headerEl.scrollLeft;
+      requestAnimationFrame(() => (isSyncingRef.current = false));
+    };
+
+    const onBody = () => {
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
+      headerEl.scrollLeft = bodyEl.scrollLeft;
+      requestAnimationFrame(() => (isSyncingRef.current = false));
+    };
+
+    headerEl.addEventListener("scroll", onHeader, { passive: true });
+    bodyEl.addEventListener("scroll", onBody, { passive: true });
+
+    return () => {
+      headerEl.removeEventListener("scroll", onHeader);
+      bodyEl.removeEventListener("scroll", onBody);
+    };
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* CTA SHOW/HIDE WITHOUT BOUNCE                                           */
+  /* ---------------------------------------------------------------------- */
+
+  useEffect(() => {
+    // Only relevant for free users
+    if (isPremium) {
+      setShowStickyCta(false);
+      return;
+    }
+
+    const marker = ctaMarkerRef.current;
+    if (!marker) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        // When marker is NOT visible, we’ve scrolled past it → show CTA
+        const shouldShow = !e.isIntersecting;
+        setShowStickyCta(shouldShow);
+
+        // pulse once on first show
+        if (shouldShow) {
+          setCtaPulse(true);
+          const t = window.setTimeout(() => setCtaPulse(false), 950);
+          return () => window.clearTimeout(t);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    obs.observe(marker);
+    return () => obs.disconnect();
+  }, [isPremium]);
+
+  const ctaText = useMemo(() => {
+    // "Unlock full fantasy trends" / "Unlock full goals trends"
+    return `Unlock full ${statPlural(selectedStat)} trends`;
+  }, [selectedStat]);
+
+  const openUpgrade = () => setShowUpgradeModal(true);
+
+  /* ---------------------------------------------------------------------- */
+  /* RENDER                                                                  */
+  /* ---------------------------------------------------------------------- */
 
   return (
     <div className="mt-6">
-      {/* ------------------------------ KEYFRAMES ------------------------------ */}
-      <style>{`
-        @keyframes neekoPulseOnce {
-          0%   { transform: translateY(10px) scale(0.98); opacity: 0; box-shadow: 0 0 0 rgba(250,204,21,0); }
-          40%  { transform: translateY(0px)  scale(1.00); opacity: 1; box-shadow: 0 0 34px rgba(250,204,21,0.55); }
-          100% { transform: translateY(0px)  scale(1.00); opacity: 1; box-shadow: 0 0 18px rgba(250,204,21,0.25); }
-        }
-      `}</style>
-
-      {/* ================= HEADER ================= */}
+      {/* ================= HEADER CARD ================= */}
       <div className="rounded-3xl border border-neutral-800 bg-black/90 px-4 py-4 shadow-xl">
         <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)]" />
           <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
             Master Table
           </span>
@@ -173,7 +248,7 @@ export default function MasterTableMobile({
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search players…"
+                placeholder={`Search players…`}
                 className="w-full bg-transparent text-[12px] text-neutral-200 placeholder:text-neutral-500 outline-none"
               />
             </div>
@@ -188,258 +263,304 @@ export default function MasterTableMobile({
         </div>
       </div>
 
-      {/* ================= TABLE (ONE shared horizontal scroll) ================= */}
+      {/* ================= TABLE WRAP ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        {/* ONE horizontal scroll container for header + ALL rows */}
-        <div
-          ref={scrollRef}
-          className="relative overflow-x-auto overscroll-x-contain"
-          style={{ WebkitOverflowScrolling: "touch" as any }}
-        >
-          {/* grid width: player col + 24 round cols + insight col */}
-          <div
-            className="min-w-full"
-            style={{
-              width: PLAYER_COL_W + labels.length * CELL_W + INSIGHT_COL_W,
-            }}
-          >
-            {/* ---------- Column header row (sticky top optional; kept simple) ---------- */}
-            <div
-              className="grid items-center border-b border-neutral-800/80 bg-black/95"
-              style={{
-                gridTemplateColumns: `${PLAYER_COL_W}px repeat(${labels.length}, ${CELL_W}px) ${INSIGHT_COL_W}px`,
-              }}
-            >
-              {/* Sticky Player header */}
-              <div
-                className="sticky left-0 z-20 px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-neutral-400 bg-black/95"
-                style={{ width: PLAYER_COL_W }}
-              >
+        {/* Column headers row */}
+        <div className="border-b border-neutral-800/80 bg-black/70">
+          <div className="grid grid-cols-[140px_1fr_92px] items-center">
+            {/* Left header */}
+            <div className="px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
                 Player
-              </div>
-
-              {/* Round labels */}
-              {labels.map((lab) => (
-                <div
-                  key={lab}
-                  className="px-1 py-3 text-center text-[11px] uppercase tracking-[0.14em] text-neutral-500"
-                >
-                  {lab}
-                </div>
-              ))}
-
-              {/* Sticky Insights header */}
-              <div
-                className="sticky right-0 z-20 px-3 py-3 text-right text-[11px] uppercase tracking-[0.18em] text-neutral-400 bg-black/95"
-                style={{ width: INSIGHT_COL_W }}
-              >
-                Insights
               </div>
             </div>
 
-            {/* ---------- Rows ---------- */}
-            <div className="divide-y divide-neutral-800/70">
+            {/* Middle header (shared scroller) */}
+            <div
+              ref={headerScrollRef}
+              className="overflow-x-auto scrollbar-none"
+            >
+              <div
+                className="grid gap-0"
+                style={{
+                  gridTemplateColumns: `repeat(${roundsCount}, minmax(44px, 44px))`,
+                }}
+              >
+                {labels.map((lab) => (
+                  <div
+                    key={lab}
+                    className="py-3 text-center text-[10px] uppercase tracking-[0.16em] text-neutral-500"
+                  >
+                    {lab}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right header */}
+            <div className="px-4 py-3 text-right">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                Insights
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="divide-y divide-neutral-800/70">
+          {/* marker used to show sticky CTA after user scrolls down a bit */}
+          <div ref={ctaMarkerRef} />
+
+          <div className="grid grid-cols-[140px_1fr_92px]">
+            {/* Left column (players) */}
+            <div>
               {visiblePlayers.map((p, idx) => {
-                const rounds = getRounds(p, selectedStat);
-                const blurred = !isPremium && idx >= 8;
+                const blurred = !isPremium && idx >= FREE_BLUR_START_INDEX;
 
                 return (
                   <div
                     key={p.id}
                     className={cx(
-                      "relative grid items-stretch",
-                      "bg-black/90"
+                      "px-4 py-4",
+                      blurred ? "opacity-100" : "opacity-100"
                     )}
-                    style={{
-                      gridTemplateColumns: `${PLAYER_COL_W}px repeat(${labels.length}, ${CELL_W}px) ${INSIGHT_COL_W}px`,
-                    }}
                   >
-                    {/* Sticky Player cell */}
-                    <div
-                      className={cx(
-                        "sticky left-0 z-10 bg-black/90 px-4 py-4",
-                        blurred && "opacity-90"
-                      )}
-                      style={{ width: PLAYER_COL_W }}
-                    >
-                      <div className="text-[14px] font-semibold text-neutral-50 leading-tight">
-                        {p.name}
-                      </div>
-                      <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                        {p.team} • {p.role}
-                      </div>
+                    <div className="text-[14px] font-semibold text-neutral-50 leading-tight">
+                      {p.name}
                     </div>
-
-                    {/* Round cells */}
-                    {labels.map((_, rIdx) => {
-                      const real = rounds?.[rIdx] ?? 0;
-                      const display = blurred
-                        ? fakeScore(p.id, rIdx, selectedStat)
-                        : real;
-
-                      return (
-                        <div
-                          key={`${p.id}-r-${rIdx}`}
-                          className={cx(
-                            "flex items-center justify-center px-1 py-4",
-                            "text-[14px] tabular-nums",
-                            blurred ? "text-neutral-400/70" : "text-neutral-200"
-                          )}
-                        >
-                          <span
-                            className={cx(
-                              blurred &&
-                                "blur-[10px] brightness-[0.45] contrast-[0.85] select-none"
-                            )}
-                          >
-                            {display}
-                          </span>
-                        </div>
-                      );
-                    })}
-
-                    {/* Sticky Insights cell */}
-                    <div
-                      className="sticky right-0 z-10 bg-black/90 px-3 py-4 flex items-center justify-end"
-                      style={{ width: INSIGHT_COL_W }}
-                    >
-                      <button
-                        onClick={() => {
-                          if (blurred) return;
-                          onSelectPlayer(p);
-                        }}
-                        className={cx(
-                          "inline-flex items-center gap-2 rounded-full px-3 py-2 text-[12px] transition",
-                          blurred
-                            ? "text-neutral-600 cursor-not-allowed"
-                            : "text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/10"
-                        )}
-                      >
-                        <span>Insights</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
+                    <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      {p.team} • {p.role}
                     </div>
-
-                    {/* Strong premium blur overlay (free users only, after index 8) */}
-                    {blurred && (
-                      <>
-                        {/* darken + blur the whole row slightly */}
-                        <div className="pointer-events-none absolute inset-0 z-[5] bg-black/40 backdrop-blur-[10px]" />
-                        {/* faint fake text texture so it feels “there”, but unreadable */}
-                        <div className="pointer-events-none absolute inset-0 z-[6] opacity-30 mix-blend-screen">
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(250,204,21,0.10),transparent_60%),radial-gradient(circle_at_80%_100%,rgba(250,204,21,0.08),transparent_55%)]" />
-                        </div>
-                      </>
-                    )}
                   </div>
                 );
               })}
+            </div>
 
-              {/* SHOW MORE */}
-              {visibleCount < fullFiltered.length && (
-                <div className="px-4 py-5 text-center">
-                  <Button
-                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                    className="rounded-full bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+            {/* Middle column (shared scroller for ALL rows) */}
+            <div
+              ref={bodyScrollRef}
+              className="overflow-x-auto scrollbar-none"
+            >
+              <div className="relative">
+                {visiblePlayers.map((p, idx) => {
+                  const series = getRounds(p, selectedStat);
+                  const blurred = !isPremium && idx >= FREE_BLUR_START_INDEX;
+
+                  const real = series.slice(0, roundsCount);
+                  const fake = blurred
+                    ? genFakeSeries(Number(p.id) || idx + 1, roundsCount)
+                    : [];
+
+                  return (
+                    <div
+                      key={`${p.id}-row`}
+                      className="relative"
+                      style={{ height: 64 }} // keep rows aligned across all 3 columns
+                    >
+                      {/* real numbers row */}
+                      <div
+                        className={cx(
+                          "grid items-center h-full",
+                          blurred && "opacity-0" // hide real values for free/blurred rows
+                        )}
+                        style={{
+                          gridTemplateColumns: `repeat(${roundsCount}, minmax(44px, 44px))`,
+                        }}
+                      >
+                        {real.map((v, i) => (
+                          <div
+                            key={`${p.id}-v-${i}`}
+                            className="text-center text-[14px] text-neutral-200"
+                          >
+                            {v}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* blurred overlay for free users */}
+                      {blurred && (
+                        <div className="absolute inset-0">
+                          {/* faint fake numbers behind blur */}
+                          <div
+                            className="grid items-center h-full opacity-[0.55]"
+                            style={{
+                              gridTemplateColumns: `repeat(${roundsCount}, minmax(44px, 44px))`,
+                            }}
+                          >
+                            {fake.map((v, i) => (
+                              <div
+                                key={`${p.id}-fake-${i}`}
+                                className="text-center text-[14px] text-yellow-200/60"
+                              >
+                                {v}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* blur plane */}
+                          <div className="absolute inset-0 bg-black/35 backdrop-blur-[10px]" />
+
+                          {/* subtle gold haze so it looks premium-locked */}
+                          <div className="pointer-events-none absolute inset-0 opacity-70 mix-blend-screen">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(250,204,21,0.20),transparent_55%),radial-gradient(circle_at_85%_100%,rgba(250,204,21,0.14),transparent_60%)]" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right column (Insights button) */}
+            <div>
+              {visiblePlayers.map((p, idx) => {
+                const blurred = !isPremium && idx >= FREE_BLUR_START_INDEX;
+
+                return (
+                  <div
+                    key={`${p.id}-insights`}
+                    className="px-4 py-4 flex items-center justify-end"
+                    style={{ height: 64 }}
                   >
-                    Show more players
-                  </Button>
-                </div>
-              )}
+                    <button
+                      onClick={() => {
+                        if (blurred) {
+                          openUpgrade();
+                          return;
+                        }
+                        onSelectPlayer(p);
+                      }}
+                      className={cx(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[12px] transition",
+                        blurred
+                          ? "text-neutral-500"
+                          : "text-yellow-200 hover:text-yellow-100"
+                      )}
+                    >
+                      <span>Insights</span>
+                      <ChevronRight
+                        className={cx(
+                          "h-4 w-4",
+                          blurred ? "text-neutral-600" : "text-yellow-300"
+                        )}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+          {/* SHOW MORE */}
+          {visibleCount < filtered.length && (
+            <div className="px-4 py-5 text-center">
+              <Button
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="rounded-full bg-neutral-800 text-neutral-200 hover:bg-neutral-700"
+              >
+                Show more players
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ================= FLOATING CTA (FREE USERS ONLY) ================= */}
-      {!isPremium && (
-        <>
-          <div className="fixed left-0 right-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+14px)]">
-            <button
-              type="button"
-              onClick={() => setShowCtaModal(true)}
-              onAnimationEnd={() => setCtaPulse(false)}
-              className={cx(
-                "w-full rounded-full border border-yellow-500/35",
-                "bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-300",
-                "text-black font-semibold py-3.5 shadow-[0_0_22px_rgba(250,204,21,0.35)]",
-                "active:scale-[0.99] transition",
-                ctaPulse && "will-change-transform"
-              )}
-              style={
-                ctaPulse
-                  ? {
-                      animation: "neekoPulseOnce 1.25s ease-out 1",
-                    }
-                  : undefined
-              }
-            >
-              {ctaCopy.title}
-            </button>
-          </div>
-
-          {/* CTA MODAL (AI-insights style) */}
-          {showCtaModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
-              <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-6 py-6 shadow-[0_0_80px_rgba(0,0,0,1)]">
-                <button
-                  onClick={() => setShowCtaModal(false)}
-                  className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full border border-neutral-700/70 bg-black/70 text-neutral-300 transition hover:border-neutral-500 hover:text-white"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-
-                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-500/5 to-transparent px-3 py-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
-                    Neeko+ Upgrade
-                  </span>
-                </div>
-
-                <h3 className="mt-3 text-xl font-semibold text-neutral-50">
-                  {ctaCopy.title}
-                </h3>
-
-                <p className="mt-2 text-xs text-neutral-300">
-                  {ctaCopy.body}
-                </p>
-
-                <ul className="mt-4 space-y-2 text-xs text-neutral-200">
-                  <li className="flex gap-2">
-                    <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
-                    <span>Full player list unlocked (no blur).</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
-                    <span>Search + filters for faster comparison.</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
-                    <span>Insights overlay with deeper breakdowns.</span>
-                  </li>
-                </ul>
-
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <a
-                    href="/neeko-plus"
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-yellow-400/70 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-300 px-4 py-2.5 text-sm font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.65)] transition hover:brightness-110"
-                  >
-                    Upgrade to Neeko+
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-
-                  <button
-                    onClick={() => setShowCtaModal(false)}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-neutral-700 bg-black/70 px-4 py-2.5 text-sm font-medium text-neutral-200 transition hover:border-neutral-500 hover:text-white"
-                  >
-                    Maybe later
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+      {/* ================= STICKY UPGRADE CTA (ON SCREEN) ================= */}
+      {!isPremium && showStickyCta && (
+        <div className="fixed left-0 right-0 bottom-0 z-50 px-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={openUpgrade}
+            className={cx(
+              "w-full rounded-[999px] border border-yellow-400/40",
+              "bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-300",
+              "px-5 py-4 text-[15px] font-semibold text-black",
+              "shadow-[0_0_35px_rgba(250,204,21,0.65)]",
+              "transition active:scale-[0.99]",
+              ctaPulse && "animate-[ctaPulse_0.9s_ease-out_1]"
+            )}
+          >
+            {ctaText}
+          </button>
+        </div>
       )}
+
+      {/* ================= UPGRADE MODAL (LIKE AI INSIGHTS) ================= */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md px-4">
+          <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-gradient-to-b from-neutral-950 via-black to-black px-6 py-6 shadow-[0_0_80px_rgba(0,0,0,1)]">
+            <button
+              onClick={() => setShowUpgradeModal(false)}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-neutral-700/70 bg-black/70 text-neutral-300 transition hover:border-neutral-500 hover:text-white"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-500/5 to-transparent px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
+                Neeko+ Upgrade
+              </span>
+            </div>
+
+            <h3 className="mt-3 text-xl font-semibold text-neutral-50">
+              Unlock full {statNoun(selectedStat)} analysis
+            </h3>
+
+            <p className="mt-2 text-xs text-neutral-300">
+              Neeko+ unlocks the full season table, player insights overlays,
+              advanced hit-rates, trend windows and premium forecasting across the
+              league.
+            </p>
+
+            <ul className="mt-4 space-y-2 text-xs text-neutral-200">
+              <li className="flex gap-2">
+                <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
+                <span>Full round-by-round access for every player.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
+                <span>Insights overlay + AI summaries for every lens.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-[5px] h-[4px] w-[4px] rounded-full bg-yellow-400" />
+                <span>Premium features as more sports launch.</span>
+              </li>
+            </ul>
+
+            <div className="mt-6 flex flex-col gap-3">
+              <a
+                href="/neeko-plus"
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-yellow-400/70 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-300 px-4 py-3 text-sm font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.85)] transition hover:brightness-110"
+              >
+                Upgrade to Neeko+
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-neutral-700 bg-black/70 px-4 py-3 text-sm font-medium text-neutral-200 transition hover:border-neutral-500 hover:text-white"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyframes for CTA pulse (one-time) */}
+      <style>{`
+        @keyframes ctaPulse {
+          0% { transform: scale(1); box-shadow: 0 0 0 rgba(250,204,21,0); }
+          35% { transform: scale(1.02); box-shadow: 0 0 55px rgba(250,204,21,0.85); }
+          100% { transform: scale(1); box-shadow: 0 0 35px rgba(250,204,21,0.65); }
+        }
+        /* hide scrollbar but keep scroll */
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 }
