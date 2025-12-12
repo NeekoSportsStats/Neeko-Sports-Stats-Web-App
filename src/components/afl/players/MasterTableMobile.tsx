@@ -479,7 +479,7 @@ export default function MasterTableMobile({
                             "text-[12px] font-medium",
                             "rounded-full px-2.5 py-1.5",
                             // move left a smidge vs hugging the scroll column
-                            "ml-1",
+                            "ml-2",
                             gated
                               ? "text-neutral-500 cursor-not-allowed"
                               : "text-yellow-200 hover:text-yellow-100 hover:bg-yellow-500/10"
