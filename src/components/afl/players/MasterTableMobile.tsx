@@ -195,8 +195,8 @@ export default function MasterTableMobile({
             <div
               className="absolute z-40 pointer-events-none"
               style={{
-                top: 8 * 64,
-                left: 0, // ✅ ONLY CHANGE: anchor at Player + OR (start of table)
+                top: 8 * 64 - 32, // ✅ ONLY CHANGE: move up by half a row
+                left: 0, // ✅ anchor at Player + OR (start of table)
                 right: 0,
                 height: 128,
               }}
