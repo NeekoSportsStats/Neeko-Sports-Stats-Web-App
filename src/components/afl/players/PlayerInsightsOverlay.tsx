@@ -46,6 +46,8 @@ export default function PlayerInsightsOverlay({
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const scrollable = scrollRef.current;
     if (!scrollable) return;
+
+    // only allow drag when scrolled to top
     if (scrollable.scrollTop > 0) return;
 
     draggingRef.current = true;
@@ -56,8 +58,10 @@ export default function PlayerInsightsOverlay({
     if (!draggingRef.current || !sheetRef.current) return;
 
     const dy = e.touches[0].clientY - startYRef.current;
+
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
+      // prevent page scroll ONLY while dragging
       e.preventDefault();
     }
   };
@@ -85,8 +89,11 @@ export default function PlayerInsightsOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[150] bg-black/70"
-      onClick={onClose}
+      className="fixed inset-0 z-[150] bg-black/60"
+      onClick={(e) => {
+        // ✅ PATCH: only close when clicking the backdrop itself (prevents iOS scroll/tap misfires)
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       {/* ------------------------------------------------------------------ */}
       {/* DESKTOP PANEL                                                       */}
@@ -117,6 +124,7 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -127,18 +135,19 @@ export default function PlayerInsightsOverlay({
               <button
                 key={lens}
                 onClick={() => onLensChange(lens)}
-                className={
+                className={`rounded-full px-3 py-1.5 ${
                   selectedStat === lens
-                    ? "rounded-full px-3 py-1.5 bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                    : "rounded-full px-3 py-1.5 bg-neutral-900 text-neutral-300 hover:bg-neutral-800"
-                }
+                    ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
+                    : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800"
+                }`}
               >
                 {lens}
               </button>
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-4 pb-16">
+          {/* ✅ PATCH: ensure scroll container can actually reach bottom */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 pb-10">
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
         </div>
@@ -155,13 +164,14 @@ export default function PlayerInsightsOverlay({
           ref={sheetRef}
           className="
             w-full rounded-t-3xl border border-yellow-500/30
-            bg-gradient-to-b from-neutral-950 to-black
-            px-4 pt-2 pb-4 shadow-[0_0_50px_rgba(250,204,21,0.7)]
+            bg-gradient-to-b from-neutral-950/98 to-black
+            px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]
             overscroll-contain
+            flex flex-col
           "
-          style={{ height: "85vh", maxHeight: "85vh" }}
+          style={{ height: "80vh", maxHeight: "80vh" }}
         >
-          {/* Drag handle */}
+          {/* Drag handle (touch events only here) */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
@@ -189,6 +199,7 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -200,22 +211,26 @@ export default function PlayerInsightsOverlay({
               <button
                 key={lens}
                 onClick={() => onLensChange(lens)}
-                className={
+                className={`rounded-full px-3 py-1.5 ${
                   selectedStat === lens
-                    ? "rounded-full px-3 py-1.5 bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                    : "rounded-full px-3 py-1.5 bg-neutral-900/80 text-neutral-300"
-                }
+                    ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
+                    : "bg-neutral-900/80 text-neutral-300"
+                }`}
               >
                 {lens}
               </button>
             ))}
           </div>
 
-          {/* Scrollable Content */}
+          {/* ✅ PATCH: true scroll area (flex-1 + min-h-0) + extra bottom padding (safe area) */}
           <div
             ref={scrollRef}
-            className="h-[calc(85vh-150px)] overflow-y-auto pb-20 overscroll-contain"
-            style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+              paddingBottom: "max(5rem, env(safe-area-inset-bottom))",
+            }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
