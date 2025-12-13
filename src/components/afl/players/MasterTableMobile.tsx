@@ -246,16 +246,16 @@ export default function MasterTableMobile({
                       ))}
                     </div>
 
-                    {/* Blur for gated rows */}
+                    {/* Blur for gated rows — moved behind CTA */}
                     {gated && (
-                      <div className="pointer-events-none absolute inset-0 z-20">
+                      <div className="absolute inset-0 z-10">
                         <div className="absolute inset-0 backdrop-blur-[16px]" />
                         <div className="absolute inset-0 bg-black/45" />
                       </div>
                     )}
 
-                    {/* CTA overlay (row 9, spans rows 9–10) */}
-                    {!isPremium && gated && idx === visiblePlayers.findIndex((_, i) => i >= 8) && (
+                    {/* CTA overlay — anchored to first gated row */}
+                    {!isPremium && idx === 8 && (
                       <div
                         className="absolute z-30 flex items-center justify-center"
                         style={{
