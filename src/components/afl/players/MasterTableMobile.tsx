@@ -164,6 +164,7 @@ export default function MasterTableMobile({
                   <div
                     key={p.id}
                     className="relative flex"
+                    style={{ width: tableWidth }}
                   >
                     {/* Player cell */}
                     <button
