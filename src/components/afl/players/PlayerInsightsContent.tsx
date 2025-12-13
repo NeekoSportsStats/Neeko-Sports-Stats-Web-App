@@ -16,12 +16,14 @@ import { STAT_CONFIG } from "./playerStatConfig";
 export default function PlayerInsightsContent({
   player,
   selectedStat,
+  isPremium, // ✅ ADDED (NO OTHER PROP CHANGES)
 }: {
   player: PlayerRow;
   selectedStat: StatLens;
+  isPremium: boolean; // ✅ ADDED
 }) {
   /* ------------------------------------------------------------------ */
-  /* HARD SAFETY GUARDS (prevents mobile Safari crash)                   */
+  /* HARD SAFETY GUARDS                                                  */
   /* ------------------------------------------------------------------ */
 
   if (!player || !selectedStat) {
@@ -49,7 +51,7 @@ export default function PlayerInsightsContent({
     summary = computeSummary(player, selectedStat);
     hitRates = computeHitRates(player, selectedStat) ?? [];
     rounds = getRoundsForLens(player, selectedStat) ?? [];
-  } catch (e) {
+  } catch {
     return (
       <div className="p-4 text-sm text-red-400">
         Failed to load player insights.
@@ -58,22 +60,33 @@ export default function PlayerInsightsContent({
   }
 
   /* ------------------------------------------------------------------ */
+  /* PREMIUM GATING CONSTANTS (SAFE)                                     */
+  /* ------------------------------------------------------------------ */
+
+  const FREE_ROUND_LIMIT = 5;
+  const FREE_HITRATE_LIMIT = 3;
+
+  const visibleRounds = isPremium
+    ? rounds
+    : rounds.slice(0, FREE_ROUND_LIMIT);
+
+  const visibleThresholds = isPremium
+    ? config.thresholds
+    : config.thresholds.slice(0, FREE_HITRATE_LIMIT);
+
+  /* ------------------------------------------------------------------ */
   /* DERIVED SAFE VALUES                                                 */
   /* ------------------------------------------------------------------ */
 
-  const avg = Number.isFinite(summary?.avg) ? summary.avg : 0;
-  const min = Number.isFinite(summary?.min) ? summary.min : 0;
-  const max = Number.isFinite(summary?.max) ? summary.max : 0;
-  const total = Number.isFinite(summary?.total) ? summary.total : 0;
-  const games = Number.isFinite(summary?.games) ? summary.games : rounds.length;
-  const vsLeague = Number.isFinite(summary?.vsLeague)
-    ? summary.vsLeague
-    : 0;
-  const percentile = Number.isFinite(summary?.percentile)
-    ? summary.percentile
-    : 50;
+  const avg = Number.isFinite(summary.avg) ? summary.avg : 0;
+  const min = Number.isFinite(summary.min) ? summary.min : 0;
+  const max = Number.isFinite(summary.max) ? summary.max : 0;
+  const total = Number.isFinite(summary.total) ? summary.total : 0;
+  const games = Number.isFinite(summary.games)
+    ? summary.games
+    : rounds.length;
 
-  const volatilityRange = Number.isFinite(summary?.volatilityRange)
+  const volatilityRange = Number.isFinite(summary.volatilityRange)
     ? summary.volatilityRange
     : 0;
 
@@ -90,10 +103,6 @@ export default function PlayerInsightsContent({
       : volatilityRange <= 14
       ? "text-amber-300"
       : "text-red-400";
-
-  /* ------------------------------------------------------------------ */
-  /* STATIC STYLE MAPS (NO DYNAMIC TAILWIND)                              */
-  /* ------------------------------------------------------------------ */
 
   const BADGE_CLASS: Record<StatLens, string> = {
     Fantasy: "border-yellow-500/40 text-yellow-300",
@@ -124,12 +133,11 @@ export default function PlayerInsightsContent({
 
         <div className="overflow-x-auto overscroll-contain">
           <div className="flex gap-2 pb-1">
-            {rounds.map((v, i) => (
+            {visibleRounds.map((v, i) => (
               <div key={i} className="flex min-w-[46px] flex-col items-center">
                 <span className="text-[9px] text-neutral-500">
                   {ROUND_LABELS[i] ?? ""}
                 </span>
-
                 <div className="mt-1 flex h-8 w-10 items-center justify-center rounded-md bg-neutral-950/80 text-neutral-100">
                   {v}
                 </div>
@@ -137,6 +145,12 @@ export default function PlayerInsightsContent({
             ))}
           </div>
         </div>
+
+        {!isPremium && (
+          <div className="mt-2 text-[10px] text-neutral-400">
+            Upgrade to Neeko+ to view all rounds
+          </div>
+        )}
       </div>
 
       {/* ================= SEASON SUMMARY ================= */}
@@ -145,10 +159,6 @@ export default function PlayerInsightsContent({
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Season summary — {config.label}
-            </div>
-            <div className="mt-1 text-xs text-neutral-300">
-              {vsLeague >= 0 ? "▲" : "▼"} {Math.abs(vsLeague).toFixed(1)} vs league
-              avg
             </div>
           </div>
 
@@ -165,13 +175,12 @@ export default function PlayerInsightsContent({
                 BADGE_CLASS[selectedStat]
               }`}
             >
-              Top {percentile}% {player.role ?? ""}
+              {player.role ?? ""}
             </div>
           </div>
         </div>
 
-        {/* ================= STATS GRID ================= */}
-        <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
+        <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Min
@@ -216,12 +225,7 @@ export default function PlayerInsightsContent({
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-yellow-200">
           AI performance summary
         </div>
-        <p>
-          {AI_LENS_INSIGHT[selectedStat]}{" "}
-          <span className="text-neutral-50 font-semibold">
-            ({volatilityLabel.toLowerCase()} volatility)
-          </span>
-        </p>
+        <p>{AI_LENS_INSIGHT[selectedStat]}</p>
       </div>
 
       {/* ================= HIT RATE LADDER ================= */}
@@ -230,13 +234,10 @@ export default function PlayerInsightsContent({
           <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-100">
             Hit-rate ladder
           </span>
-          <span className="rounded-full border border-yellow-500/40 bg-black/70 px-2 py-0.5 text-[9px] uppercase text-yellow-200">
-            {config.label}
-          </span>
         </div>
 
         <div className="mt-2 flex flex-col gap-1.5">
-          {config.thresholds.map((t, i) => {
+          {visibleThresholds.map((t, i) => {
             const rate = Number.isFinite(hitRates[i]) ? hitRates[i] : 0;
 
             return (
@@ -262,6 +263,12 @@ export default function PlayerInsightsContent({
             );
           })}
         </div>
+
+        {!isPremium && (
+          <div className="mt-3 text-center text-[10px] text-neutral-400">
+            Unlock full hit-rate breakdown with Neeko+
+          </div>
+        )}
       </div>
     </div>
   );
