@@ -255,7 +255,7 @@ export default function MasterTableMobile({
                     )}
 
                     {/* CTA overlay (row 9, spans rows 9–10) */}
-                    {!isPremium && idx === 8 && (
+                    {!isPremium && gated && idx === visiblePlayers.findIndex((_, i) => i >= 8) && (
                       <div
                         className="absolute z-30 flex items-center justify-center"
                         style={{
