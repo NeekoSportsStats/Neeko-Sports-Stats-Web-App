@@ -191,7 +191,6 @@ export default function MasterTableMobile({
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         <div className="relative">
           <div className="overflow-x-auto overflow-y-visible scrollbar-none relative">
-            {/* ================= CTA OVERLAY (FIXED & CLICKABLE) ================= */}
             {!isPremium && (
               <div
                 className="absolute z-40 pointer-events-none"
@@ -333,64 +332,61 @@ export default function MasterTableMobile({
           </button>
         </div>
       )}
-{/* ================= UPGRADE MODAL ================= */}
-{showUpgrade && (
-  <div className="fixed inset-0 z-[100]">
-    {/* Backdrop */}
-    <div
-      className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      onClick={() => setShowUpgrade(false)}
-    />
 
-    {/* Modal */}
-    <div className="absolute inset-x-0 bottom-0 mx-auto max-w-md px-4 pb-6">
-      <div className="rounded-3xl border border-yellow-500/30 bg-black/95 shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-300">
-              Neeko+
-            </div>
-            <div className="text-lg font-semibold text-neutral-50">
-              Unlock Master Table
+      {/* ================= UPGRADE MODAL ================= */}
+      {showUpgrade && (
+        <div className="fixed inset-0 z-[100]">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowUpgrade(false)}
+          />
+
+          <div className="fixed inset-0 z-[101] flex items-center justify-center px-4">
+            <div className="rounded-3xl border border-yellow-500/30 bg-black/95 shadow-2xl max-w-md w-full">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-300">
+                    Neeko+
+                  </div>
+                  <div className="text-lg font-semibold text-neutral-50">
+                    Unlock Master Table
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowUpgrade(false)}
+                  className="rounded-full p-2 text-neutral-400 hover:bg-neutral-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="px-5 py-5 space-y-4">
+                <ul className="space-y-3 text-sm text-neutral-300">
+                  <li>• Full season round-by-round stats</li>
+                  <li>• Team filtering & search</li>
+                  <li>• Player insights & AI analysis</li>
+                  <li>• Premium-only table interactions</li>
+                </ul>
+
+                <button
+                  className="mt-4 w-full rounded-2xl
+                             bg-gradient-to-r from-yellow-400 to-yellow-500
+                             py-3 text-sm font-semibold text-black
+                             shadow-[0_0_24px_rgba(250,204,21,0.6)]
+                             transition active:scale-[0.98]"
+                  onClick={() => {
+                    window.location.href = "/neeko-plus";
+                  }}
+                >
+                  Upgrade to Neeko+
+                </button>
+              </div>
             </div>
           </div>
-
-          <button
-            onClick={() => setShowUpgrade(false)}
-            className="rounded-full p-2 text-neutral-400 hover:bg-neutral-800"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
+      )}
 
-        {/* Content */}
-        <div className="px-5 py-5 space-y-4">
-          <ul className="space-y-3 text-sm text-neutral-300">
-            <li>• Full season round-by-round stats</li>
-            <li>• Team filtering & search</li>
-            <li>• Player insights & AI analysis</li>
-            <li>• Premium-only table interactions</li>
-          </ul>
-
-          <button
-            className="mt-4 w-full rounded-2xl
-                       bg-gradient-to-r from-yellow-400 to-yellow-500
-                       py-3 text-sm font-semibold text-black
-                       shadow-[0_0_24px_rgba(250,204,21,0.6)]
-                       transition active:scale-[0.98]"
-            onClick={() => {
-              // later: route to /neeko-plus or Stripe checkout
-              console.log("Upgrade clicked");
-            }}
-          >
-            Upgrade to Neeko+
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
       <style>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { scrollbar-width: none; }
