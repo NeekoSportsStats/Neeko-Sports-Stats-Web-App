@@ -256,7 +256,7 @@ export default function MasterTableMobile({
                 {gated && (
                   <div className="pointer-events-none absolute inset-0">
                     <div className="absolute inset-0 bg-black/35" />
-                    <div className="absolute inset-0 backdrop-blur-[10px]" />
+                    <div className="absolute inset-0 backdrop-blur-[12px]" />
                   </div>
                 )}
               </div>
