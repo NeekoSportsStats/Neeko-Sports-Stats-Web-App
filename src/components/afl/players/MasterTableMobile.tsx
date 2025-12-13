@@ -45,6 +45,9 @@ export default function MasterTableMobile({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  // ✅ ADDED — team filter state (no behaviour change yet)
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
+
   /* ---------------------------------------------------------------------- */
   /* FILTERING                                                               */
   /* ---------------------------------------------------------------------- */
@@ -102,6 +105,27 @@ export default function MasterTableMobile({
                 {s}
               </button>
             ))}
+
+            {/* ✅ ADDED — Team filter pill (locked for free users) */}
+            <button
+              onClick={() => {
+                if (!isPremium) {
+                  setShowUpgrade(true);
+                  return;
+                }
+                setTeamFilter("ALL");
+              }}
+              className={cx(
+                "rounded-full px-3 py-1.5 flex items-center gap-1 transition",
+                teamFilter
+                  ? "bg-neutral-700 text-neutral-100"
+                  : "bg-neutral-900 text-neutral-300",
+                !isPremium && "opacity-70"
+              )}
+            >
+              {!isPremium && <Lock className="h-3 w-3" />}
+              Team
+            </button>
           </div>
 
           {/* Search */}
@@ -137,7 +161,7 @@ export default function MasterTableMobile({
               <div
                 className="px-4 py-4 sticky left-0 z-20 bg-black/90"
                 style={{ width: LEFT_COL_W }}
-               >
+              >
                 <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
                   Player
                 </div>
@@ -164,10 +188,10 @@ export default function MasterTableMobile({
                 return (
                   <div key={p.id} className="relative flex" style={{ width: tableWidth }}>
                     <button
-                     disabled={gated}
-                     onClick={() => onSelectPlayer(p)}
-                     className="px-4 py-4 flex items-center justify-between text-left sticky left-0 z-10 bg-black/90"
-                     style={{ width: LEFT_COL_W }}
+                      disabled={gated}
+                      onClick={() => onSelectPlayer(p)}
+                      className="px-4 py-4 flex items-center justify-between text-left sticky left-0 z-10 bg-black/90"
+                      style={{ width: LEFT_COL_W }}
                     >
                       <span className="text-[15px] font-semibold text-neutral-50 whitespace-nowrap">
                         {p.name}
