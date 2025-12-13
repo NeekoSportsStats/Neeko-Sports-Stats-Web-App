@@ -122,6 +122,28 @@ export default function MasterTableMobile({
               </button>
             ))}
           </div>
+
+          {/* Search */}
+          <div className="mt-3">
+            {isPremium ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
+                <Search className="h-4 w-4 text-neutral-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search players…"
+                  className="w-full bg-transparent text-[12px] text-neutral-200 outline-none"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/60 px-3 py-2">
+                <Lock className="h-4 w-4 text-neutral-500" />
+                <span className="text-[12px] text-neutral-500">
+                  Search is Neeko+ only
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -140,7 +162,6 @@ export default function MasterTableMobile({
               ref={headerScrollRef}
               onScroll={(e) => syncAllTo(e.currentTarget.scrollLeft, -1)}
               className="overflow-x-auto scrollbar-none"
-              style={{ touchAction: "pan-x" }}
             >
               <div
                 className="flex px-2"
@@ -169,13 +190,20 @@ export default function MasterTableMobile({
             const gated = !isPremium && idx >= 8;
 
             return (
-              <div key={p.id} className="flex">
-                {/* Player cell */}
+              <div
+                key={p.id}
+                className={cx(
+                  "relative flex w-full items-stretch",
+                  gated ? "cursor-not-allowed" : "hover:bg-neutral-900/40"
+                )}
+              >
+                {/* Player column (tap only here) */}
                 <button
+                  type="button"
                   disabled={gated}
                   onClick={() => onSelectPlayer(p)}
                   className="shrink-0 px-4 py-4 flex items-center justify-between text-left"
-                  style={{ width: LEFT_COL_W, touchAction: "manipulation" }}
+                  style={{ width: LEFT_COL_W }}
                 >
                   <span className="text-[15px] font-semibold text-neutral-50">
                     {p.name}
@@ -185,7 +213,7 @@ export default function MasterTableMobile({
                   )}
                 </button>
 
-                {/* Scrollable rounds — THIS IS THE FIX */}
+                {/* Scrollable rounds */}
                 <div className="flex-1 min-w-0 py-3">
                   <div
                     ref={(el) => (rowScrollRefs.current[idx] = el)}
@@ -193,7 +221,6 @@ export default function MasterTableMobile({
                       syncAllTo(e.currentTarget.scrollLeft, idx)
                     }
                     className="overflow-x-auto scrollbar-none"
-                    style={{ touchAction: "pan-x" }}
                   >
                     <div
                       className="flex px-2"
@@ -216,7 +243,7 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Blur gate */}
+                {/* Blur gate (row-scoped, safe) */}
                 {gated && (
                   <div className="pointer-events-none absolute inset-0">
                     <div className="absolute inset-0 backdrop-blur-[16px]" />
@@ -228,6 +255,36 @@ export default function MasterTableMobile({
           })}
         </div>
       </div>
+
+      {/* ================= UPGRADE MODAL ================= */}
+      {showUpgrade && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
+          <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-black px-6 py-6">
+            <button
+              onClick={() => setShowUpgrade(false)}
+              className="absolute right-4 top-4"
+            >
+              <X className="h-4 w-4 text-neutral-400" />
+            </button>
+
+            <h3 className="text-xl font-semibold text-white">
+              Unlock full AFL AI analysis
+            </h3>
+
+            <p className="mt-2 text-xs text-neutral-300">
+              Full season tables, player insights & premium forecasting.
+            </p>
+
+            <a
+              href="/neeko-plus"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-black"
+            >
+              Upgrade to Neeko+
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
