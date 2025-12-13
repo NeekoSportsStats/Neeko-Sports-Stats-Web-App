@@ -129,7 +129,7 @@ export default function MasterTableMobile({
       {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         {/* SINGLE HORIZONTAL SCROLLER */}
-        <div className="overflow-x-auto scrollbar-none">
+        <div className="overflow-x-auto overflow-y-visible scrollbar-none">
           <div style={{ width: tableWidth }}>
             {/* Header row */}
             <div className="flex border-b border-neutral-800/80">
