@@ -142,7 +142,7 @@ export default function MasterTableMobile({
                 </div>
               </div>
 
-              <div className="flex gap-[10px] px-2">
+              <div className={STATS_ROW_CLASS}>
                 {ROUND_LABELS.map((r) => (
                   <div
                     key={r}
@@ -182,7 +182,7 @@ export default function MasterTableMobile({
                     </button>
 
                     {/* Stats */}
-                    <div className="flex gap-[10px] px-2 py-4">
+                    <div className={`${STATS_ROW_CLASS} py-4`}>
                       {ROUND_LABELS.map((_, i) => (
                         <div
                           key={i}
