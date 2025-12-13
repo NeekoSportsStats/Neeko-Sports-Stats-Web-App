@@ -11,8 +11,7 @@ import {
 import { STAT_CONFIG } from "./playerStatConfig";
 
 /**
- * Full insights content for players — used inside PlayerInsightsOverlay.
- * Sparkline intentionally DISABLED to prevent iOS Safari render crashes.
+ * Full insights content for players — MOBILE SAFE / NO SPARKLINE
  */
 export default function PlayerInsightsContent({
   player,
@@ -21,27 +20,82 @@ export default function PlayerInsightsContent({
   player: PlayerRow;
   selectedStat: StatLens;
 }) {
+  /* ------------------------------------------------------------------ */
+  /* HARD SAFETY GUARDS (prevents mobile Safari crash)                   */
+  /* ------------------------------------------------------------------ */
+
+  if (!player || !selectedStat) {
+    return (
+      <div className="p-4 text-sm text-neutral-400">
+        Player data unavailable.
+      </div>
+    );
+  }
+
   const config = STAT_CONFIG[selectedStat];
-  const summary = computeSummary(player, selectedStat);
-  const hitRates = computeHitRates(player, selectedStat);
-  const rounds = getRoundsForLens(player, selectedStat);
+  if (!config) {
+    return (
+      <div className="p-4 text-sm text-neutral-400">
+        Stat configuration unavailable.
+      </div>
+    );
+  }
+
+  let summary;
+  let hitRates: number[] = [];
+  let rounds: number[] = [];
+
+  try {
+    summary = computeSummary(player, selectedStat);
+    hitRates = computeHitRates(player, selectedStat) ?? [];
+    rounds = getRoundsForLens(player, selectedStat) ?? [];
+  } catch (e) {
+    return (
+      <div className="p-4 text-sm text-red-400">
+        Failed to load player insights.
+      </div>
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* DERIVED SAFE VALUES                                                 */
+  /* ------------------------------------------------------------------ */
+
+  const avg = Number.isFinite(summary?.avg) ? summary.avg : 0;
+  const min = Number.isFinite(summary?.min) ? summary.min : 0;
+  const max = Number.isFinite(summary?.max) ? summary.max : 0;
+  const total = Number.isFinite(summary?.total) ? summary.total : 0;
+  const games = Number.isFinite(summary?.games) ? summary.games : rounds.length;
+  const vsLeague = Number.isFinite(summary?.vsLeague)
+    ? summary.vsLeague
+    : 0;
+  const percentile = Number.isFinite(summary?.percentile)
+    ? summary.percentile
+    : 50;
+
+  const volatilityRange = Number.isFinite(summary?.volatilityRange)
+    ? summary.volatilityRange
+    : 0;
 
   const volatilityLabel =
-    summary.volatilityRange <= 8
+    volatilityRange <= 8
       ? "Low"
-      : summary.volatilityRange <= 14
+      : volatilityRange <= 14
       ? "Medium"
       : "High";
 
   const volatilityColor =
-    summary.volatilityRange <= 8
+    volatilityRange <= 8
       ? "text-teal-300"
-      : summary.volatilityRange <= 14
+      : volatilityRange <= 14
       ? "text-amber-300"
       : "text-red-400";
 
-  /* SAFE STATIC STYLE MAPS */
-  const LENS_BADGE_CLASS: Record<StatLens, string> = {
+  /* ------------------------------------------------------------------ */
+  /* STATIC STYLE MAPS (NO DYNAMIC TAILWIND)                              */
+  /* ------------------------------------------------------------------ */
+
+  const BADGE_CLASS: Record<StatLens, string> = {
     Fantasy: "border-yellow-500/40 text-yellow-300",
     Disposals: "border-teal-500/40 text-teal-300",
     Goals: "border-amber-500/40 text-amber-300",
@@ -49,16 +103,20 @@ export default function PlayerInsightsContent({
 
   const AI_LENS_INSIGHT: Record<StatLens, string> = {
     Fantasy:
-      "This player’s fantasy output is driven by ceiling games and matchup-sensitive scoring spikes.",
+      "Fantasy scoring shows ceiling-driven production with matchup-sensitive spikes.",
     Disposals:
-      "This player delivers reliable disposal volume with consistency across game tempo and opposition.",
+      "Disposal output is driven by consistency and involvement across game tempo.",
     Goals:
-      "This player’s goal scoring is swing-based, with clear ceiling games but lower floor reliability.",
+      "Goal scoring is volatile, with defined ceiling games but a lower floor.",
   };
 
+  /* ------------------------------------------------------------------ */
+  /* RENDER                                                              */
+  /* ------------------------------------------------------------------ */
+
   return (
-    <div className="flex h-full flex-col gap-4 text-[11px] text-neutral-200">
-      {/* ================= ROUND-BY-ROUND ================= */}
+    <div className="flex flex-col gap-4 text-[11px] text-neutral-200">
+      {/* ================= ROUND BY ROUND ================= */}
       <div>
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
           Round-by-round {config.label.toLowerCase()}
@@ -69,9 +127,10 @@ export default function PlayerInsightsContent({
             {rounds.map((v, i) => (
               <div key={i} className="flex min-w-[46px] flex-col items-center">
                 <span className="text-[9px] text-neutral-500">
-                  {ROUND_LABELS[i]}
+                  {ROUND_LABELS[i] ?? ""}
                 </span>
-                <div className="mt-1 flex h-8 w-10 items-center justify-center rounded-md bg-neutral-950/80 text-[11px] text-neutral-100">
+
+                <div className="mt-1 flex h-8 w-10 items-center justify-center rounded-md bg-neutral-950/80 text-neutral-100">
                   {v}
                 </div>
               </div>
@@ -82,13 +141,14 @@ export default function PlayerInsightsContent({
 
       {/* ================= SEASON SUMMARY ================= */}
       <div className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-900/95 to-black p-5 shadow-xl">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Season summary — {config.label}
             </div>
             <div className="mt-1 text-xs text-neutral-300">
-              ▲ {summary.vsLeague.toFixed(1)} vs league avg
+              {vsLeague >= 0 ? "▲" : "▼"} {Math.abs(vsLeague).toFixed(1)} vs league
+              avg
             </div>
           </div>
 
@@ -97,74 +157,62 @@ export default function PlayerInsightsContent({
               Average
             </div>
             <div className="mt-1 text-sm font-semibold text-yellow-200">
-              {summary.avg.toFixed(1)} {config.valueUnitShort}
+              {avg.toFixed(1)} {config.valueUnitShort}
             </div>
 
             <div
-              className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[9px] uppercase ${LENS_BADGE_CLASS[selectedStat]}`}
+              className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[9px] uppercase ${
+                BADGE_CLASS[selectedStat]
+              }`}
             >
-              Top {summary.percentile}% {player.role}
+              Top {percentile}% {player.role ?? ""}
             </div>
           </div>
         </div>
 
-        {/* 🚫 Sparkline intentionally disabled (Safari-safe) */}
-        <div className="h-20 rounded-xl bg-neutral-950/60 shadow-inner flex items-center justify-center">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-            Trend view coming soon
-          </span>
-        </div>
-
-        <div className="mt-4 grid gap-3 text-[11px] sm:grid-cols-3">
+        {/* ================= STATS GRID ================= */}
+        <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Min
             </div>
-            <div className="mt-1 text-sm text-neutral-100">
-              {summary.min}
-            </div>
+            <div className="mt-1 text-sm text-neutral-100">{min}</div>
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Max
             </div>
-            <div className="mt-1 text-sm text-neutral-100">
-              {summary.max}
-            </div>
+            <div className="mt-1 text-sm text-neutral-100">{max}</div>
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Games
             </div>
-            <div className="mt-1 text-sm text-neutral-100">
-              {summary.games}
-            </div>
+            <div className="mt-1 text-sm text-neutral-100">{games}</div>
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Total
             </div>
-            <div className="mt-1 text-sm text-neutral-100">
-              {summary.total}
-            </div>
+            <div className="mt-1 text-sm text-neutral-100">{total}</div>
           </div>
 
-          <div>
+          <div className="col-span-2">
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Volatility
             </div>
             <div className={`mt-1 text-sm font-semibold ${volatilityColor}`}>
-              {volatilityLabel} ({summary.volatilityRange})
+              {volatilityLabel} ({volatilityRange})
             </div>
           </div>
         </div>
       </div>
 
-      {/* ================= AI INSIGHT ================= */}
-      <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 px-5 py-4 text-[11px] text-neutral-300 shadow-md">
+      {/* ================= AI MICRO INSIGHT ================= */}
+      <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 px-5 py-4 text-neutral-300 shadow-md">
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-yellow-200">
           AI performance summary
         </div>
@@ -176,7 +224,7 @@ export default function PlayerInsightsContent({
         </p>
       </div>
 
-      {/* ================= HIT-RATE LADDER ================= */}
+      {/* ================= HIT RATE LADDER ================= */}
       <div className="rounded-2xl border border-yellow-500/30 bg-black/85 p-3">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-100">
@@ -187,9 +235,9 @@ export default function PlayerInsightsContent({
           </span>
         </div>
 
-        <div className="mt-2 flex flex-col gap-1.5 text-[11px]">
+        <div className="mt-2 flex flex-col gap-1.5">
           {config.thresholds.map((t, i) => {
-            const rate = hitRates[i];
+            const rate = Number.isFinite(hitRates[i]) ? hitRates[i] : 0;
 
             return (
               <div
