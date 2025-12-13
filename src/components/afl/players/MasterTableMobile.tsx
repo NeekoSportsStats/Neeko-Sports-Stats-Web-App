@@ -15,8 +15,8 @@ const ROUND_LABELS = ["OR", ...Array.from({ length: 23 }, (_, i) => `R${i + 1}`)
 const PAGE_SIZE = 10;
 
 const LEFT_COL_W = 124;
-const CELL_W = 56;
-const CELL_GAP = 6;
+const CELL_W = 52;
+const CELL_GAP = 4;
 
 // Shared stats row layout (header + body must match exactly)
 const STATS_ROW_CLASS = "flex gap-[6px] px-1.5";
