@@ -18,6 +18,9 @@ const LEFT_COL_W = 124;
 const CELL_W = 56;
 const CELL_GAP = 10;
 
+// Shared stats row layout (header + body must match exactly)
+const STATS_ROW_CLASS = "flex gap-[10px] px-2";
+
 /* -------------------------------------------------------------------------- */
 /* MASTER TABLE MOBILE                                                         */
 /* -------------------------------------------------------------------------- */
@@ -60,8 +63,7 @@ export default function MasterTableMobile({
   /* RENDER                                                                  */
   /* ---------------------------------------------------------------------- */
 
-  const tableWidth =
-    LEFT_COL_W + 24 * CELL_W + 23 * CELL_GAP + 16;
+  const tableWidth = LEFT_COL_W + 24 * CELL_W + 23 * CELL_GAP + 16;
 
   return (
     <>
@@ -133,10 +135,7 @@ export default function MasterTableMobile({
           <div style={{ width: tableWidth }}>
             {/* Header row */}
             <div className="flex border-b border-neutral-800/80">
-              <div
-                className="px-4 py-3"
-                style={{ width: LEFT_COL_W }}
-              >
+              <div className="px-4 py-4" style={{ width: LEFT_COL_W }}>
                 <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
                   Player
                 </div>
