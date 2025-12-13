@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Search, Lock, X, ArrowRight, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlayerRow, StatLens } from "./MasterTable";
@@ -57,7 +57,7 @@ export default function MasterTableMobile({
   const visiblePlayers = filtered.slice(0, visibleCount);
 
   /* ---------------------------------------------------------------------- */
-  /* SCROLL SYNC — DO NOT REWRITE                                             */
+  /* SCROLL SYNC — DO NOT TOUCH                                               */
   /* ---------------------------------------------------------------------- */
 
   const headerScrollRef = useRef<HTMLDivElement | null>(null);
@@ -192,11 +192,8 @@ export default function MasterTableMobile({
             const gated = !isPremium && idx >= 8;
 
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                disabled={gated}
-                onClick={() => onSelectPlayer(p)}
                 className={cx(
                   "relative flex w-full text-left items-stretch",
                   gated
@@ -204,23 +201,29 @@ export default function MasterTableMobile({
                     : "cursor-pointer hover:bg-neutral-900/40 active:scale-[0.995]"
                 )}
               >
-                {/* Player (fixed) */}
+                {/* Tap overlay (captures clicks, not scroll) */}
+                {!gated && (
+                  <div
+                    onClick={() => onSelectPlayer(p)}
+                    className="absolute inset-0 z-10"
+                  />
+                )}
+
+                {/* Player column (fixed) */}
                 <div
-                  className="shrink-0 px-4 py-4 flex items-center justify-between"
+                  className="shrink-0 px-4 py-4 flex items-center justify-between relative z-0"
                   style={{ width: LEFT_COL_W }}
                 >
                   <div className="text-[15px] font-semibold text-neutral-50">
                     {p.name}
                   </div>
-
-                  {/* Tap affordance */}
-                  {(!gated || isPremium) && (
+                  {!gated && (
                     <ChevronRight className="h-4 w-4 text-neutral-500" />
                   )}
                 </div>
 
                 {/* Scrollable rounds */}
-                <div className="flex-1 min-w-0 py-3">
+                <div className="flex-1 min-w-0 py-3 relative z-0">
                   <div
                     ref={(el) => (rowScrollRefs.current[idx] = el)}
                     onScroll={(e) =>
@@ -231,7 +234,8 @@ export default function MasterTableMobile({
                     <div
                       className="flex px-2"
                       style={{
-                        width: 24 * CELL_W + 23 * CELL_GAP + 16,
+                        width:
+                          24 * CELL_W + 23 * CELL_GAP + 16,
                         gap: CELL_GAP,
                       }}
                     >
@@ -248,18 +252,18 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Blur overlay */}
+                {/* Blur overlay for free users */}
                 {gated && (
                   <div className="pointer-events-none absolute inset-0">
                     <div className="absolute inset-0 bg-black/35" />
                     <div className="absolute inset-0 backdrop-blur-[10px]" />
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
 
-          {/* CTA — free only */}
+          {/* CTA */}
           {!isPremium && visiblePlayers.length >= 8 && (
             <div className="px-4 py-5">
               <button
