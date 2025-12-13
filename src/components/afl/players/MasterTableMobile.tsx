@@ -1,3 +1,5 @@
+// src/components/afl/players/MasterTableMobile.tsx
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Lock, ChevronRight, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,10 +11,6 @@ import type { PlayerRow, StatLens } from "./MasterTable";
 
 function cx(...parts: Array<string | false | undefined | null>) {
   return parts.filter(Boolean).join(" ");
-}
-
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -28,7 +26,7 @@ const CELL_W = 56;
 const CELL_GAP = 10;
 
 /* -------------------------------------------------------------------------- */
-/* MASTER TABLE MOBILE                                                         */
+/* MASTER TABLE MOBILE                                                        */
 /* -------------------------------------------------------------------------- */
 
 export default function MasterTableMobile({
@@ -49,19 +47,6 @@ export default function MasterTableMobile({
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const [ctaPulseOnce, setCtaPulseOnce] = useState(false);
-
-  useEffect(() => {
-    if (!isPremium) {
-      const t1 = setTimeout(() => setCtaPulseOnce(true), 300);
-      const t2 = setTimeout(() => setCtaPulseOnce(false), 1500);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
-    }
-  }, [isPremium, selectedStat]);
 
   const filtered = useMemo(() => {
     if (!isPremium) return players;
@@ -74,7 +59,7 @@ export default function MasterTableMobile({
   const visiblePlayers = filtered.slice(0, visibleCount);
 
   /* ---------------------------------------------------------------------- */
-  /* SCROLL SYNC — DO NOT TOUCH LOGIC                                        */
+  /* SCROLL SYNC — UNCHANGED LOGIC                                           */
   /* ---------------------------------------------------------------------- */
 
   const headerScrollRef = useRef<HTMLDivElement | null>(null);
@@ -86,14 +71,10 @@ export default function MasterTableMobile({
     syncingRef.current = true;
 
     requestAnimationFrame(() => {
-      if (headerScrollRef.current) {
-        headerScrollRef.current.scrollLeft = left;
-      }
-
+      headerScrollRef.current?.scrollTo({ left });
       rowScrollRefs.current.forEach((el, i) => {
         if (i !== sourceIdx && el) el.scrollLeft = left;
       });
-
       requestAnimationFrame(() => {
         syncingRef.current = false;
       });
@@ -123,7 +104,6 @@ export default function MasterTableMobile({
             Round-by-round production.
           </p>
 
-          {/* Lens selector */}
           <div className="mt-4 flex gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
               <button
@@ -141,7 +121,6 @@ export default function MasterTableMobile({
             ))}
           </div>
 
-          {/* Search */}
           <div className="mt-3">
             {isPremium ? (
               <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
@@ -168,19 +147,18 @@ export default function MasterTableMobile({
       {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         {/* Header row */}
-        <div className="border-b border-neutral-800/80 flex items-center">
-          <div className="px-4 py-3" style={{ width: LEFT_COL_W }}>
+        <div className="border-b border-neutral-800/80 flex items-stretch">
+          <div className="px-4 py-3 flex items-center" style={{ width: LEFT_COL_W }}>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Player
             </div>
           </div>
 
-          <div className="flex-1">
+          {/* 🔑 HEADER SCROLL FIX */}
+          <div className="flex-1 py-3">
             <div
               ref={headerScrollRef}
-              onScroll={(e) =>
-                syncAllTo(e.currentTarget.scrollLeft, -1)
-              }
+              onScroll={(e) => syncAllTo(e.currentTarget.scrollLeft, -1)}
               className="overflow-x-auto scrollbar-none"
             >
               <div
@@ -204,7 +182,7 @@ export default function MasterTableMobile({
           </div>
 
           <div
-            className="px-4 py-3 text-right"
+            className="px-4 py-3 flex items-center justify-end"
             style={{ width: RIGHT_COL_W }}
           >
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
@@ -219,18 +197,13 @@ export default function MasterTableMobile({
             const gated = !isPremium && idx >= 8;
 
             return (
-              <div key={p.id} className="relative flex items-stretch">
-                {/* Player */}
-                <div
-                  className="px-4 py-4"
-                  style={{ width: LEFT_COL_W }}
-                >
+              <div key={p.id} className="flex items-stretch">
+                <div className="px-4 py-4" style={{ width: LEFT_COL_W }}>
                   <div className="text-[15px] font-semibold text-neutral-50">
                     {p.name}
                   </div>
                 </div>
 
-                {/* Scroll */}
                 <div className="flex-1 py-3">
                   <div
                     ref={(el) => (rowScrollRefs.current[idx] = el)}
@@ -242,7 +215,8 @@ export default function MasterTableMobile({
                     <div
                       className="flex px-2"
                       style={{
-                        width: 24 * CELL_W + 23 * CELL_GAP + 16,
+                        width:
+                          24 * CELL_W + 23 * CELL_GAP + 16,
                         gap: CELL_GAP,
                       }}
                     >
@@ -259,7 +233,7 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Insights — micro spacing ONLY */}
+                {/* 🔑 INSIGHTS ALIGNMENT FIX */}
                 <div
                   className="px-4 py-3 flex items-center justify-end"
                   style={{ width: RIGHT_COL_W }}
@@ -269,7 +243,7 @@ export default function MasterTableMobile({
                     disabled={gated}
                     className={cx(
                       "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px]",
-                      "ml-4", // ⬅️ ONLY spacing change
+                      "ml-[6px]", // ← micro nudge ONLY
                       gated
                         ? "text-neutral-500"
                         : "text-yellow-200 hover:bg-yellow-500/10"
@@ -295,36 +269,6 @@ export default function MasterTableMobile({
           )}
         </div>
       </div>
-
-      {/* ================= CTA MODAL ================= */}
-      {showUpgrade && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
-          <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-black px-6 py-6">
-            <button
-              onClick={() => setShowUpgrade(false)}
-              className="absolute right-4 top-4"
-            >
-              <X className="h-4 w-4 text-neutral-400" />
-            </button>
-
-            <h3 className="text-xl font-semibold text-white">
-              Unlock full Master Table access
-            </h3>
-
-            <p className="mt-2 text-xs text-neutral-300">
-              Full season round-by-round data, player insights & premium forecasting.
-            </p>
-
-            <a
-              href="/neeko-plus"
-              className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-black"
-            >
-              Upgrade to Neeko+
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
-          </div>
-        </div>
-      )}
     </>
   );
 }
