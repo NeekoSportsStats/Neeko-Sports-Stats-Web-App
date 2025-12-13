@@ -16,10 +16,10 @@ const PAGE_SIZE = 10;
 
 const LEFT_COL_W = 124;
 const CELL_W = 56;
-const CELL_GAP = 10;
+const CELL_GAP = 6;
 
 // Shared stats row layout (header + body must match exactly)
-const STATS_ROW_CLASS = "flex gap-[10px] px-2";
+const STATS_ROW_CLASS = "flex gap-[6px] px-1.5";
 
 /* -------------------------------------------------------------------------- */
 /* MASTER TABLE MOBILE                                                         */
