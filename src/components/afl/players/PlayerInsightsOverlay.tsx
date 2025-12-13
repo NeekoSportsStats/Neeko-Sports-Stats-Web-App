@@ -4,7 +4,7 @@ import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                         PLAYER INSIGHTS OVERLAY (PATCHED)                  */
+/*                         PLAYER INSIGHTS OVERLAY (STABLE)                   */
 /* -------------------------------------------------------------------------- */
 
 export default function PlayerInsightsOverlay({
@@ -20,7 +20,6 @@ export default function PlayerInsightsOverlay({
 }) {
   const [mounted, setMounted] = useState(false);
 
-  /* MOBILE DRAG-TO-CLOSE REFS */
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
@@ -30,35 +29,28 @@ export default function PlayerInsightsOverlay({
   /* SCROLL LOCK                                                            */
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
-    const prevBody = document.body.style.overflow;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     setMounted(true);
+
     return () => {
-      document.body.style.overflow = prevBody;
+      document.body.style.overflow = prev;
     };
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* MOBILE DRAG HANDLERS (HANDLE ONLY)                                      */
+  /* DRAG TO CLOSE                                                          */
   /* ---------------------------------------------------------------------- */
 
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const scrollable = scrollRef.current;
-    if (!scrollable) return;
-
-    // Only allow drag if content is scrolled to top
-    if (scrollable.scrollTop > 0) return;
-
+    if (!scrollRef.current || scrollRef.current.scrollTop > 0) return;
     draggingRef.current = true;
     startYRef.current = e.touches[0].clientY;
   };
 
   const handleMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
-
     const dy = e.touches[0].clientY - startYRef.current;
-
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
       e.preventDefault();
@@ -67,7 +59,6 @@ export default function PlayerInsightsOverlay({
 
   const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !sheetRef.current) return;
-
     draggingRef.current = false;
     const dy = e.changedTouches[0].clientY - startYRef.current;
 
@@ -78,7 +69,6 @@ export default function PlayerInsightsOverlay({
 
     sheetRef.current.style.transition = "transform 0.25s ease-out";
     sheetRef.current.style.transform = "translateY(0)";
-
     setTimeout(() => {
       if (sheetRef.current) sheetRef.current.style.transition = "";
     }, 250);
@@ -90,13 +80,10 @@ export default function PlayerInsightsOverlay({
     <div
       className="fixed inset-0 z-[150] bg-black/60"
       onClick={(e) => {
-        // ✅ Close ONLY when clicking the backdrop itself
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* ------------------------------------------------------------------ */}
-      {/* DESKTOP PANEL                                                       */}
-      {/* ------------------------------------------------------------------ */}
+      {/* ------------------------------ DESKTOP ----------------------------- */}
       <div
         className="
           hidden md:block fixed right-0 top-0 h-full w-[480px] z-[200]
@@ -107,7 +94,7 @@ export default function PlayerInsightsOverlay({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col h-full overflow-hidden">
-          <div className="px-5 py-4 flex items-start justify-between border-b border-neutral-800/40">
+          <div className="px-5 py-4 flex justify-between border-b border-neutral-800/40">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200/80">
                 Player Insights
@@ -122,23 +109,19 @@ export default function PlayerInsightsOverlay({
 
             <button
               onClick={onClose}
-              className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300 hover:bg-neutral-800"
-              aria-label="Close"
+              className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* ✅ FIX: allow full scroll height */}
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 pb-10">
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* MOBILE BOTTOM SHEET                                                 */}
-      {/* ------------------------------------------------------------------ */}
+      {/* ------------------------------- MOBILE ------------------------------ */}
       <div
         className="flex h-full w-full items-end justify-center md:hidden"
         onClick={(e) => e.stopPropagation()}
@@ -149,24 +132,20 @@ export default function PlayerInsightsOverlay({
             w-full rounded-t-3xl border border-yellow-500/30
             bg-gradient-to-b from-neutral-950/98 to-black
             px-4 pt-2 pb-3 shadow-[0_0_50px_rgba(250,204,21,0.7)]
-            overscroll-contain
             flex flex-col
           "
-          style={{ height: "80vh", maxHeight: "80vh" }}
+          style={{ height: "80vh" }}
         >
-          {/* Drag Handle */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
-            className="w-full pt-3 pb-4 flex items-center justify-center"
-            style={{ touchAction: "none" }}
+            className="w-full pt-3 pb-4 flex justify-center"
           >
             <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
           </div>
 
-          {/* Header */}
-          <div className="mb-4 flex items-start justify-between">
+          <div className="mb-4 flex justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-200">
                 Player Insights
@@ -174,46 +153,20 @@ export default function PlayerInsightsOverlay({
               <div className="mt-1 text-sm font-semibold text-neutral-50">
                 {player.name}
               </div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-                {player.team} • {player.role}
-              </div>
             </div>
 
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900/90 p-1.5 text-neutral-300"
-              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Stat Pills */}
-          <div className="mb-3 flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
-            {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
-              <button
-                key={lens}
-                onClick={() => onLensChange(lens)}
-                className={`rounded-full px-3 py-1.5 ${
-                  selectedStat === lens
-                    ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                    : "bg-neutral-900/80 text-neutral-300"
-                }`}
-              >
-                {lens}
-              </button>
-            ))}
-          </div>
-
-          {/* ✅ FIX: true scroll area + safe-area padding */}
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-            style={{
-              WebkitOverflowScrolling: "touch",
-              touchAction: "pan-y",
-              paddingBottom: "max(5rem, env(safe-area-inset-bottom))",
-            }}
+            className="flex-1 min-h-0 overflow-y-auto"
+            style={{ WebkitOverflowScrolling: "touch", paddingBottom: "5rem" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
