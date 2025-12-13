@@ -15,40 +15,6 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-function mulberry32(seed: number) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Deterministic “fake” numbers so the table doesn’t jitter / re-randomize on scroll or re-render
-function seededValue(seed: number, lens: StatLens, roundIndex: number) {
-  const r = mulberry32(seed * 9973 + roundIndex * 131 + lens.length * 911);
-  if (lens === "Goals") return clamp(Math.round(1 + r() * 5 + (r() - 0.5) * 2), 0, 10);
-  if (lens === "Disposals") return clamp(Math.round(14 + r() * 18 + (r() - 0.5) * 8), 0, 60);
-  return clamp(Math.round(60 + r() * 55 + (r() - 0.5) * 18), 0, 200);
-}
-
-function ctaCopy(lens: StatLens) {
-  if (lens === "Disposals")
-    return {
-      title: "Unlock full disposals trends",
-      sub: "Full season access, insights overlays & premium forecasting.",
-    };
-  if (lens === "Goals")
-    return {
-      title: "Unlock full goals trends",
-      sub: "Full season access, insights overlays & premium forecasting.",
-    };
-  return {
-    title: "Unlock full fantasy trends",
-    sub: "Full season access, insights overlays & premium forecasting.",
-  };
-}
-
 /* -------------------------------------------------------------------------- */
 /* CONSTANTS                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -61,11 +27,8 @@ const RIGHT_COL_W = 86;
 const CELL_W = 56;
 const CELL_GAP = 10;
 
-// CTA insertion at Player 9
-const CTA_INSERT_AT = 8;
-
 /* -------------------------------------------------------------------------- */
-/* MASTER TABLE MOBILE                                                        */
+/* MASTER TABLE MOBILE                                                         */
 /* -------------------------------------------------------------------------- */
 
 export default function MasterTableMobile({
@@ -111,7 +74,7 @@ export default function MasterTableMobile({
   const visiblePlayers = filtered.slice(0, visibleCount);
 
   /* ---------------------------------------------------------------------- */
-  /* SCROLL SYNC — DO NOT TOUCH                                              */
+  /* SCROLL SYNC — DO NOT TOUCH LOGIC                                        */
   /* ---------------------------------------------------------------------- */
 
   const headerScrollRef = useRef<HTMLDivElement | null>(null);
@@ -123,10 +86,14 @@ export default function MasterTableMobile({
     syncingRef.current = true;
 
     requestAnimationFrame(() => {
-      headerScrollRef.current!.scrollLeft = left;
+      if (headerScrollRef.current) {
+        headerScrollRef.current.scrollLeft = left;
+      }
+
       rowScrollRefs.current.forEach((el, i) => {
         if (i !== sourceIdx && el) el.scrollLeft = left;
       });
+
       requestAnimationFrame(() => {
         syncingRef.current = false;
       });
@@ -135,12 +102,9 @@ export default function MasterTableMobile({
 
   /* ---------------------------------------------------------------------- */
 
-  const showInlineCta = !isPremium && visiblePlayers.length > CTA_INSERT_AT;
-  const { title: ctaTitle, sub: ctaSub } = ctaCopy(selectedStat);
-
   return (
     <>
-      {/* ================= HEADER (BLUR RESTORED) ================= */}
+      {/* ================= HEADER ================= */}
       <div className="relative mt-6">
         <div className="absolute inset-0 backdrop-blur-[14px]" />
         <div className="relative rounded-3xl border border-neutral-800 bg-black/80 px-4 py-4 shadow-xl">
@@ -186,13 +150,13 @@ export default function MasterTableMobile({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search players…"
-                  className="w-full bg-transparent text-[11px] text-neutral-200 outline-none"
+                  className="w-full bg-transparent text-[12px] text-neutral-200 outline-none"
                 />
               </div>
             ) : (
               <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/60 px-3 py-2">
                 <Lock className="h-4 w-4 text-neutral-500" />
-                <span className="text-[11px] text-neutral-500">
+                <span className="text-[12px] text-neutral-500">
                   Search is Neeko+ only
                 </span>
               </div>
@@ -214,9 +178,10 @@ export default function MasterTableMobile({
           <div className="flex-1">
             <div
               ref={headerScrollRef}
-              onScroll={(e) => syncAllTo(e.currentTarget.scrollLeft, -1)}
+              onScroll={(e) =>
+                syncAllTo(e.currentTarget.scrollLeft, -1)
+              }
               className="overflow-x-auto scrollbar-none"
-              style={{ WebkitOverflowScrolling: "touch", overscrollBehaviorX: "contain" }}
             >
               <div
                 className="flex px-2"
@@ -238,7 +203,10 @@ export default function MasterTableMobile({
             </div>
           </div>
 
-          <div className="px-4 py-3 text-right" style={{ width: RIGHT_COL_W }}>
+          <div
+            className="px-4 py-3 text-right"
+            style={{ width: RIGHT_COL_W }}
+          >
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Insights
             </div>
@@ -249,128 +217,69 @@ export default function MasterTableMobile({
         <div className="divide-y divide-neutral-800/70">
           {visiblePlayers.map((p, idx) => {
             const gated = !isPremium && idx >= 8;
-            const seed = (p as any).id ?? idx + 1;
-
-            const renderCtaHere = showInlineCta && idx === CTA_INSERT_AT;
 
             return (
-              <React.Fragment key={p.id}>
-                {/* Inline CTA at Player 9 */}
-                {renderCtaHere && (
-                  <div className="px-4 py-5">
-                    <button
-                      type="button"
-                      onClick={() => setShowUpgrade(true)}
-                      className={cx(
-                        "w-full text-left rounded-3xl border border-yellow-500/30",
-                        "bg-gradient-to-r from-yellow-500/10 via-yellow-500/0 to-transparent",
-                        "px-5 py-4 shadow-[0_0_45px_rgba(0,0,0,0.85)] transition",
-                        "hover:brightness-110",
-                        ctaPulseOnce && "animate-[ctaPulseOnce_1.2s_ease-out_1]"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
-                            Neeko AI Suite
-                          </div>
-                          <div className="mt-1 text-sm font-semibold text-yellow-100">
-                            {ctaTitle}
-                          </div>
-                          <div className="mt-1 text-xs text-neutral-300">
-                            {ctaSub}
-                          </div>
-                        </div>
-
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/50 bg-black/60 shadow-[0_0_14px_rgba(250,204,21,0.6)]">
-                          <ArrowRight className="h-4 w-4 text-yellow-300" />
-                        </div>
-                      </div>
-                    </button>
+              <div key={p.id} className="relative flex items-stretch">
+                {/* Player */}
+                <div
+                  className="px-4 py-4"
+                  style={{ width: LEFT_COL_W }}
+                >
+                  <div className="text-[15px] font-semibold text-neutral-50">
+                    {p.name}
                   </div>
-                )}
-
-                <div className="relative flex items-stretch">
-                  {/* Player */}
-                  <div className="px-4 py-4" style={{ width: LEFT_COL_W }}>
-                    <div className="text-[14px] font-semibold text-neutral-50">
-                      {p.name}
-                    </div>
-                  </div>
-
-                  {/* Scroll */}
-                  <div className="flex-1 py-3 min-w-0">
-                    <div
-                      ref={(el) => (rowScrollRefs.current[idx] = el)}
-                      onScroll={(e) => syncAllTo(e.currentTarget.scrollLeft, idx)}
-                      className="overflow-x-auto scrollbar-none"
-                      style={{ WebkitOverflowScrolling: "touch", overscrollBehaviorX: "contain" }}
-                    >
-                      <div
-                        className="flex px-2"
-                        style={{
-                          width: 24 * CELL_W + 23 * CELL_GAP + 16,
-                          gap: CELL_GAP,
-                        }}
-                      >
-                        {ROUND_LABELS.map((_, i) => {
-                          const v = seededValue(seed, selectedStat, i);
-                          return (
-                            <div
-                              key={i}
-                              className={cx(
-                                "text-center text-[14px] tabular-nums",
-                                gated ? "text-neutral-100/40" : "text-neutral-100"
-                              )}
-                              style={{ width: CELL_W }}
-                            >
-                              {v}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Insights — nudged RIGHT by 1px (micro) */}
-                  <div
-                    className="px-4 py-3 flex items-center justify-end"
-                    style={{ width: RIGHT_COL_W }}
-                  >
-                    <button
-                      onClick={() => (gated ? setShowUpgrade(true) : onSelectPlayer(p))}
-                      disabled={false}
-                      className={cx(
-                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5",
-                        "text-[11px]",
-                        "translate-x-[1px]",
-                        gated
-                          ? "text-neutral-500 hover:bg-yellow-500/10"
-                          : "text-yellow-200 hover:bg-yellow-500/10"
-                      )}
-                    >
-                      Insights
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {/* FULL ROW BLUR FOR GATED */}
-                  {gated && (
-                    <div className="pointer-events-none absolute inset-0">
-                      <div className="absolute inset-0 bg-black/30" />
-                      <div className="absolute inset-0 backdrop-blur-[10px]" />
-                      <div className="absolute inset-0 opacity-70 mix-blend-screen">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(250,204,21,0.18),transparent_60%),radial-gradient(circle_at_70%_80%,rgba(250,204,21,0.14),transparent_55%)]" />
-                      </div>
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                        <div className="rounded-full border border-yellow-500/25 bg-black/60 px-3 py-1 text-[11px] text-yellow-200/80 shadow-[0_0_20px_rgba(250,204,21,0.25)]">
-                          Neeko+ only
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </React.Fragment>
+
+                {/* Scroll */}
+                <div className="flex-1 py-3">
+                  <div
+                    ref={(el) => (rowScrollRefs.current[idx] = el)}
+                    onScroll={(e) =>
+                      syncAllTo(e.currentTarget.scrollLeft, idx)
+                    }
+                    className="overflow-x-auto scrollbar-none"
+                  >
+                    <div
+                      className="flex px-2"
+                      style={{
+                        width: 24 * CELL_W + 23 * CELL_GAP + 16,
+                        gap: CELL_GAP,
+                      }}
+                    >
+                      {ROUND_LABELS.map((_, i) => (
+                        <div
+                          key={i}
+                          className="text-center text-[15px] text-neutral-100"
+                          style={{ width: CELL_W }}
+                        >
+                          {gated ? "—" : Math.floor(70 + Math.random() * 40)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Insights — micro spacing ONLY */}
+                <div
+                  className="px-4 py-3 flex items-center justify-end"
+                  style={{ width: RIGHT_COL_W }}
+                >
+                  <button
+                    onClick={() => onSelectPlayer(p)}
+                    disabled={gated}
+                    className={cx(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px]",
+                      "ml-4", // ⬅️ ONLY spacing change
+                      gated
+                        ? "text-neutral-500"
+                        : "text-yellow-200 hover:bg-yellow-500/10"
+                    )}
+                  >
+                    Insights
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             );
           })}
 
@@ -391,28 +300,24 @@ export default function MasterTableMobile({
       {showUpgrade && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
           <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-black px-6 py-6">
-            <button onClick={() => setShowUpgrade(false)} className="absolute right-4 top-4">
+            <button
+              onClick={() => setShowUpgrade(false)}
+              className="absolute right-4 top-4"
+            >
               <X className="h-4 w-4 text-neutral-400" />
             </button>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/40 bg-gradient-to-r from-yellow-500/25 via-yellow-500/5 to-transparent px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.9)]" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-100">
-                Neeko+ Upgrade
-              </span>
-            </div>
-
-            <h3 className="mt-3 text-xl font-semibold text-white">
-              Unlock full AFL AI analysis
+            <h3 className="text-xl font-semibold text-white">
+              Unlock full Master Table access
             </h3>
 
             <p className="mt-2 text-xs text-neutral-300">
-              Full season tables, player insights & premium forecasting.
+              Full season round-by-round data, player insights & premium forecasting.
             </p>
 
             <a
               href="/neeko-plus"
-              className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-black shadow-[0_0_30px_rgba(250,204,21,0.45)] hover:brightness-110 transition"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-black"
             >
               Upgrade to Neeko+
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -420,16 +325,6 @@ export default function MasterTableMobile({
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes ctaPulseOnce {
-          0%   { box-shadow: 0 0 0 rgba(250,204,21,0); transform: translateY(0); }
-          35%  { box-shadow: 0 0 42px rgba(250,204,21,0.45); transform: translateY(-1px); }
-          100% { box-shadow: 0 0 0 rgba(250,204,21,0); transform: translateY(0); }
-        }
-        .scrollbar-none::-webkit-scrollbar { display: none; }
-        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </>
   );
 }
