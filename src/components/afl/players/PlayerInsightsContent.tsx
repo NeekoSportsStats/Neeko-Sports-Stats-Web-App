@@ -46,6 +46,18 @@ export default function PlayerInsightsContent({
       ? "teal"
       : "amber";
 
+  /* ------------------------------------------------------------------ */
+  /* 🔹 PER-LENS AI MICRO-INSIGHT (NEW — SAFE ADDITION)                   */
+  /* ------------------------------------------------------------------ */
+  const AI_LENS_INSIGHT: Record<StatLens, string> = {
+    Fantasy:
+      "This player’s fantasy output is driven by ceiling games and matchup-sensitive scoring spikes.",
+    Disposals:
+      "This player delivers reliable disposal volume with consistency across game tempo and opposition.",
+    Goals:
+      "This player’s goal scoring is swing-based, with clear ceiling games but lower floor reliability.",
+  };
+
   return (
     <div className="flex h-full flex-col gap-4 text-[11px] text-neutral-200">
       {/* Round-by-round strip */}
@@ -159,17 +171,16 @@ export default function PlayerInsightsContent({
         </div>
       </div>
 
-      {/* AI Insights */}
+      {/* AI Insights (PATCHED — sentence swap only) */}
       <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 px-5 py-4 text-[11px] text-neutral-300 shadow-md">
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-yellow-200">
           AI performance summary
         </div>
         <p>
-          This player shows{" "}
+          {AI_LENS_INSIGHT[selectedStat]}{" "}
           <span className="text-neutral-50 font-semibold">
-            {volatilityLabel.toLowerCase()} volatility
-          </span>{" "}
-          with stable production windows and periodic ceiling moments.
+            ({volatilityLabel.toLowerCase()} volatility)
+          </span>
         </p>
       </div>
 
