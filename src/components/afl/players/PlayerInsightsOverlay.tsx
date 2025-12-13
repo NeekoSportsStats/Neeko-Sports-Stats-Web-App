@@ -47,7 +47,6 @@ export default function PlayerInsightsOverlay({
     const scrollable = scrollRef.current;
     if (!scrollable) return;
 
-    // only allow drag when scrolled to top
     if (scrollable.scrollTop > 0) return;
 
     draggingRef.current = true;
@@ -61,7 +60,6 @@ export default function PlayerInsightsOverlay({
 
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
-      // prevent page scroll ONLY while dragging
       e.preventDefault();
     }
   };
@@ -89,7 +87,7 @@ export default function PlayerInsightsOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-md"
+      className="fixed inset-0 z-[150] bg-black/60"
       onClick={onClose}
     >
       {/* ------------------------------------------------------------------ */}
@@ -166,7 +164,7 @@ export default function PlayerInsightsOverlay({
           "
           style={{ height: "80vh", maxHeight: "80vh" }}
         >
-          {/* Drag handle (touch events only here) */}
+          {/* Drag handle */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
@@ -217,10 +215,10 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* Scrollable Content */}
+          {/* Scrollable Content — FIXED */}
           <div
             ref={scrollRef}
-            className="h-[calc(80vh-130px)] overflow-y-auto pb-10 overscroll-contain"
+            className="flex-1 overflow-y-auto pb-16 overscroll-contain"
             style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
