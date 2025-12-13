@@ -39,16 +39,22 @@ export default function PlayerInsightsContent({
       ? "text-amber-300"
       : "text-red-400";
 
-  const lensAccent =
-    selectedStat === "Fantasy"
-      ? "yellow"
-      : selectedStat === "Disposals"
-      ? "teal"
-      : "amber";
+  /* ------------------------------------------------------------------ */
+  /* SAFE STATIC STYLE MAPS (FIXES PRODUCTION CRASH)                      */
+  /* ------------------------------------------------------------------ */
 
-  /* ------------------------------------------------------------------ */
-  /* 🔹 PER-LENS AI MICRO-INSIGHT (NEW — SAFE ADDITION)                   */
-  /* ------------------------------------------------------------------ */
+  const LENS_BADGE_CLASS: Record<StatLens, string> = {
+    Fantasy: "border-yellow-500/40 text-yellow-300",
+    Disposals: "border-teal-500/40 text-teal-300",
+    Goals: "border-amber-500/40 text-amber-300",
+  };
+
+  const LENS_STROKE_COLOR: Record<StatLens, string> = {
+    Fantasy: "#facc15",
+    Disposals: "#2dd4bf",
+    Goals: "#f59e0b",
+  };
+
   const AI_LENS_INSIGHT: Record<StatLens, string> = {
     Fantasy:
       "This player’s fantasy output is driven by ceiling games and matchup-sensitive scoring spikes.",
@@ -102,9 +108,9 @@ export default function PlayerInsightsContent({
             <div className="mt-1 text-sm font-semibold text-yellow-200">
               {summary.avg.toFixed(1)} {config.valueUnitShort}
             </div>
+
             <div
-              className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[9px] uppercase
-              border-${lensAccent}-500/40 text-${lensAccent}-300`}
+              className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[9px] uppercase ${LENS_BADGE_CLASS[selectedStat]}`}
             >
               Top {summary.percentile}% {player.role}
             </div>
@@ -116,7 +122,7 @@ export default function PlayerInsightsContent({
           <svg width="120" height="40" viewBox="0 0 120 40">
             <polyline
               fill="none"
-              stroke={`var(--${lensAccent}-400)`}
+              stroke={LENS_STROKE_COLOR[selectedStat]}
               strokeWidth="2"
               points={summary.sparkline}
             />
@@ -126,25 +132,21 @@ export default function PlayerInsightsContent({
         <div className="mt-4 grid gap-3 text-[11px] sm:grid-cols-3">
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Min ({config.label})
+              Min
             </div>
-            <div className="mt-1 text-sm text-neutral-100">
-              {summary.min}
-            </div>
+            <div className="mt-1 text-sm text-neutral-100">{summary.min}</div>
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Max ({config.label})
+              Max
             </div>
-            <div className="mt-1 text-sm text-neutral-100">
-              {summary.max}
-            </div>
+            <div className="mt-1 text-sm text-neutral-100">{summary.max}</div>
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Games played
+              Games
             </div>
             <div className="mt-1 text-sm text-neutral-100">
               {summary.games}
@@ -153,7 +155,7 @@ export default function PlayerInsightsContent({
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Total ({config.label})
+              Total
             </div>
             <div className="mt-1 text-sm text-neutral-100">
               {summary.total}
@@ -171,7 +173,7 @@ export default function PlayerInsightsContent({
         </div>
       </div>
 
-      {/* AI Insights (PATCHED — sentence swap only) */}
+      {/* AI Insights */}
       <div className="rounded-2xl border border-neutral-800/80 bg-neutral-950/95 px-5 py-4 text-[11px] text-neutral-300 shadow-md">
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-yellow-200">
           AI performance summary
@@ -184,7 +186,7 @@ export default function PlayerInsightsContent({
         </p>
       </div>
 
-      {/* Hit-Rate Ladder (unchanged) */}
+      {/* Hit-Rate Ladder */}
       <div className="rounded-2xl border border-yellow-500/30 bg-black/85 p-3">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.18em] text-yellow-100">
