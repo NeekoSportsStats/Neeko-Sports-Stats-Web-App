@@ -189,110 +189,117 @@ export default function MasterTableMobile({
 
       {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        <div className="overflow-x-auto overflow-y-visible scrollbar-none">
-          <div style={{ width: tableWidth }}>
-            <div className="flex border-b border-neutral-800/80">
-              <div
-                className="px-4 py-4 sticky left-0 z-20 bg-black/90"
-                style={{ width: LEFT_COL_W }}
-              >
-                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                  Player
+        <div className="relative">
+          {/* ================= CTA OVERLAY ================= */}
+          {!isPremium && (
+            <div
+              className="absolute z-40 pointer-events-none"
+              style={{
+                top: 8 * 64,
+                left: LEFT_COL_W,
+                right: 0,
+                height: 128,
+              }}
+            >
+              <div className="flex h-full items-center justify-center">
+                <button
+                  onClick={() => setShowUpgrade(true)}
+                  className="pointer-events-auto mx-4 w-full max-w-sm rounded-3xl
+                             border border-yellow-500/30
+                             bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent
+                             px-5 py-4 text-left shadow-xl"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
+                        Neeko+
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-yellow-100">
+                        Unlock full player table
+                      </div>
+                      <div className="mt-1 text-xs text-neutral-300">
+                        Full season trends, team filters & AI insights.
+                      </div>
+                    </div>
+
+                    <ArrowRight className="h-5 w-5 text-yellow-300 shrink-0" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto overflow-y-visible scrollbar-none">
+            <div style={{ width: tableWidth }}>
+              <div className="flex border-b border-neutral-800/80">
+                <div
+                  className="px-4 py-4 sticky left-0 z-20 bg-black/90"
+                  style={{ width: LEFT_COL_W }}
+                >
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                    Player
+                  </div>
+                </div>
+
+                <div className={`${STATS_ROW_CLASS} py-4`}>
+                  {ROUND_LABELS.map((r) => (
+                    <div
+                      key={r}
+                      className="text-center text-[10px] uppercase tracking-[0.18em] text-neutral-500 translate-y-[1px]"
+                      style={{ width: CELL_W }}
+                    >
+                      {r}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className={`${STATS_ROW_CLASS} py-4`}>
-                {ROUND_LABELS.map((r) => (
-                  <div
-                    key={r}
-                    className="text-center text-[10px] uppercase tracking-[0.18em] text-neutral-500 translate-y-[1px]"
-                    style={{ width: CELL_W }}
-                  >
-                    {r}
-                  </div>
-                ))}
-              </div>
-            </div>
+              <div className="divide-y divide-neutral-800/70">
+                {visiblePlayers.map((p, idx) => {
+                  const gated = !isPremium && idx >= 8;
 
-            <div className="divide-y divide-neutral-800/70">
-              {visiblePlayers.map((p, idx) => {
-                const gated = !isPremium && idx >= 8;
-
-                return (
-                  <div key={p.id} className="relative flex" style={{ width: tableWidth }}>
-                    <button
-                      disabled={gated}
-                      onClick={() => onSelectPlayer(p)}
-                      className="px-4 py-4 flex items-center justify-between text-left sticky left-0 z-10 bg-black/90"
-                      style={{ width: LEFT_COL_W }}
+                  return (
+                    <div
+                      key={p.id}
+                      className="relative flex"
+                      style={{ width: tableWidth }}
                     >
-                      <span className="text-[15px] font-semibold text-neutral-50 whitespace-nowrap">
-                        {p.name}
-                      </span>
-                      {!gated && (
-                        <ChevronRight className="h-4 w-4 text-neutral-500" />
-                      )}
-                    </button>
-
-                    <div className={`${STATS_ROW_CLASS} py-4`}>
-                      {ROUND_LABELS.map((_, i) => (
-                        <div
-                          key={i}
-                          className="text-center text-[15px] text-neutral-100"
-                          style={{ width: CELL_W }}
-                        >
-                          {gated ? "—" : Math.floor(70 + Math.random() * 40)}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Blur for gated rows — moved behind CTA */}
-                    {gated && (
-                      <div className="absolute inset-0 z-10">
-                        <div className="absolute inset-0 backdrop-blur-[16px]" />
-                        <div className="absolute inset-0 bg-black/45" />
-                      </div>
-                    )}
-
-                    {/* CTA overlay — anchored to first gated row */}
-                    {!isPremium && idx === 8 && (
-                      <div
-                        className="absolute z-30 flex items-center justify-center"
-                        style={{
-                          top: 0,
-                          left: LEFT_COL_W,
-                          right: 0,
-                          height: "200%",
-                        }}
+                      <button
+                        disabled={gated}
+                        onClick={() => onSelectPlayer(p)}
+                        className="px-4 py-4 flex items-center justify-between text-left sticky left-0 z-10 bg-black/90"
+                        style={{ width: LEFT_COL_W }}
                       >
-                        <button
-                          onClick={() => setShowUpgrade(true)}
-                          className="pointer-events-auto mx-4 w-full max-w-sm rounded-3xl
-                                     border border-yellow-500/30
-                                     bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent
-                                     px-5 py-4 text-left shadow-xl"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
-                                Neeko+
-                              </div>
-                              <div className="mt-1 text-sm font-semibold text-yellow-100">
-                                Unlock full player table
-                              </div>
-                              <div className="mt-1 text-xs text-neutral-300">
-                                Full season trends, team filters & AI insights.
-                              </div>
-                            </div>
+                        <span className="text-[15px] font-semibold text-neutral-50 whitespace-nowrap">
+                          {p.name}
+                        </span>
+                        {!gated && (
+                          <ChevronRight className="h-4 w-4 text-neutral-500" />
+                        )}
+                      </button>
 
-                            <ArrowRight className="h-5 w-5 text-yellow-300 shrink-0" />
+                      <div className={`${STATS_ROW_CLASS} py-4`}>
+                        {ROUND_LABELS.map((_, i) => (
+                          <div
+                            key={i}
+                            className="text-center text-[15px] text-neutral-100"
+                            style={{ width: CELL_W }}
+                          >
+                            {gated ? "—" : Math.floor(70 + Math.random() * 40)}
                           </div>
-                        </button>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                      {gated && (
+                        <div className="absolute inset-0 z-10">
+                          <div className="absolute inset-0 backdrop-blur-[16px]" />
+                          <div className="absolute inset-0 bg-black/45" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
