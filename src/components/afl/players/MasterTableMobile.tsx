@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Lock, X, ArrowRight } from "lucide-react";
+import { Search, Lock, X, ArrowRight, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlayerRow, StatLens } from "./MasterTable";
 
@@ -88,7 +88,7 @@ export default function MasterTableMobile({
 
   return (
     <>
-      {/* ================= HEADER (BLURRED) ================= */}
+      {/* ================= HEADER ================= */}
       <div className="relative mt-6">
         <div className="absolute inset-0 backdrop-blur-[14px]" />
         <div className="relative rounded-3xl border border-neutral-800 bg-black/80 px-4 py-4 shadow-xl">
@@ -153,17 +153,12 @@ export default function MasterTableMobile({
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         {/* Header row */}
         <div className="border-b border-neutral-800/80 flex items-center">
-          {/* Fixed PLAYER header */}
-          <div
-            className="px-4 py-3"
-            style={{ width: LEFT_COL_W }}
-          >
+          <div className="px-4 py-3" style={{ width: LEFT_COL_W }}>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Player
             </div>
           </div>
 
-          {/* Scrollable header */}
           <div className="flex-1 min-w-0">
             <div
               ref={headerScrollRef}
@@ -211,12 +206,17 @@ export default function MasterTableMobile({
               >
                 {/* Player (fixed) */}
                 <div
-                  className="shrink-0 px-4 py-4"
+                  className="shrink-0 px-4 py-4 flex items-center justify-between"
                   style={{ width: LEFT_COL_W }}
                 >
                   <div className="text-[15px] font-semibold text-neutral-50">
                     {p.name}
                   </div>
+
+                  {/* Tap affordance */}
+                  {(!gated || isPremium) && (
+                    <ChevronRight className="h-4 w-4 text-neutral-500" />
+                  )}
                 </div>
 
                 {/* Scrollable rounds */}
@@ -231,8 +231,7 @@ export default function MasterTableMobile({
                     <div
                       className="flex px-2"
                       style={{
-                        width:
-                          24 * CELL_W + 23 * CELL_GAP + 16,
+                        width: 24 * CELL_W + 23 * CELL_GAP + 16,
                         gap: CELL_GAP,
                       }}
                     >
@@ -249,7 +248,7 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Blur overlay for free users */}
+                {/* Blur overlay */}
                 {gated && (
                   <div className="pointer-events-none absolute inset-0">
                     <div className="absolute inset-0 bg-black/35" />
@@ -260,7 +259,7 @@ export default function MasterTableMobile({
             );
           })}
 
-          {/* CTA (free users only) */}
+          {/* CTA — free only */}
           {!isPremium && visiblePlayers.length >= 8 && (
             <div className="px-4 py-5">
               <button
