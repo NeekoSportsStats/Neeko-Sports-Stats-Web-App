@@ -195,10 +195,10 @@ export default function MasterTableMobile({
             <div
               className="absolute z-40 pointer-events-none"
               style={{
-                top: 8 * 64,
+                top: 8 * ROW_H,
                 left: LEFT_COL_W,
                 right: 0,
-                height: 128,
+                height: ROW_H * 2,
               }}
             >
               <div className="flex h-full items-center justify-center">
