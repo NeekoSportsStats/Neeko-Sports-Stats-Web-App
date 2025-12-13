@@ -4,8 +4,11 @@ import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                         PLAYER INSIGHTS OVERLAY (DRAG FIX)                 */
+/*                         PLAYER INSIGHTS OVERLAY (FINAL)                    */
 /* -------------------------------------------------------------------------- */
+
+const CLOSE_THRESHOLD = 140; // px
+const MAX_DRAG = 320; // px
 
 export default function PlayerInsightsOverlay({
   player,
@@ -22,8 +25,6 @@ export default function PlayerInsightsOverlay({
 
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // ✅ Drag-to-close state (handle-only)
   const draggingRef = useRef(false);
   const startYRef = useRef(0);
 
@@ -31,42 +32,28 @@ export default function PlayerInsightsOverlay({
   /* LOCK BACKGROUND SCROLL                                                  */
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     setMounted(true);
 
     return () => {
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prev;
     };
   }, []);
 
-  // ✅ Small helper: reset sheet transform
-  const resetSheet = () => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    sheet.style.transition = "transform 0.22s ease-out";
-    sheet.style.transform = "translateY(0px)";
-    window.setTimeout(() => {
-      if (sheet) sheet.style.transition = "";
-    }, 240);
-  };
+  /* ---------------------------------------------------------------------- */
+  /* DRAG HANDLERS (HANDLE ONLY)                                             */
+  /* ---------------------------------------------------------------------- */
 
-  /* ---------------------------------------------------------------------- */
-  /* MOBILE DRAG HANDLERS (HANDLE ONLY)                                      */
-  /* ---------------------------------------------------------------------- */
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    const scrollable = scrollRef.current;
-    const sheet = sheetRef.current;
-    if (!sheet) return;
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
 
-    // ✅ only allow drag when scrolled to very top
-    if (scrollable && scrollable.scrollTop > 0) return;
+    // Only allow drag if content is at top
+    if (scrollEl.scrollTop > 0) return;
 
     draggingRef.current = true;
     startYRef.current = e.touches[0].clientY;
-
-    // remove any previous transition so it follows finger cleanly
-    sheet.style.transition = "";
   };
 
   const handleMove = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -75,59 +62,59 @@ export default function PlayerInsightsOverlay({
     if (!sheet) return;
 
     const dy = e.touches[0].clientY - startYRef.current;
+    if (dy <= 0) return;
 
-    if (dy > 0) {
-      // ✅ follow finger
-      sheet.style.transform = `translateY(${dy}px)`;
-      // ✅ prevent page/overscroll while dragging
-      e.preventDefault();
-    }
+    const clamped = Math.min(dy, MAX_DRAG);
+    sheet.style.transform = `translateY(${clamped}px)`;
+    e.preventDefault();
   };
 
   const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
 
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+
     const dy = e.changedTouches[0].clientY - startYRef.current;
 
-    // ✅ close threshold
-    if (dy > 120) {
-      onClose();
+    // ✅ Close if dragged far enough
+    if (dy >= CLOSE_THRESHOLD) {
+      sheet.style.transition = "transform 0.2s ease-out";
+      sheet.style.transform = "translateY(100%)";
+      setTimeout(onClose, 180);
       return;
     }
 
-    // ✅ snap back
-    resetSheet();
+    // ❌ Otherwise snap back
+    sheet.style.transition =
+      "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+    sheet.style.transform = "translateY(0px)";
+
+    setTimeout(() => {
+      if (sheet) sheet.style.transition = "";
+    }, 360);
   };
 
   if (!mounted) return null;
 
   return (
-    /* ------------------------------------------------------------------ */
-    /* BACKDROP — pointer-events disabled so it NEVER steals scroll        */
-    /* ------------------------------------------------------------------ */
     <div
-      className="
-        fixed inset-0 z-[999]
-        isolate
-        bg-black/80
-        backdrop-blur-md
-        pointer-events-none
-      "
+      className="fixed inset-0 z-[999] isolate bg-black/80 backdrop-blur-md"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       {/* ============================== */}
-      {/* DESKTOP RIGHT PANEL            */}
+      {/* DESKTOP PANEL                  */}
       {/* ============================== */}
       <div
         className="
-          hidden md:block
-          fixed right-0 top-0 h-full w-[480px]
-          bg-black
-          border-l border-yellow-500/30
+          hidden md:block fixed right-0 top-0 h-full w-[480px]
+          bg-black border-l border-yellow-500/30
           shadow-[0_0_80px_rgba(250,204,21,0.45)]
-          z-[1000]
-          pointer-events-auto
         "
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex h-full flex-col">
           {/* Header */}
@@ -147,7 +134,6 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900 p-1.5 text-neutral-300"
-              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -181,33 +167,25 @@ export default function PlayerInsightsOverlay({
       {/* MOBILE BOTTOM SHEET            */}
       {/* ============================== */}
       <div
-        className="
-          md:hidden fixed inset-0
-          flex items-end justify-center
-          z-[1000]
-          pointer-events-auto
-        "
-        onClick={onClose} // tap outside sheet closes
+        className="md:hidden fixed inset-0 flex items-end justify-center"
+        onClick={(e) => e.stopPropagation()}
       >
         <div
           ref={sheetRef}
-          onClick={(e) => e.stopPropagation()}
           className="
             w-full h-[85vh]
-            rounded-t-3xl
-            bg-black
+            rounded-t-3xl bg-black
             border-t border-yellow-500/30
             shadow-[0_0_80px_rgba(250,204,21,0.45)]
             flex flex-col
-            pointer-events-auto
           "
         >
-          {/* ✅ Handle (touch events ONLY here) */}
+          {/* Drag Handle */}
           <div
-            className="py-4 flex justify-center"
             onTouchStart={handleStart}
             onTouchMove={handleMove}
             onTouchEnd={handleEnd}
+            className="py-4 flex justify-center"
             style={{ touchAction: "none" }}
           >
             <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
@@ -230,7 +208,6 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900 p-1.5 text-neutral-300"
-              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -253,17 +230,11 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* ✅ TRUE SCROLL CONTAINER */}
+          {/* Scrollable Content */}
           <div
             ref={scrollRef}
-            className="
-              flex-1
-              min-h-0
-              overflow-y-auto
-              px-4
-              pb-[max(5rem,env(safe-area-inset-bottom))]
-            "
-            style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+            className="flex-1 overflow-y-auto px-4 pb-[max(5rem,env(safe-area-inset-bottom))]"
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
