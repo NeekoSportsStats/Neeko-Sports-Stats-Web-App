@@ -1,29 +1,27 @@
 import React, { useMemo, useState } from "react";
-import { ChevronRight, Lock, ArrowRight } from "lucide-react";
+import { Lock, ChevronRight, ArrowRight } from "lucide-react";
 import type { PlayerRow, StatLens } from "./MasterTable";
-import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
 /* CONSTANTS                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const PAGE_SIZE = 20;
-
-const SUMMARY_COLS = ["AVG", "MIN", "MAX", "VOL", "GP"];
-const HIT_RATE_COLS = ["60+", "70+", "80+", "90+"];
-
 const ROUND_LABELS = ["OR", ...Array.from({ length: 23 }, (_, i) => `R${i + 1}`)];
+const FREE_ROW_LIMIT = 8;
+
+const LEFT_COL_W = 220;
+const ROUND_COL_W = 48;
+const RIGHT_COL_W = 260;
 
 /* -------------------------------------------------------------------------- */
 /* HELPERS                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function cx(...c: Array<string | false | undefined>) {
-  return c.filter(Boolean).join(" ");
-}
+const cx = (...c: Array<string | false | undefined>) =>
+  c.filter(Boolean).join(" ");
 
-// TEMP SAFE FALLBACKS (until wired to real calc utils)
-const safe = (v: any, d = 0) => (Number.isFinite(v) ? v : d);
+const fakeValue = () => Math.floor(70 + Math.random() * 40);
+const fakeRate = () => Math.floor(50 + Math.random() * 50);
 
 /* -------------------------------------------------------------------------- */
 /* DESKTOP MASTER TABLE                                                       */
@@ -42,20 +40,17 @@ export default function MasterTableDesktop({
   isPremium: boolean;
   onSelectPlayer: (p: PlayerRow) => void;
 }) {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  const visiblePlayers = players.slice(0, visibleCount);
-
-  /* ---------------------------------------------------------------------- */
-  /* RENDER                                                                  */
-  /* ---------------------------------------------------------------------- */
+  const visiblePlayers = useMemo(
+    () => (isPremium ? players : players.slice(0, FREE_ROW_LIMIT)),
+    [players, isPremium]
+  );
 
   return (
-    <div className="mt-10">
+    <div className="mt-10 rounded-3xl border border-neutral-800 bg-black/90 shadow-2xl overflow-hidden">
       {/* ================= HEADER ================= */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-800">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-yellow-300/80">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-300">
             Master Table
           </div>
           <h2 className="mt-1 text-xl font-semibold text-neutral-50">
@@ -63,16 +58,16 @@ export default function MasterTableDesktop({
           </h2>
         </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
+        <div className="flex gap-2 rounded-full border border-neutral-700 bg-black/80 p-1">
           {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
             <button
               key={s}
               onClick={() => setSelectedStat(s)}
               className={cx(
-                "rounded-full px-3 py-1.5 transition",
+                "rounded-full px-4 py-1.5 text-xs transition",
                 selectedStat === s
                   ? "bg-yellow-400 text-black shadow-[0_0_16px_rgba(250,204,21,0.6)]"
-                  : "bg-neutral-900 text-neutral-300"
+                  : "text-neutral-300 hover:bg-neutral-800"
               )}
             >
               {s}
@@ -82,173 +77,183 @@ export default function MasterTableDesktop({
       </div>
 
       {/* ================= TABLE ================= */}
-      <div className="relative rounded-3xl border border-neutral-800 bg-black/90 shadow-2xl overflow-hidden">
+      <div className="relative">
         <div className="overflow-x-auto scrollbar-none">
-          <table className="w-full border-collapse text-sm">
-            {/* ================= GROUP HEADERS ================= */}
-            <thead>
-              <tr className="bg-black/90">
-                <th className="sticky left-0 z-30 bg-black/90 px-4 py-3 text-left text-[10px] uppercase tracking-[0.2em] text-neutral-500">
-                  Player
-                </th>
+          <div
+            className="flex text-[11px]"
+            style={{
+              minWidth:
+                LEFT_COL_W +
+                ROUND_LABELS.length * ROUND_COL_W +
+                RIGHT_COL_W,
+            }}
+          >
+            {/* ================= LEFT ================= */}
+            <div
+              className="sticky left-0 z-30 bg-black/95 border-r border-neutral-800"
+              style={{ width: LEFT_COL_W }}
+            >
+              <div className="px-5 py-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                Player
+              </div>
 
-                <th colSpan={SUMMARY_COLS.length} className="px-4 py-3 text-center text-[10px] uppercase tracking-[0.2em] text-yellow-300/70">
-                  Summary
-                </th>
+              {visiblePlayers.map((p, i) => (
+                <button
+                  key={p.id}
+                  disabled={!isPremium && i >= FREE_ROW_LIMIT}
+                  onClick={() => onSelectPlayer(p)}
+                  className={cx(
+                    "group flex w-full items-center justify-between px-5 py-4 text-left border-t border-neutral-800",
+                    !isPremium && i >= FREE_ROW_LIMIT && "opacity-50"
+                  )}
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-neutral-50">
+                      {p.name}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      {p.team} · {p.role}
+                    </div>
+                  </div>
 
-                <th colSpan={HIT_RATE_COLS.length} className="px-4 py-3 text-center text-[10px] uppercase tracking-[0.2em] text-yellow-300/70">
-                  Hit Rates
-                </th>
+                  {isPremium && (
+                    <ChevronRight className="h-4 w-4 text-neutral-500 group-hover:text-neutral-300" />
+                  )}
 
-                <th colSpan={ROUND_LABELS.length} className="px-4 py-3 text-center text-[10px] uppercase tracking-[0.2em] text-neutral-500">
-                  Round by round
-                </th>
-              </tr>
+                  {!isPremium && i >= FREE_ROW_LIMIT && (
+                    <Lock className="h-4 w-4 text-neutral-500" />
+                  )}
+                </button>
+              ))}
+            </div>
 
-              {/* ================= COLUMN HEADERS ================= */}
-              <tr className="border-t border-neutral-800/80">
-                <th className="sticky left-0 z-30 bg-black/90 px-4 py-2 text-left text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                  Player
-                </th>
-
-                {SUMMARY_COLS.map((c) => (
-                  <th key={c} className="px-3 py-2 text-center text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                    {c}
-                  </th>
-                ))}
-
-                {HIT_RATE_COLS.map((c) => (
-                  <th key={c} className="px-3 py-2 text-center text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                    {c}
-                  </th>
-                ))}
-
-                {ROUND_LABELS.map((r) => (
-                  <th key={r} className="px-2 py-2 text-center text-[10px] uppercase tracking-[0.16em] text-neutral-600">
-                    {r}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            {/* ================= BODY ================= */}
-            <tbody className="divide-y divide-neutral-800/70">
-              {visiblePlayers.map((p, idx) => {
-                const gated = !isPremium && idx >= 8;
-
-                return (
-                  <tr key={p.id} className="relative">
-                    {/* PLAYER CELL */}
-                    <td
-                      className="sticky left-0 z-20 bg-black/90 px-4 py-4"
+            {/* ================= ROUNDS ================= */}
+            <div className="flex">
+              <div>
+                <div className="flex border-b border-neutral-800">
+                  {ROUND_LABELS.map((r) => (
+                    <div
+                      key={r}
+                      className="py-3 text-center text-[10px] uppercase tracking-[0.18em] text-neutral-500"
+                      style={{ width: ROUND_COL_W }}
                     >
-                      <button
-                        disabled={gated}
-                        onClick={() => onSelectPlayer(p)}
-                        className="flex w-full items-center justify-between text-left"
+                      {r}
+                    </div>
+                  ))}
+                </div>
+
+                {visiblePlayers.map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex border-t border-neutral-800"
+                  >
+                    {ROUND_LABELS.map((_, j) => (
+                      <div
+                        key={j}
+                        className="py-4 text-center text-sm text-neutral-100"
+                        style={{ width: ROUND_COL_W }}
                       >
-                        <div>
-                          <div className="text-[15px] font-semibold text-neutral-50">
-                            {p.name}
-                          </div>
-                          <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                            {p.team} · {p.role}
-                          </div>
-                        </div>
-
-                        {!gated && (
-                          <ChevronRight className="h-4 w-4 text-neutral-500" />
-                        )}
-                      </button>
-                    </td>
-
-                    {/* SUMMARY */}
-                    {SUMMARY_COLS.map((c) => (
-                      <td key={c} className="px-3 py-4 text-center text-neutral-100">
-                        —
-                      </td>
-                    ))}
-
-                    {/* HIT RATES */}
-                    {HIT_RATE_COLS.map((c) => (
-                      <td key={c} className="px-3 py-4">
-                        <div className="h-1.5 w-full rounded-full bg-neutral-800">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-yellow-300 to-orange-400"
-                            style={{ width: gated ? "0%" : "70%" }}
-                          />
-                        </div>
-                      </td>
-                    ))}
-
-                    {/* ROUNDS */}
-                    {ROUND_LABELS.map((_, i) => (
-                      <td
-                        key={i}
-                        className="px-2 py-4 text-center text-neutral-100"
-                      >
-                        {gated ? (
-                          <span className="inline-block h-4 w-6 rounded bg-neutral-700/40 animate-pulse" />
+                        {isPremium || i < FREE_ROW_LIMIT ? (
+                          fakeValue()
                         ) : (
-                          Math.floor(70 + Math.random() * 40)
+                          <span className="inline-block h-3 w-6 rounded bg-neutral-700/40 animate-pulse" />
                         )}
-                      </td>
+                      </div>
                     ))}
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                    {/* GATE OVERLAY */}
-                    {gated && (
-                      <td colSpan={SUMMARY_COLS.length + HIT_RATE_COLS.length + ROUND_LABELS.length + 1}>
-                        <div className="absolute inset-0 z-10">
-                          <div className="absolute inset-0 backdrop-blur-[14px]" />
-                          <div className="absolute inset-0 bg-black/50" />
+            {/* ================= RIGHT ================= */}
+            <div
+              className="sticky right-0 z-20 bg-black/95 border-l border-neutral-800"
+              style={{ width: RIGHT_COL_W }}
+            >
+              <div className="px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                Summary & hit-rate
+              </div>
+
+              {visiblePlayers.map((_, i) => (
+                <div
+                  key={i}
+                  className="px-4 py-4 border-t border-neutral-800"
+                >
+                  {/* SUMMARY */}
+                  <div className="grid grid-cols-4 gap-2 text-[11px] text-neutral-300">
+                    <div>
+                      <div className="text-neutral-500">MIN</div>
+                      <div>{fakeValue()}</div>
+                    </div>
+                    <div>
+                      <div className="text-neutral-500">MAX</div>
+                      <div>{fakeValue()}</div>
+                    </div>
+                    <div>
+                      <div className="text-neutral-500">AVG</div>
+                      <div className="text-yellow-300 font-semibold">
+                        {fakeValue()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-neutral-500">GMS</div>
+                      <div>23</div>
+                    </div>
+                  </div>
+
+                  {/* HIT RATES */}
+                  <div className="mt-3 space-y-1.5">
+                    {[60, 70, 80, 90].map((t) => {
+                      const r = fakeRate();
+                      return (
+                        <div key={t} className="flex items-center gap-2">
+                          <span className="w-10 text-[10px] text-neutral-400">
+                            {t}+
+                          </span>
+                          <div className="flex-1 rounded-full bg-neutral-800 overflow-hidden">
+                            <div
+                              className="h-1.5 bg-gradient-to-r from-emerald-400 via-yellow-300 to-orange-400"
+                              style={{ width: `${r}%` }}
+                            />
+                          </div>
+                          <span className="w-10 text-right text-[10px] text-neutral-300">
+                            {r}%
+                          </span>
                         </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* ================= CTA ================= */}
+        {/* ================= CTA OVERLAY ================= */}
         {!isPremium && (
-          <div className="absolute inset-x-0 bottom-0 z-40 flex justify-center pb-6 pointer-events-none">
+          <div className="absolute inset-x-0 bottom-12 z-40 flex justify-center pointer-events-none">
             <button
               onClick={() => (window.location.href = "/neeko-plus")}
               className="pointer-events-auto rounded-3xl border border-yellow-500/30
                          bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent
-                         px-6 py-4 shadow-2xl"
+                         px-6 py-4 shadow-2xl max-w-lg w-full flex items-center justify-between"
             >
-              <div className="flex items-center gap-4">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
-                    Neeko+
-                  </div>
-                  <div className="text-sm font-semibold text-yellow-100">
-                    Unlock full player table
-                  </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-yellow-300">
+                  Neeko+
                 </div>
-                <ArrowRight className="h-5 w-5 text-yellow-300" />
+                <div className="text-sm font-semibold text-yellow-100">
+                  Unlock full player table
+                </div>
+                <div className="text-xs text-neutral-300">
+                  Hit-rates, summaries & player insights.
+                </div>
               </div>
+              <ArrowRight className="h-5 w-5 text-yellow-300" />
             </button>
           </div>
         )}
       </div>
-
-      {/* ================= SHOW MORE ================= */}
-      {visiblePlayers.length < players.length && (
-        <div className="mt-6 flex justify-center">
-          <Button
-            onClick={() =>
-              setVisibleCount((c) => Math.min(c + PAGE_SIZE, players.length))
-            }
-            className="rounded-full bg-neutral-800 px-6 py-2 text-neutral-200"
-          >
-            Show more
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
