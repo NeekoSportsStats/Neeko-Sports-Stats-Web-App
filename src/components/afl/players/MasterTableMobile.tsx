@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Search, Lock, X, ArrowRight, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PlayerRow, StatLens } from "./MasterTable";
@@ -57,36 +57,15 @@ export default function MasterTableMobile({
   const visiblePlayers = filtered.slice(0, visibleCount);
 
   /* ---------------------------------------------------------------------- */
-  /* SCROLL SYNC                                                             */
-  /* ---------------------------------------------------------------------- */
-
-  const headerScrollRef = useRef<HTMLDivElement | null>(null);
-  const rowScrollRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const syncingRef = useRef(false);
-
-  const syncAllTo = (left: number, sourceIdx: number) => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-
-    requestAnimationFrame(() => {
-      headerScrollRef.current?.scrollTo({ left });
-      rowScrollRefs.current.forEach((el, i) => {
-        if (i !== sourceIdx && el) el.scrollLeft = left;
-      });
-
-      requestAnimationFrame(() => {
-        syncingRef.current = false;
-      });
-    });
-  };
-
-  /* ---------------------------------------------------------------------- */
   /* RENDER                                                                  */
   /* ---------------------------------------------------------------------- */
 
+  const tableWidth =
+    LEFT_COL_W + 24 * CELL_W + 23 * CELL_GAP + 16;
+
   return (
     <>
-      {/* ================= HEADER ================= */}
+      {/* ================= HEADER CARD ================= */}
       <div className="relative mt-6">
         <div className="absolute inset-0 backdrop-blur-[14px]" />
         <div className="relative rounded-3xl border border-neutral-800 bg-black/80 px-4 py-4 shadow-xl">
@@ -149,27 +128,21 @@ export default function MasterTableMobile({
 
       {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-neutral-800/80 flex">
-          <div className="px-4 py-3" style={{ width: LEFT_COL_W }}>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Player
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div
-              ref={headerScrollRef}
-              onScroll={(e) => syncAllTo(e.currentTarget.scrollLeft, -1)}
-              className="overflow-x-auto scrollbar-none"
-            >
+        {/* SINGLE HORIZONTAL SCROLLER */}
+        <div className="overflow-x-auto scrollbar-none">
+          <div style={{ width: tableWidth }}>
+            {/* Header row */}
+            <div className="flex border-b border-neutral-800/80">
               <div
-                className="flex px-2"
-                style={{
-                  width: 24 * CELL_W + 23 * CELL_GAP + 16,
-                  gap: CELL_GAP,
-                }}
+                className="px-4 py-3"
+                style={{ width: LEFT_COL_W }}
               >
+                <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+                  Player
+                </div>
+              </div>
+
+              <div className="flex gap-[10px] px-2">
                 {ROUND_LABELS.map((r) => (
                   <div
                     key={r}
@@ -181,55 +154,34 @@ export default function MasterTableMobile({
                 ))}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Rows */}
-        <div className="divide-y divide-neutral-800/70">
-          {visiblePlayers.map((p, idx) => {
-            const gated = !isPremium && idx >= 8;
+            {/* Rows */}
+            <div className="divide-y divide-neutral-800/70">
+              {visiblePlayers.map((p, idx) => {
+                const gated = !isPremium && idx >= 8;
 
-            return (
-              <div
-                key={p.id}
-                className={cx(
-                  "relative flex w-full items-stretch",
-                  gated ? "cursor-not-allowed" : "hover:bg-neutral-900/40"
-                )}
-              >
-                {/* Player column (tap only here) */}
-                <button
-                  type="button"
-                  disabled={gated}
-                  onClick={() => onSelectPlayer(p)}
-                  className="shrink-0 px-4 py-4 flex items-center justify-between text-left"
-                  style={{ width: LEFT_COL_W }}
-                >
-                  <span className="text-[15px] font-semibold text-neutral-50">
-                    {p.name}
-                  </span>
-                  {!gated && (
-                    <ChevronRight className="h-4 w-4 text-neutral-500" />
-                  )}
-                </button>
-
-                {/* Scrollable rounds */}
-                <div className="flex-1 min-w-0 py-3">
+                return (
                   <div
-                    ref={(el) => (rowScrollRefs.current[idx] = el)}
-                    onScroll={(e) =>
-                      syncAllTo(e.currentTarget.scrollLeft, idx)
-                    }
-                    className="overflow-x-auto scrollbar-none"
+                    key={p.id}
+                    className="relative flex"
                   >
-                    <div
-                      className="flex px-2"
-                      style={{
-                        width:
-                          24 * CELL_W + 23 * CELL_GAP + 16,
-                        gap: CELL_GAP,
-                      }}
+                    {/* Player cell */}
+                    <button
+                      disabled={gated}
+                      onClick={() => onSelectPlayer(p)}
+                      className="px-4 py-4 flex items-center justify-between text-left"
+                      style={{ width: LEFT_COL_W }}
                     >
+                      <span className="text-[15px] font-semibold text-neutral-50">
+                        {p.name}
+                      </span>
+                      {!gated && (
+                        <ChevronRight className="h-4 w-4 text-neutral-500" />
+                      )}
+                    </button>
+
+                    {/* Stats */}
+                    <div className="flex gap-[10px] px-2 py-4">
                       {ROUND_LABELS.map((_, i) => (
                         <div
                           key={i}
@@ -240,20 +192,52 @@ export default function MasterTableMobile({
                         </div>
                       ))}
                     </div>
-                  </div>
-                </div>
 
-                {/* Blur gate (row-scoped, safe) */}
-                {gated && (
-                  <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute inset-0 backdrop-blur-[16px]" />
-                    <div className="absolute inset-0 bg-black/45" />
+                    {/* Blur gate */}
+                    {gated && (
+                      <div className="pointer-events-none absolute inset-0">
+                        <div className="absolute inset-0 backdrop-blur-[16px]" />
+                        <div className="absolute inset-0 bg-black/45" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
+
+        {/* CTA */}
+        {!isPremium && visiblePlayers.length >= 8 && (
+          <div className="px-4 py-5">
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="w-full rounded-3xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/15 via-yellow-500/5 to-transparent px-5 py-4 text-left"
+            >
+              <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
+                Master Table
+              </div>
+              <div className="mt-1 text-sm font-semibold text-yellow-100">
+                Unlock full fantasy trends
+              </div>
+              <div className="mt-1 text-xs text-neutral-300">
+                Full season access, insights overlays & premium forecasting.
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Show more */}
+        {visibleCount < filtered.length && (
+          <div className="px-4 py-5 text-center">
+            <Button
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="rounded-full bg-neutral-800 text-neutral-200"
+            >
+              Show more players
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ================= UPGRADE MODAL ================= */}
