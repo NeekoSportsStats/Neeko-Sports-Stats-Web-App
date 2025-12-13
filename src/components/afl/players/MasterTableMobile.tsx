@@ -110,7 +110,7 @@ export default function MasterTableMobile({
                 className="flex items-center gap-1 rounded-full border border-neutral-700 bg-black/80 px-3 py-1 text-[11px] text-neutral-300"
               >
                 {!isPremium && <Lock className="h-3 w-3" />}
-                {teamFilter ?? "Team"}
+                {teamFilter ?? "Select Team"}
               </button>
 
               {/* Dropdown */}
