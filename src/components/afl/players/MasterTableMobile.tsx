@@ -11,6 +11,9 @@ function cx(...parts: Array<string | false | undefined | null>) {
   return parts.filter(Boolean).join(" ");
 }
 
+/* ✅ ADDED — skeleton helper (non-invasive) */
+const skeletonValue = () => Math.floor(70 + Math.random() * 40);
+
 const ROUND_LABELS = ["OR", ...Array.from({ length: 23 }, (_, i) => `R${i + 1}`)];
 const PAGE_SIZE = 10;
 
@@ -199,7 +202,6 @@ export default function MasterTableMobile({
                   left: 0,
                   right: 0,
                   height: 128,
-                  touchAction: "manipulation",
                 }}
               >
                 <div className="flex h-full items-center justify-center">
@@ -208,8 +210,7 @@ export default function MasterTableMobile({
                     className="pointer-events-auto mx-4 w-full max-w-sm rounded-3xl
                                border border-yellow-500/30
                                bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent
-                               px-5 py-4 text-left shadow-xl
-                               transition-transform active:scale-[0.98]"
+                               px-5 py-4 text-left shadow-xl"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -260,11 +261,7 @@ export default function MasterTableMobile({
                   const gated = !isPremium && idx >= 8;
 
                   return (
-                    <div
-                      key={p.id}
-                      className="relative flex"
-                      style={{ width: tableWidth }}
-                    >
+                    <div key={p.id} className="relative flex" style={{ width: tableWidth }}>
                       <button
                         disabled={gated}
                         onClick={() => onSelectPlayer(p)}
@@ -286,7 +283,11 @@ export default function MasterTableMobile({
                             className="text-center text-[15px] text-neutral-100"
                             style={{ width: CELL_W }}
                           >
-                            {gated ? "—" : Math.floor(70 + Math.random() * 40)}
+                            {gated ? (
+                              <span className="inline-block w-6 h-4 rounded-sm bg-neutral-600/40 animate-pulse" />
+                            ) : (
+                              skeletonValue()
+                            )}
                           </div>
                         ))}
                       </div>
@@ -313,8 +314,7 @@ export default function MasterTableMobile({
             onClick={() =>
               setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length))
             }
-            className="rounded-full bg-neutral-800 px-6 py-2 text-neutral-200
-                       transition active:scale-[0.97] hover:bg-neutral-700"
+            className="rounded-full bg-neutral-800 px-6 py-2 text-neutral-200"
           >
             Show more
           </Button>
