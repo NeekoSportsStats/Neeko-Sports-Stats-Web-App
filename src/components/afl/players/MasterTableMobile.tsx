@@ -195,13 +195,13 @@ export default function MasterTableMobile({
               <div
                 key={p.id}
                 className={cx(
-                  "relative flex w-full text-left items-stretch",
+                  "relative flex w-full items-stretch",
                   gated
                     ? "cursor-not-allowed"
                     : "cursor-pointer hover:bg-neutral-900/40 active:scale-[0.995]"
                 )}
               >
-                {/* Tap overlay (captures clicks, not scroll) */}
+                {/* Tap overlay */}
                 {!gated && (
                   <div
                     onClick={() => onSelectPlayer(p)}
@@ -209,7 +209,7 @@ export default function MasterTableMobile({
                   />
                 )}
 
-                {/* Player column (fixed) */}
+                {/* Player column */}
                 <div
                   className="shrink-0 px-4 py-4 flex items-center justify-between relative z-0"
                   style={{ width: LEFT_COL_W }}
@@ -252,11 +252,13 @@ export default function MasterTableMobile({
                   </div>
                 </div>
 
-                {/* Blur overlay for free users */}
+                {/* ================= BLUR GATE (CORRECT STACK) ================= */}
                 {gated && (
                   <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute inset-0 bg-black/35" />
+                    {/* Blur FIRST (blurs real content) */}
                     <div className="absolute inset-0 backdrop-blur-[16px]" />
+                    {/* Dark veil SECOND */}
+                    <div className="absolute inset-0 bg-black/45" />
                   </div>
                 )}
               </div>
