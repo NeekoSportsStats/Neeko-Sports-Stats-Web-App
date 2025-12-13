@@ -40,14 +40,14 @@ export default function PlayerInsightsOverlay({
   }, []);
 
   /* ---------------------------------------------------------------------- */
-  /* MOBILE DRAG HANDLERS (handle-only)                                      */
+  /* MOBILE DRAG HANDLERS (HANDLE ONLY)                                      */
   /* ---------------------------------------------------------------------- */
 
   const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const scrollable = scrollRef.current;
     if (!scrollable) return;
 
-    // only allow drag when scrolled to top
+    // Only allow drag if content is scrolled to top
     if (scrollable.scrollTop > 0) return;
 
     draggingRef.current = true;
@@ -61,7 +61,6 @@ export default function PlayerInsightsOverlay({
 
     if (dy > 0) {
       sheetRef.current.style.transform = `translateY(${dy}px)`;
-      // prevent page scroll ONLY while dragging
       e.preventDefault();
     }
   };
@@ -91,7 +90,7 @@ export default function PlayerInsightsOverlay({
     <div
       className="fixed inset-0 z-[150] bg-black/60"
       onClick={(e) => {
-        // ✅ PATCH: only close when clicking the backdrop itself (prevents iOS scroll/tap misfires)
+        // ✅ Close ONLY when clicking the backdrop itself
         if (e.target === e.currentTarget) onClose();
       }}
     >
@@ -130,23 +129,7 @@ export default function PlayerInsightsOverlay({
             </button>
           </div>
 
-          <div className="px-5 py-3 flex items-center gap-2 border-b border-neutral-800/40 bg-black/40 text-[11px]">
-            {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((lens) => (
-              <button
-                key={lens}
-                onClick={() => onLensChange(lens)}
-                className={`rounded-full px-3 py-1.5 ${
-                  selectedStat === lens
-                    ? "bg-yellow-400 text-black shadow-[0_0_18px_rgba(250,204,21,0.9)]"
-                    : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800"
-                }`}
-              >
-                {lens}
-              </button>
-            ))}
-          </div>
-
-          {/* ✅ PATCH: ensure scroll container can actually reach bottom */}
+          {/* ✅ FIX: allow full scroll height */}
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 pb-10">
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
@@ -171,7 +154,7 @@ export default function PlayerInsightsOverlay({
           "
           style={{ height: "80vh", maxHeight: "80vh" }}
         >
-          {/* Drag handle (touch events only here) */}
+          {/* Drag Handle */}
           <div
             onTouchStart={handleStart}
             onTouchMove={handleMove}
@@ -222,7 +205,7 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* ✅ PATCH: true scroll area (flex-1 + min-h-0) + extra bottom padding (safe area) */}
+          {/* ✅ FIX: true scroll area + safe-area padding */}
           <div
             ref={scrollRef}
             className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
