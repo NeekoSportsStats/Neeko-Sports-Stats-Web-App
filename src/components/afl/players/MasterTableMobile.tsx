@@ -145,7 +145,7 @@ export default function MasterTableMobile({
                 {ROUND_LABELS.map((r) => (
                   <div
                     key={r}
-                    className="text-center text-[10px] uppercase tracking-[0.18em] text-neutral-500"
+                    className="text-center text-[10px] uppercase tracking-[0.18em] text-neutral-500 translate-y-[1px]"
                     style={{ width: CELL_W }}
                   >
                     {r}
