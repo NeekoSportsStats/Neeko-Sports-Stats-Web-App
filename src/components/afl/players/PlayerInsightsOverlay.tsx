@@ -4,7 +4,7 @@ import type { PlayerRow, StatLens } from "./MasterTable";
 import InsightsContent from "./PlayerInsightsContent";
 
 /* -------------------------------------------------------------------------- */
-/*                         PLAYER INSIGHTS OVERLAY (FINAL FIX)                */
+/*                         PLAYER INSIGHTS OVERLAY (DRAG FIX)                 */
 /* -------------------------------------------------------------------------- */
 
 export default function PlayerInsightsOverlay({
@@ -23,6 +23,10 @@ export default function PlayerInsightsOverlay({
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // ✅ Drag-to-close state (handle-only)
+  const draggingRef = useRef(false);
+  const startYRef = useRef(0);
+
   /* ---------------------------------------------------------------------- */
   /* LOCK BACKGROUND SCROLL                                                  */
   /* ---------------------------------------------------------------------- */
@@ -35,6 +39,66 @@ export default function PlayerInsightsOverlay({
       document.body.style.overflow = prevOverflow;
     };
   }, []);
+
+  // ✅ Small helper: reset sheet transform
+  const resetSheet = () => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    sheet.style.transition = "transform 0.22s ease-out";
+    sheet.style.transform = "translateY(0px)";
+    window.setTimeout(() => {
+      if (sheet) sheet.style.transition = "";
+    }, 240);
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /* MOBILE DRAG HANDLERS (HANDLE ONLY)                                      */
+  /* ---------------------------------------------------------------------- */
+  const handleStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const scrollable = scrollRef.current;
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+
+    // ✅ only allow drag when scrolled to very top
+    if (scrollable && scrollable.scrollTop > 0) return;
+
+    draggingRef.current = true;
+    startYRef.current = e.touches[0].clientY;
+
+    // remove any previous transition so it follows finger cleanly
+    sheet.style.transition = "";
+  };
+
+  const handleMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+
+    const dy = e.touches[0].clientY - startYRef.current;
+
+    if (dy > 0) {
+      // ✅ follow finger
+      sheet.style.transform = `translateY(${dy}px)`;
+      // ✅ prevent page/overscroll while dragging
+      e.preventDefault();
+    }
+  };
+
+  const handleEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+
+    const dy = e.changedTouches[0].clientY - startYRef.current;
+
+    // ✅ close threshold
+    if (dy > 120) {
+      onClose();
+      return;
+    }
+
+    // ✅ snap back
+    resetSheet();
+  };
 
   if (!mounted) return null;
 
@@ -83,6 +147,7 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900 p-1.5 text-neutral-300"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -137,8 +202,14 @@ export default function PlayerInsightsOverlay({
             pointer-events-auto
           "
         >
-          {/* Handle */}
-          <div className="py-4 flex justify-center">
+          {/* ✅ Handle (touch events ONLY here) */}
+          <div
+            className="py-4 flex justify-center"
+            onTouchStart={handleStart}
+            onTouchMove={handleMove}
+            onTouchEnd={handleEnd}
+            style={{ touchAction: "none" }}
+          >
             <div className="h-1.5 w-10 rounded-full bg-yellow-200/80" />
           </div>
 
@@ -159,6 +230,7 @@ export default function PlayerInsightsOverlay({
             <button
               onClick={onClose}
               className="rounded-full bg-neutral-900 p-1.5 text-neutral-300"
+              aria-label="Close"
             >
               <X className="h-4 w-4" />
             </button>
@@ -191,6 +263,7 @@ export default function PlayerInsightsOverlay({
               px-4
               pb-[max(5rem,env(safe-area-inset-bottom))]
             "
+            style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
