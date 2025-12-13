@@ -8,7 +8,7 @@ import {
   getRoundsForLens,
 } from "./playerInsightsUtils";
 
-import { STAT_CONFIG } from "./playerStatConfig";  // <-- FIXED IMPORT
+import { STAT_CONFIG } from "./playerStatConfig";
 
 /**
  * Full insights content for players — used inside PlayerInsightsOverlay.
@@ -83,13 +83,32 @@ export default function PlayerInsightsContent({
         {/* Sparkline placeholder */}
         <div className="h-20 rounded-xl bg-neutral-800/40 shadow-inner" />
 
-        <div className="mt-4 grid gap-3 text-[11px] sm:grid-cols-3">
+        {/* === PATCH: Season Stats Row === */}
+        <div className="mt-4 grid grid-cols-2 gap-3 text-[11px] sm:grid-cols-5">
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-              Range window
+              Min
             </div>
             <div className="mt-1 text-sm text-neutral-100">
-              {summary.windowMin}–{summary.windowMax} {config.valueUnitShort}
+              {summary.min}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+              Max
+            </div>
+            <div className="mt-1 text-sm text-neutral-100">
+              {summary.max}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+              Games
+            </div>
+            <div className="mt-1 text-sm text-neutral-100">
+              {summary.games}
             </div>
           </div>
 
