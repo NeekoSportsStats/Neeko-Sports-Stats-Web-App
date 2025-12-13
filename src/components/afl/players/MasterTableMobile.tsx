@@ -19,7 +19,7 @@ const CELL_W = 52;
 const CELL_GAP = 4;
 
 // Shared stats row layout (header + body must match exactly)
-const STATS_ROW_CLASS = "flex gap-[6px] px-1.5";
+const STATS_ROW_CLASS = "flex gap-[4px] px-1.5";
 
 /* -------------------------------------------------------------------------- */
 /* MASTER TABLE MOBILE                                                         */
@@ -130,7 +130,6 @@ export default function MasterTableMobile({
 
       {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
-        {/* SINGLE HORIZONTAL SCROLLER */}
         <div className="overflow-x-auto overflow-y-visible scrollbar-none">
           <div style={{ width: tableWidth }}>
             {/* Header row */}
@@ -160,19 +159,14 @@ export default function MasterTableMobile({
                 const gated = !isPremium && idx >= 8;
 
                 return (
-                  <div
-                    key={p.id}
-                    className="relative flex"
-                    style={{ width: tableWidth }}
-                  >
-                    {/* Player cell */}
+                  <div key={p.id} className="relative flex" style={{ width: tableWidth }}>
                     <button
                       disabled={gated}
                       onClick={() => onSelectPlayer(p)}
                       className="px-4 py-4 flex items-center justify-between text-left"
                       style={{ width: LEFT_COL_W }}
                     >
-                      <span className="text-[15px] font-semibold text-neutral-50">
+                      <span className="text-[15px] font-semibold text-neutral-50 whitespace-nowrap">
                         {p.name}
                       </span>
                       {!gated && (
@@ -180,7 +174,6 @@ export default function MasterTableMobile({
                       )}
                     </button>
 
-                    {/* Stats */}
                     <div className={`${STATS_ROW_CLASS} py-4`}>
                       {ROUND_LABELS.map((_, i) => (
                         <div
@@ -193,7 +186,6 @@ export default function MasterTableMobile({
                       ))}
                     </div>
 
-                    {/* Blur gate */}
                     {gated && (
                       <div className="pointer-events-none absolute inset-0">
                         <div className="absolute inset-0 backdrop-blur-[16px]" />
@@ -206,69 +198,7 @@ export default function MasterTableMobile({
             </div>
           </div>
         </div>
-
-        {/* CTA */}
-        {!isPremium && visiblePlayers.length >= 8 && (
-          <div className="px-4 py-5">
-            <button
-              onClick={() => setShowUpgrade(true)}
-              className="w-full rounded-3xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/15 via-yellow-500/5 to-transparent px-5 py-4 text-left"
-            >
-              <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
-                Master Table
-              </div>
-              <div className="mt-1 text-sm font-semibold text-yellow-100">
-                Unlock full fantasy trends
-              </div>
-              <div className="mt-1 text-xs text-neutral-300">
-                Full season access, insights overlays & premium forecasting.
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* Show more */}
-        {visibleCount < filtered.length && (
-          <div className="px-4 py-5 text-center">
-            <Button
-              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="rounded-full bg-neutral-800 text-neutral-200"
-            >
-              Show more players
-            </Button>
-          </div>
-        )}
       </div>
-
-      {/* ================= UPGRADE MODAL ================= */}
-      {showUpgrade && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
-          <div className="relative w-full max-w-md rounded-3xl border border-yellow-500/40 bg-black px-6 py-6">
-            <button
-              onClick={() => setShowUpgrade(false)}
-              className="absolute right-4 top-4"
-            >
-              <X className="h-4 w-4 text-neutral-400" />
-            </button>
-
-            <h3 className="text-xl font-semibold text-white">
-              Unlock full AFL AI analysis
-            </h3>
-
-            <p className="mt-2 text-xs text-neutral-300">
-              Full season tables, player insights & premium forecasting.
-            </p>
-
-            <a
-              href="/neeko-plus"
-              className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-black"
-            >
-              Upgrade to Neeko+
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
