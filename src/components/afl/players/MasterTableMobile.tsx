@@ -193,7 +193,7 @@ export default function MasterTableMobile({
         </div>
       </div>
 
-      {/* ================= TABLE ================= */}
+            {/* ================= TABLE ================= */}
       {/* EVERYTHING BELOW IS UNCHANGED */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         <div className="overflow-x-auto overflow-y-visible scrollbar-none">
@@ -266,6 +266,32 @@ export default function MasterTableMobile({
           </div>
         </div>
       </div>
+
+      {/* ================= SHOW MORE ================= */}
+      {visiblePlayers.length < filtered.length && (
+        <div className="mt-4 flex justify-center">
+          <Button
+            onClick={() =>
+              setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length))
+            }
+            className="rounded-full bg-neutral-800 px-6 py-2 text-neutral-200"
+          >
+            Show more
+          </Button>
+        </div>
+      )}
+
+      {/* ================= SHOW LESS (premium only) ================= */}
+      {isPremium && visibleCount > PAGE_SIZE && (
+        <div className="mt-2 flex justify-center">
+          <button
+            onClick={() => setVisibleCount(PAGE_SIZE)}
+            className="text-xs text-neutral-500 hover:text-neutral-300"
+          >
+            Show less
+          </button>
+        </div>
+      )}
 
       <style>{`
         .scrollbar-none::-webkit-scrollbar { display: none; }
