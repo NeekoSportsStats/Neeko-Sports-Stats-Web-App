@@ -24,7 +24,7 @@ export default function PlayerInsightsOverlay({
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   /* ---------------------------------------------------------------------- */
-  /* LOCK BACKGROUND SCROLL + FORCE LAYER ISOLATION                          */
+  /* LOCK BACKGROUND SCROLL                                                  */
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -39,16 +39,17 @@ export default function PlayerInsightsOverlay({
   if (!mounted) return null;
 
   return (
+    /* ------------------------------------------------------------------ */
+    /* BACKDROP — pointer-events disabled so it NEVER steals scroll        */
+    /* ------------------------------------------------------------------ */
     <div
       className="
         fixed inset-0 z-[999]
         isolate
         bg-black/80
         backdrop-blur-md
+        pointer-events-none
       "
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       {/* ============================== */}
       {/* DESKTOP RIGHT PANEL            */}
@@ -61,8 +62,8 @@ export default function PlayerInsightsOverlay({
           border-l border-yellow-500/30
           shadow-[0_0_80px_rgba(250,204,21,0.45)]
           z-[1000]
+          pointer-events-auto
         "
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex h-full flex-col">
           {/* Header */}
@@ -115,11 +116,17 @@ export default function PlayerInsightsOverlay({
       {/* MOBILE BOTTOM SHEET            */}
       {/* ============================== */}
       <div
-        className="md:hidden fixed inset-0 flex items-end justify-center z-[1000]"
-        onClick={(e) => e.stopPropagation()}
+        className="
+          md:hidden fixed inset-0
+          flex items-end justify-center
+          z-[1000]
+          pointer-events-auto
+        "
+        onClick={onClose} // tap outside sheet closes
       >
         <div
           ref={sheetRef}
+          onClick={(e) => e.stopPropagation()}
           className="
             w-full h-[85vh]
             rounded-t-3xl
@@ -127,6 +134,7 @@ export default function PlayerInsightsOverlay({
             border-t border-yellow-500/30
             shadow-[0_0_80px_rgba(250,204,21,0.45)]
             flex flex-col
+            pointer-events-auto
           "
         >
           {/* Handle */}
@@ -173,10 +181,16 @@ export default function PlayerInsightsOverlay({
             ))}
           </div>
 
-          {/* Scrollable Content */}
+          {/* ✅ TRUE SCROLL CONTAINER */}
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto px-4 pb-[max(5rem,env(safe-area-inset-bottom))]"
+            className="
+              flex-1
+              min-h-0
+              overflow-y-auto
+              px-4
+              pb-[max(5rem,env(safe-area-inset-bottom))]
+            "
           >
             <InsightsContent player={player} selectedStat={selectedStat} />
           </div>
