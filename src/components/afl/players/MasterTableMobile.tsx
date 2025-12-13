@@ -45,7 +45,6 @@ export default function MasterTableMobile({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // ✅ ADDED — team filter state + dropdown state
   const [teamFilter, setTeamFilter] = useState<string | null>(null);
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
 
@@ -88,7 +87,6 @@ export default function MasterTableMobile({
       <div className="relative mt-6">
         <div className="absolute inset-0 backdrop-blur-[14px]" />
         <div className="relative rounded-3xl border border-neutral-800 bg-black/80 px-4 py-4 shadow-xl">
-          {/* Top row */}
           <div className="flex items-center justify-between">
             <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
@@ -97,7 +95,6 @@ export default function MasterTableMobile({
               </span>
             </div>
 
-            {/* ✅ TEAM FILTER BUTTON (top right) */}
             <div className="relative">
               <button
                 onClick={() => {
@@ -113,7 +110,6 @@ export default function MasterTableMobile({
                 {teamFilter ?? "Select Team"}
               </button>
 
-              {/* Dropdown */}
               {showTeamDropdown && isPremium && (
                 <div className="absolute right-0 z-50 mt-2 w-44 rounded-2xl border border-neutral-700 bg-black/95 p-1 shadow-xl">
                   <button
@@ -151,7 +147,6 @@ export default function MasterTableMobile({
             Round-by-round production.
           </p>
 
-          {/* Lens selector — UNCHANGED */}
           <div className="mt-4 flex gap-2 rounded-full border border-neutral-700 bg-black/80 px-2 py-1 text-[11px]">
             {(["Fantasy", "Disposals", "Goals"] as StatLens[]).map((s) => (
               <button
@@ -169,7 +164,6 @@ export default function MasterTableMobile({
             ))}
           </div>
 
-          {/* Search — UNCHANGED */}
           <div className="mt-3">
             {isPremium ? (
               <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-black/70 px-3 py-2">
@@ -193,8 +187,7 @@ export default function MasterTableMobile({
         </div>
       </div>
 
-            {/* ================= TABLE ================= */}
-      {/* EVERYTHING BELOW IS UNCHANGED */}
+      {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
         <div className="overflow-x-auto overflow-y-visible scrollbar-none">
           <div style={{ width: tableWidth }}>
@@ -253,10 +246,48 @@ export default function MasterTableMobile({
                       ))}
                     </div>
 
+                    {/* Blur for gated rows */}
                     {gated && (
-                      <div className="pointer-events-none absolute inset-0">
+                      <div className="pointer-events-none absolute inset-0 z-20">
                         <div className="absolute inset-0 backdrop-blur-[16px]" />
                         <div className="absolute inset-0 bg-black/45" />
+                      </div>
+                    )}
+
+                    {/* CTA overlay (row 9, spans rows 9–10) */}
+                    {!isPremium && idx === 8 && (
+                      <div
+                        className="absolute z-30 flex items-center justify-center"
+                        style={{
+                          top: 0,
+                          left: LEFT_COL_W,
+                          right: 0,
+                          height: "200%",
+                        }}
+                      >
+                        <button
+                          onClick={() => setShowUpgrade(true)}
+                          className="pointer-events-auto mx-4 w-full max-w-sm rounded-3xl
+                                     border border-yellow-500/30
+                                     bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent
+                                     px-5 py-4 text-left shadow-xl"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
+                                Neeko+
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-yellow-100">
+                                Unlock full player table
+                              </div>
+                              <div className="mt-1 text-xs text-neutral-300">
+                                Full season trends, team filters & AI insights.
+                              </div>
+                            </div>
+
+                            <ArrowRight className="h-5 w-5 text-yellow-300 shrink-0" />
+                          </div>
+                        </button>
                       </div>
                     )}
                   </div>
