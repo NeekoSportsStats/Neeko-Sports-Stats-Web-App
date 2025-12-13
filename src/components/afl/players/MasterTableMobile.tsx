@@ -18,6 +18,9 @@ const LEFT_COL_W = 124;
 const CELL_W = 52;
 const CELL_GAP = 4;
 
+/* ✅ ADD: real rendered row height */
+const ROW_H = 72;
+
 // Shared stats row layout (header + body must match exactly)
 const STATS_ROW_CLASS = "flex gap-[4px] px-1.5";
 
@@ -186,6 +189,53 @@ export default function MasterTableMobile({
           </div>
         </div>
       </div>
+
+      {/* ================= TABLE ================= */}
+      <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
+        <div className="relative">
+          <div className="overflow-x-auto overflow-y-visible scrollbar-none">
+            <div className="relative" style={{ width: tableWidth }}>
+              {/* ================= CTA OVERLAY ================= */}
+              {!isPremium && (
+                <div
+                  className="absolute z-40 pointer-events-none"
+                  style={{
+                    /* ✅ FIXED: align CTA to Player 9 */
+                    top: 8 * ROW_H,
+                    left: LEFT_COL_W + 6,
+                    right: 0,
+                    height: 128,
+                  }}
+                >
+                  <div className="flex h-full items-center justify-center">
+                    <button
+                      onClick={() => setShowUpgrade(true)}
+                      className="pointer-events-auto mx-4 w-full max-w-sm rounded-3xl
+                             border border-yellow-500/30
+                             bg-gradient-to-r from-yellow-500/25 via-yellow-500/10 to-transparent
+                             px-5 py-4 text-left shadow-xl"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[11px] uppercase tracking-[0.18em] text-yellow-200/80">
+                            Neeko+
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-yellow-100">
+                            Unlock full player table
+                          </div>
+                          <div className="mt-1 text-xs text-neutral-300">
+                            Full season trends, team filters & AI insights.
+                          </div>
+                        </div>
+
+                        <ArrowRight className="h-5 w-5 text-yellow-300 shrink-0" />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* table continues unchanged */}
 
       {/* ================= TABLE ================= */}
       <div className="mt-4 rounded-3xl border border-neutral-800 bg-black/90 shadow-xl overflow-hidden">
