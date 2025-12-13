@@ -40,7 +40,7 @@ export default function PlayerInsightsContent({
       : "text-red-400";
 
   /* ------------------------------------------------------------------ */
-  /* SAFE STATIC STYLE MAPS (FIXES PRODUCTION CRASH)                      */
+  /* SAFE STATIC STYLE MAPS                                              */
   /* ------------------------------------------------------------------ */
 
   const LENS_BADGE_CLASS: Record<StatLens, string> = {
@@ -65,7 +65,8 @@ export default function PlayerInsightsContent({
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 text-[11px] text-neutral-200">
+    // ✅ FIX: removed h-full (this was breaking iOS scrolling)
+    <div className="flex flex-col gap-4 text-[11px] text-neutral-200 pb-6">
       {/* Round-by-round strip */}
       <div>
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
@@ -134,14 +135,18 @@ export default function PlayerInsightsContent({
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Min
             </div>
-            <div className="mt-1 text-sm text-neutral-100">{summary.min}</div>
+            <div className="mt-1 text-sm text-neutral-100">
+              {summary.min}
+            </div>
           </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
               Max
             </div>
-            <div className="mt-1 text-sm text-neutral-100">{summary.max}</div>
+            <div className="mt-1 text-sm text-neutral-100">
+              {summary.max}
+            </div>
           </div>
 
           <div>
