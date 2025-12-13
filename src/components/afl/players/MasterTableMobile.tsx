@@ -141,7 +141,7 @@ export default function MasterTableMobile({
                 </div>
               </div>
 
-              <div className={STATS_ROW_CLASS}>
+              <div className={`${STATS_ROW_CLASS} py-4`}>
                 {ROUND_LABELS.map((r) => (
                   <div
                     key={r}
