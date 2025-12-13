@@ -134,7 +134,10 @@ export default function MasterTableMobile({
           <div style={{ width: tableWidth }}>
             {/* Header row */}
             <div className="flex border-b border-neutral-800/80">
-              <div className="px-4 py-4" style={{ width: LEFT_COL_W }}>
+              <div
+                className="px-4 py-4 sticky left-0 z-20 bg-black/90"
+                style={{ width: LEFT_COL_W }}
+               >
                 <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
                   Player
                 </div>
@@ -161,10 +164,10 @@ export default function MasterTableMobile({
                 return (
                   <div key={p.id} className="relative flex" style={{ width: tableWidth }}>
                     <button
-                      disabled={gated}
-                      onClick={() => onSelectPlayer(p)}
-                      className="px-4 py-4 flex items-center justify-between text-left"
-                      style={{ width: LEFT_COL_W }}
+                     disabled={gated}
+                     onClick={() => onSelectPlayer(p)}
+                     className="px-4 py-4 flex items-center justify-between text-left sticky left-0 z-10 bg-black/90"
+                     style={{ width: LEFT_COL_W }}
                     >
                       <span className="text-[15px] font-semibold text-neutral-50 whitespace-nowrap">
                         {p.name}
